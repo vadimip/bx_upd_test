@@ -1,0 +1,7 @@
+<?
+if($INCLUDE_FROM_CACHE!='Y')return false;
+$datecreate = '001648663468';
+$dateexpire = '001648667068';
+$ser_content = 'a:2:{s:7:"CONTENT";s:0:"";s:4:"VARS";a:7:{s:2:"de";a:2:{i:0;a:3:{s:9:"CONDITION";s:23:"CSite::inDir(\'/de-de/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"de";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"de";}}s:2:"es";a:2:{i:0;a:3:{s:9:"CONDITION";s:23:"CSite::inDir(\'/es-es/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"es";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"es";}}s:2:"it";a:2:{i:0;a:3:{s:9:"CONDITION";s:23:"CSite::inDir(\'/it-it/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"it";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"it";}}s:2:"pl";a:2:{i:0;a:3:{s:9:"CONDITION";s:23:"CSite::inDir(\'/pl-pl/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"pl";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"pl";}}s:2:"s1";a:2:{i:0;a:3:{s:9:"CONDITION";s:17:"CSite::inDir(\'/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"s1";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"s1";}}s:2:"s2";a:1:{i:0;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:8:"1ci_blog";s:7:"SITE_ID";s:2:"s2";}}s:2:"tr";a:2:{i:0;a:3:{s:9:"CONDITION";s:23:"CSite::inDir(\'/tr-tr/\')";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"tr";}i:1;a:3:{s:9:"CONDITION";s:0:"";s:8:"TEMPLATE";s:3:"1ci";s:7:"SITE_ID";s:2:"tr";}}}}';
+return true;
+?>

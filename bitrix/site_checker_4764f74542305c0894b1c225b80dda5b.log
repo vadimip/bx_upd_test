@@ -1,0 +1,230 @@
+2019-Apr-17 10:48:14 Required PHP Modules (check_php_modules): Ok
+All required modules are installed.
+2019-Apr-17 10:48:14 PHP Required Parameters (check_php_settings): Ok
+Settings are correct
+2019-Apr-17 10:48:14 Web server modules (check_security): Ok
+No conflicts.
+2019-Apr-17 10:48:14 Server Variables (check_server_vars): Ok
+Correct
+2019-Apr-17 10:48:14 Session retention (check_session): Ok
+50% done
+2019-Apr-17 10:48:15 Session retention (check_session): Ok
+Success
+2019-Apr-17 10:48:15 UTF configuration parameters (mbstring and BX_UTF) (check_mbstring): Ok
+Correct. The website runs in UTF encoding
+2019-Apr-17 10:48:15 Service scripts in the site root (check_install_scripts): Ok
+None
+2019-Apr-17 10:48:15 Using sockets (check_socket): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:15 Use cron to run agents (check_bx_crontab): Ok
+Success
+2019-Apr-17 10:48:15 Database connection parameters (check_dbconn_settings): Ok
+Success
+2019-Apr-17 10:48:15 Redundant output in configuration files (check_dbconn): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:15 Session retention without UserAgent (check_session_ua): Ok
+50% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:15 Session retention without UserAgent (check_session_ua): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:15 Website Parameters (check_sites): Ok
+Correct
+2019-Apr-17 10:48:16 Passing objects by reference (check_clone): Ok
+Success
+2019-Apr-17 10:48:16 Stack size; pcre.recursion_limit (check_pcre_recursion): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:16 File upload (check_upload): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:16 Upload files over 4MB (check_upload_big): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:16 Upload file using php://input (check_upload_raw): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:16 POST requests with many parameters (check_post): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:18 E-mail sending (check_mail): Warning
+Warning. Sent on: 1.55 sec.
+2019-Apr-17 10:48:20 Large e-mail sending (over 64 KB) (check_mail_big): Warning
+Warning. Sent on: 2.45 sec.
+2019-Apr-17 10:48:20 Check for unsent messages (check_mail_b_event): Ok
+Success
+2019-Apr-17 10:48:20 Local redirects (LocalRedirect function) (check_localredirect): Ok
+50% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:21 Local redirects (LocalRedirect function) (check_localredirect): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:21 Memory limit (check_memory_limit): Ok
+20% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:21 Memory limit (check_memory_limit): Ok
+40% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:21 Memory limit (check_memory_limit): Ok
+60% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:21 Memory limit (check_memory_limit): Ok
+80% done
+Connection to ssl://my.1ci.com:443	Success
+
+2019-Apr-17 10:48:22 Memory limit (check_memory_limit): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Not less than 256 M.
+2019-Apr-17 10:48:22 Using cache files (check_cache): Ok
+Success
+2019-Apr-17 10:48:22 Access to update server (check_update): Ok
+Success
+2019-Apr-17 10:48:22 HTTP authorization (check_http_auth): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:22 File creation and execution (check_exec): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2019-Apr-17 10:48:22 getimagesize support for SWF (check_getimagesize): Ok
+Success
+2019-Apr-17 10:48:22 MySQL version (check_mysql_bug_version): Ok
+Success
+2019-Apr-17 10:48:23 Database and web server times (check_mysql_time): Ok
+Success
+2019-Apr-17 10:48:23 MySQL Mode (check_mysql_mode): Ok
+Success
+2019-Apr-17 10:48:23 Connection charset (check_mysql_connection_charset): Ok
+character_set_connection=utf8, collation_connection=utf8_unicode_ci, character_set_results=utf8
+Success
+2019-Apr-17 10:48:23 Database charset (check_mysql_db_charset): Ok
+CHARSET=utf8, COLLATION=utf8_unicode_ci
+Success
+2019-Apr-17 10:48:23 Database table charset (check_mysql_table_charset): Ok
+Success
+2019-Apr-17 10:48:24 Database structure (check_mysql_table_structure): Ok
+0% done
+2019-Apr-17 10:48:37 Database structure (check_mysql_table_structure): Ok
+1% done
+2019-Apr-17 10:48:37 Database structure (check_mysql_table_structure): Ok
+3% done
+2019-Apr-17 10:48:38 Database structure (check_mysql_table_structure): Ok
+5% done
+2019-Apr-17 10:48:38 Database structure (check_mysql_table_structure): Ok
+7% done
+2019-Apr-17 10:48:38 Database structure (check_mysql_table_structure): Ok
+9% done
+2019-Apr-17 10:48:38 Database structure (check_mysql_table_structure): Ok
+11% done
+2019-Apr-17 10:48:41 Database structure (check_mysql_table_structure): Ok
+13% done
+2019-Apr-17 10:48:42 Database structure (check_mysql_table_structure): Ok
+15% done
+2019-Apr-17 10:48:42 Database structure (check_mysql_table_structure): Ok
+16% done
+2019-Apr-17 10:48:42 Database structure (check_mysql_table_structure): Ok
+18% done
+2019-Apr-17 10:48:42 Database structure (check_mysql_table_structure): Ok
+20% done
+2019-Apr-17 10:48:42 Database structure (check_mysql_table_structure): Ok
+22% done
+2019-Apr-17 10:48:45 Database structure (check_mysql_table_structure): Ok
+24% done
+2019-Apr-17 10:48:45 Database structure (check_mysql_table_structure): Ok
+26% done
+2019-Apr-17 10:48:48 Database structure (check_mysql_table_structure): Ok
+28% done
+2019-Apr-17 10:48:49 Database structure (check_mysql_table_structure): Ok
+30% done
+2019-Apr-17 10:48:49 Database structure (check_mysql_table_structure): Ok
+32% done
+2019-Apr-17 10:48:49 Database structure (check_mysql_table_structure): Ok
+33% done
+2019-Apr-17 10:48:50 Database structure (check_mysql_table_structure): Ok
+35% done
+2019-Apr-17 10:48:50 Database structure (check_mysql_table_structure): Ok
+37% done
+2019-Apr-17 10:48:51 Database structure (check_mysql_table_structure): Ok
+39% done
+2019-Apr-17 10:48:53 Database structure (check_mysql_table_structure): Ok
+41% done
+2019-Apr-17 10:48:53 Database structure (check_mysql_table_structure): Ok
+43% done
+2019-Apr-17 10:48:53 Database structure (check_mysql_table_structure): Ok
+45% done
+2019-Apr-17 10:48:54 Database structure (check_mysql_table_structure): Ok
+47% done
+2019-Apr-17 10:48:55 Database structure (check_mysql_table_structure): Ok
+49% done
+2019-Apr-17 10:48:55 Database structure (check_mysql_table_structure): Ok
+50% done
+2019-Apr-17 10:48:55 Database structure (check_mysql_table_structure): Ok
+52% done
+2019-Apr-17 10:48:56 Database structure (check_mysql_table_structure): Ok
+54% done
+2019-Apr-17 10:48:56 Database structure (check_mysql_table_structure): Ok
+56% done
+2019-Apr-17 10:48:57 Database structure (check_mysql_table_structure): Ok
+58% done
+2019-Apr-17 10:48:57 Database structure (check_mysql_table_structure): Ok
+60% done
+2019-Apr-17 10:48:57 Database structure (check_mysql_table_structure): Ok
+62% done
+2019-Apr-17 10:49:01 Database structure (check_mysql_table_structure): Ok
+64% done
+2019-Apr-17 10:49:02 Database structure (check_mysql_table_structure): Ok
+66% done
+2019-Apr-17 10:49:02 Database structure (check_mysql_table_structure): Ok
+67% done
+2019-Apr-17 10:49:02 Database structure (check_mysql_table_structure): Ok
+69% done
+2019-Apr-17 10:49:03 Database structure (check_mysql_table_structure): Ok
+71% done
+2019-Apr-17 10:49:03 Database structure (check_mysql_table_structure): Ok
+73% done
+2019-Apr-17 10:49:03 Database structure (check_mysql_table_structure): Ok
+75% done
+2019-Apr-17 10:49:03 Database structure (check_mysql_table_structure): Ok
+77% done
+2019-Apr-17 10:49:13 Database structure (check_mysql_table_structure): Ok
+79% done
+2019-Apr-17 10:49:18 Database structure (check_mysql_table_structure): Ok
+81% done
+2019-Apr-17 10:49:20 Database structure (check_mysql_table_structure): Ok
+83% done
+2019-Apr-17 10:49:20 Database structure (check_mysql_table_structure): Ok
+84% done
+2019-Apr-17 10:49:20 Database structure (check_mysql_table_structure): Ok
+86% done
+2019-Apr-17 10:49:20 Database structure (check_mysql_table_structure): Ok
+88% done
+2019-Apr-17 10:49:21 Database structure (check_mysql_table_structure): Ok
+90% done
+2019-Apr-17 10:49:21 Database structure (check_mysql_table_structure): Ok
+92% done
+2019-Apr-17 10:49:21 Database structure (check_mysql_table_structure): Ok
+94% done
+2019-Apr-17 10:49:23 Database structure (check_mysql_table_structure): Ok
+96% done
+2019-Apr-17 10:49:24 Database structure (check_mysql_table_structure): Ok
+98% done
+2019-Apr-17 10:49:24 Database structure (check_mysql_table_structure): Ok
+Success

@@ -1,0 +1,229 @@
+2020-Dec-24 22:40:54 Required PHP Modules (check_php_modules): Ok
+All required modules are installed.
+2020-Dec-24 22:40:54 PHP Required Parameters (check_php_settings): Ok
+Settings are correct
+2020-Dec-24 22:40:54 Web server modules (check_security): Ok
+No conflicts.
+2020-Dec-24 22:40:54 Server Variables (check_server_vars): Ok
+Correct
+2020-Dec-24 22:40:54 Session retention (check_session): Ok
+50% done
+2020-Dec-24 22:40:55 Session retention (check_session): Ok
+Success
+2020-Dec-24 22:40:55 UTF configuration parameters (mbstring and BX_UTF) (check_mbstring): Ok
+Correct. The website runs in UTF encoding
+2020-Dec-24 22:40:55 Service scripts in the site root (check_install_scripts): Ok
+None
+2020-Dec-24 22:40:55 Using sockets (check_socket): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:55 Use cron to run agents (check_bx_crontab): Ok
+Success
+2020-Dec-24 22:40:55 Database connection parameters (check_dbconn_settings): Ok
+Success
+2020-Dec-24 22:40:55 Redundant output in configuration files (check_dbconn): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:55 Session retention without UserAgent (check_session_ua): Ok
+50% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:40:55 Session retention without UserAgent (check_session_ua): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:55 Website Parameters (check_sites): Ok
+Correct
+2020-Dec-24 22:40:56 Passing objects by reference (check_clone): Ok
+Success
+2020-Dec-24 22:40:56 Stack size; pcre.recursion_limit (check_pcre_recursion): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:56 File upload (check_upload): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:56 Upload files over 4MB (check_upload_big): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:56 Upload file using php://input (check_upload_raw): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:56 POST requests with many parameters (check_post): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:40:58 E-mail sending (check_mail): Warning
+Warning. Sent on: 1.4 sec.
+2020-Dec-24 22:41:00 Large e-mail sending (over 64 KB) (check_mail_big): Warning
+Warning. Sent on: 2.37 sec.
+2020-Dec-24 22:41:00 Check for unsent messages (check_mail_b_event): Ok
+Success
+2020-Dec-24 22:41:00 Local redirects (LocalRedirect function) (check_localredirect): Ok
+50% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:41:01 Local redirects (LocalRedirect function) (check_localredirect): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:41:01 Memory limit (check_memory_limit): Ok
+20% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:41:01 Memory limit (check_memory_limit): Ok
+40% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:41:01 Memory limit (check_memory_limit): Ok
+60% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:41:01 Memory limit (check_memory_limit): Ok
+80% done
+Connection to ssl://my.1ci.com:443	Success
+
+2020-Dec-24 22:41:01 Memory limit (check_memory_limit): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Not less than 256 M.
+2020-Dec-24 22:41:02 Using cache files (check_cache): Ok
+Success
+2020-Dec-24 22:41:02 Access to update server (check_update): Ok
+Success
+2020-Dec-24 22:41:02 HTTP authorization (check_http_auth): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:41:02 File creation and execution (check_exec): Ok
+Connection to ssl://my.1ci.com:443	Success
+
+Success
+2020-Dec-24 22:41:02 getimagesize support for SWF (check_getimagesize): Ok
+Success
+2020-Dec-24 22:41:02 MySQL version (check_mysql_bug_version): Ok
+Success
+2020-Dec-24 22:41:03 Database and web server times (check_mysql_time): Ok
+Success
+2020-Dec-24 22:41:03 MySQL Mode (check_mysql_mode): Ok
+Success
+2020-Dec-24 22:41:03 Connection charset (check_mysql_connection_charset): Ok
+character_set_connection=utf8, collation_connection=utf8_unicode_ci, character_set_results=utf8
+Success
+2020-Dec-24 22:41:03 Database charset (check_mysql_db_charset): Ok
+CHARSET=utf8, COLLATION=utf8_unicode_ci
+Success
+2020-Dec-24 22:41:03 Database table charset (check_mysql_table_charset): Ok
+Success
+2020-Dec-24 22:41:04 Database structure (check_mysql_table_structure): Ok
+0% done
+2020-Dec-24 22:41:11 Database structure (check_mysql_table_structure): Ok
+1% done
+2020-Dec-24 22:41:11 Database structure (check_mysql_table_structure): Ok
+3% done
+2020-Dec-24 22:41:11 Database structure (check_mysql_table_structure): Ok
+5% done
+2020-Dec-24 22:41:11 Database structure (check_mysql_table_structure): Ok
+7% done
+2020-Dec-24 22:41:11 Database structure (check_mysql_table_structure): Ok
+9% done
+2020-Dec-24 22:41:13 Database structure (check_mysql_table_structure): Ok
+11% done
+2020-Dec-24 22:41:14 Database structure (check_mysql_table_structure): Ok
+13% done
+2020-Dec-24 22:41:14 Database structure (check_mysql_table_structure): Ok
+15% done
+2020-Dec-24 22:41:14 Database structure (check_mysql_table_structure): Ok
+17% done
+2020-Dec-24 22:41:14 Database structure (check_mysql_table_structure): Ok
+19% done
+2020-Dec-24 22:41:16 Database structure (check_mysql_table_structure): Ok
+21% done
+2020-Dec-24 22:41:16 Database structure (check_mysql_table_structure): Ok
+23% done
+2020-Dec-24 22:41:18 Database structure (check_mysql_table_structure): Ok
+25% done
+2020-Dec-24 22:41:18 Database structure (check_mysql_table_structure): Ok
+27% done
+2020-Dec-24 22:41:18 Database structure (check_mysql_table_structure): Ok
+29% done
+2020-Dec-24 22:41:19 Database structure (check_mysql_table_structure): Ok
+31% done
+2020-Dec-24 22:41:21 Database structure (check_mysql_table_structure): Ok
+33% done
+2020-Dec-24 22:41:21 Database structure (check_mysql_table_structure): Ok
+35% done
+2020-Dec-24 22:41:21 Database structure (check_mysql_table_structure): Ok
+37% done
+2020-Dec-24 22:41:22 Database structure (check_mysql_table_structure): Ok
+39% done
+2020-Dec-24 22:41:22 Database structure (check_mysql_table_structure): Ok
+41% done
+2020-Dec-24 22:41:22 Database structure (check_mysql_table_structure): Ok
+43% done
+2020-Dec-24 22:41:23 Database structure (check_mysql_table_structure): Ok
+45% done
+2020-Dec-24 22:41:23 Database structure (check_mysql_table_structure): Ok
+47% done
+2020-Dec-24 22:41:23 Database structure (check_mysql_table_structure): Ok
+49% done
+2020-Dec-24 22:41:24 Database structure (check_mysql_table_structure): Ok
+50% done
+2020-Dec-24 22:41:24 Database structure (check_mysql_table_structure): Ok
+52% done
+2020-Dec-24 22:41:24 Database structure (check_mysql_table_structure): Ok
+54% done
+2020-Dec-24 22:41:24 Database structure (check_mysql_table_structure): Ok
+56% done
+2020-Dec-24 22:41:24 Database structure (check_mysql_table_structure): Ok
+58% done
+2020-Dec-24 22:41:25 Database structure (check_mysql_table_structure): Ok
+60% done
+2020-Dec-24 22:41:27 Database structure (check_mysql_table_structure): Ok
+62% done
+2020-Dec-24 22:41:27 Database structure (check_mysql_table_structure): Ok
+64% done
+2020-Dec-24 22:41:27 Database structure (check_mysql_table_structure): Ok
+66% done
+2020-Dec-24 22:41:27 Database structure (check_mysql_table_structure): Ok
+68% done
+2020-Dec-24 22:41:28 Database structure (check_mysql_table_structure): Ok
+70% done
+2020-Dec-24 22:41:28 Database structure (check_mysql_table_structure): Ok
+72% done
+2020-Dec-24 22:41:28 Database structure (check_mysql_table_structure): Ok
+74% done
+2020-Dec-24 22:41:29 Database structure (check_mysql_table_structure): Ok
+76% done
+2020-Dec-24 22:41:34 Database structure (check_mysql_table_structure): Ok
+78% done
+Table b_culture: the field DAY_MONTH_FORMAT "`DAY_MONTH_FORMAT` varchar(50) NULL DEFAULT "M j"" does not match the description "`DAY_MONTH_FORMAT` varchar(50) NULL DEFAULT "F j""
+
+2020-Dec-24 22:41:37 Database structure (check_mysql_table_structure): Ok
+80% done
+2020-Dec-24 22:41:38 Database structure (check_mysql_table_structure): Ok
+82% done
+2020-Dec-24 22:41:38 Database structure (check_mysql_table_structure): Ok
+84% done
+2020-Dec-24 22:41:38 Database structure (check_mysql_table_structure): Ok
+86% done
+2020-Dec-24 22:41:38 Database structure (check_mysql_table_structure): Ok
+88% done
+2020-Dec-24 22:41:39 Database structure (check_mysql_table_structure): Ok
+90% done
+2020-Dec-24 22:41:39 Database structure (check_mysql_table_structure): Ok
+92% done
+2020-Dec-24 22:41:39 Database structure (check_mysql_table_structure): Ok
+94% done
+2020-Dec-24 22:41:40 Database structure (check_mysql_table_structure): Ok
+96% done
+2020-Dec-24 22:41:40 Database structure (check_mysql_table_structure): Ok
+98% done
+2020-Dec-24 22:41:41 Database structure (check_mysql_table_structure): Fail
+ALTER TABLE `b_culture` CHANGE `DAY_MONTH_FORMAT` `DAY_MONTH_FORMAT` varchar(50) NULL DEFAULT "F j";
+Error! There are errors in database structure. Total issues: 1. 1 can be fixed right away. Fix
