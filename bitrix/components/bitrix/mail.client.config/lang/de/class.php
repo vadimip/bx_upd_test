@@ -96,9 +96,6 @@ $MESS["MAIL_CLIENT_CONFIG_TITLE"] = "Mailbox-Integration";
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_1"] = "Tag";
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_2"] = "Tage";
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_3"] = "Tage";
-$MESS["MAIL_MAILBOX_LICENSE_AGE_LIMIT_DESCR"] = "Die Anzahl der Tage, für die E-Mails heruntergeladen werden, hängt vom jeweiligen Bitrix24 Tarif ab.
-<br><br>
-In Ihrem aktuellen Tarif können die E-Mails für die #LIMIT# letzten #DAYS# geholt werden.";
 $MESS["MAIL_MAILBOX_LICENSE_AGE_LIMIT_TITLE"] = "E-Mails werden heruntergeladen";
 $MESS["MAIL_MAILBOX_LICENSE_SHARED_LIMIT_BODY"] = "Die Anzahl der gemeinsam genutzten Mailboxen hängt vom jeweiligen Tarif ab.
 <br><br>

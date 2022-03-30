@@ -1,4 +1,5 @@
 <?php
+
 namespace Bitrix\Socialnetwork\Livefeed;
 
 use Bitrix\Main\Config\Option;
@@ -10,25 +11,25 @@ Loc::loadMessages(__FILE__);
 
 final class TimemanEntry extends Provider
 {
-	const PROVIDER_ID = 'TIMEMAN_ENTRY';
-	const CONTENT_TYPE_ID = 'TIMEMAN_ENTRY';
+	public const PROVIDER_ID = 'TIMEMAN_ENTRY';
+	public const CONTENT_TYPE_ID = 'TIMEMAN_ENTRY';
 
 	public static function getId(): string
 	{
 		return static::PROVIDER_ID;
 	}
 
-	public function getEventId()
+	public function getEventId(): array
 	{
-		return array('timeman_entry');
+		return [ 'timeman_entry' ];
 	}
 
-	public function getType()
+	public function getType(): string
 	{
 		return Provider::TYPE_POST;
 	}
 
-	public function getCommentProvider()
+	public function getCommentProvider(): Provider
 	{
 		return new ForumPost();
 	}
@@ -37,7 +38,7 @@ final class TimemanEntry extends Provider
 	{
 		static $cache = [];
 
-		$timemanEntryId = (int)$this->entityId;
+		$timemanEntryId = $this->entityId;
 
 		if ($timemanEntryId <= 0)
 		{
@@ -60,32 +61,34 @@ final class TimemanEntry extends Provider
 			$cache[$timemanEntryId] = $timemanEntry;
 		}
 
-		if (empty($timemanEntry))
+		if (!empty($timemanEntry))
 		{
-			return;
+			$this->setSourceFields($timemanEntry);
+
+			$userName = '';
+			$res = \CUser::getById($timemanEntry['USER_ID']);
+			if ($userFields = $res->fetch())
+			{
+				$userName = \CUser::formatName(
+					\CSite::getNameFormat(),
+					$userFields,
+					true,
+					false
+				);
+			}
+
+			$this->setSourceTitle(Loc::getMessage('SONET_LIVEFEED_TIMEMAN_ENTRY_TITLE', [
+				'#USER_NAME#' => $userName,
+				'#DATE#' => FormatDate('j F', makeTimeStamp($timemanEntry['DATE_START']))
+			]));
 		}
-
-		$this->setSourceFields($timemanEntry);
-
-		$userName = '';
-		$res = \CUser::getById($timemanEntry['USER_ID']);
-		if ($userFields = $res->fetch())
+		else
 		{
-			$userName = \CUser::formatName(
-				\CSite::getNameFormat(),
-				$userFields,
-				true,
-				false
-			);
+			$this->setSourceTitle($this->getUnavailableTitle());
 		}
-
-		$this->setSourceTitle(Loc::getMessage('SONET_LIVEFEED_TIMEMAN_ENTRY_TITLE', [
-			'#USER_NAME#' => $userName,
-			'#DATE#' => FormatDate('j F', makeTimeStamp($timemanEntry['DATE_START']))
-		]));
 	}
 
-	public function getPinnedDescription()
+	public function getPinnedDescription(): string
 	{
 		$result = '';
 
@@ -100,8 +103,7 @@ final class TimemanEntry extends Provider
 			return $result;
 		}
 
-		$result = Loc::getMessage((int)$timemanEntry['APPROVED_BY'] <= 0 ? 'SONET_LIVEFEED_TIMEMAN_ENTRY_PINNED_DESCRIPTION' : 'SONET_LIVEFEED_TIMEMAN_ENTRY_PINNED_DESCRIPTION2');
-		return $result;
+		return (string)Loc::getMessage((int)$timemanEntry['APPROVED_BY'] <= 0 ? 'SONET_LIVEFEED_TIMEMAN_ENTRY_PINNED_DESCRIPTION' : 'SONET_LIVEFEED_TIMEMAN_ENTRY_PINNED_DESCRIPTION2');
 	}
 
 	public static function canRead($params): bool
@@ -124,7 +126,7 @@ final class TimemanEntry extends Provider
 			$pathToLogEntry = Option::get('socialnetwork', 'log_entry_page', '', $this->getSiteId());
 			if (!empty($pathToLogEntry))
 			{
-				$pathToLogEntry = \CComponentEngine::makePathFromTemplate($pathToLogEntry, array("log_id" => $logId));
+				$pathToLogEntry = \CComponentEngine::makePathFromTemplate($pathToLogEntry, [ 'log_id' => $logId ]);
 			}
 		}
 		return $pathToLogEntry;

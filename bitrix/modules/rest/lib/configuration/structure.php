@@ -8,16 +8,21 @@ use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\Json;
 use Bitrix\Main\IO\File;
 use Bitrix\Disk\Driver;
+use Bitrix\Rest\Configuration\Core\StorageTable;
 use Bitrix\Disk\Internals\ObjectTable;
 use CTempFile;
 use CFile;
 
 class Structure
 {
+	public const CODE_CONFIGURATION_FILES_LIST = 'CONFIGURATION_FILES_LIST';
+	public const CODE_FILES_LIST = 'FILES_LIST';
+	public const CODE_UNPACK_FILE_PREFIX = 'UNPACK_FILE_';
+	public const CODE_CUSTOM_FILE = 'CUSTOM_FILE_';
 	private static $maxAgentTime = 10;
 	private static $fileDescriptionDelete = 'configuration_delete';
-	private $context = '';
-	private $setting = null;
+	private $context;
+	private $setting;
 	private $zipMimeType = [
 		'application/zip',
 		'application/x-zip-compressed'
@@ -29,6 +34,8 @@ class Structure
 	{
 		$this->context = $context;
 		$this->setting = new Setting($context);
+		$this->setting->addMultipleCode(self::CODE_CONFIGURATION_FILES_LIST);
+		$this->setting->addMultipleCode(self::CODE_FILES_LIST);
 	}
 
 	/**
@@ -39,7 +46,7 @@ class Structure
 	public function getFolder()
 	{
 		$folder = $this->setting->get('FOLDER');
-		if(empty($folder))
+		if (empty($folder))
 		{
 			$folder = CTempFile::GetDirectoryName(
 				4,
@@ -48,7 +55,7 @@ class Structure
 					uniqid($this->context, true)
 				]
 			);
-			if(CheckDirPath($folder))
+			if (CheckDirPath($folder))
 			{
 				$this->setting->set('FOLDER', $folder);
 			}
@@ -75,11 +82,11 @@ class Structure
 
 		try
 		{
-			if(is_array($content))
+			if (is_array($content))
 			{
 				$content = Json::encode($content);
 			}
-			elseif(!is_string($content))
+			elseif (!is_string($content))
 			{
 				return $return;
 			}
@@ -96,7 +103,7 @@ class Structure
 				'configuration/export'
 			);
 
-			if($id > 0)
+			if ($id > 0)
 			{
 				$return = $this->saveConfigurationFile($id, $path);
 			}
@@ -116,21 +123,13 @@ class Structure
 	 */
 	private function saveConfigurationFile($id, $name)
 	{
-		$id = intVal($id);
-		$files = $this->getConfigurationFileList();
-		if(!is_array($files))
-		{
-			$files = [];
-		}
-		$key = array_search($name, $files);
-		if($key !== false)
-		{
-			unset($files[$key]);
-		}
+		$id = (int) $id;
+		$file = [
+			'ID' => $id,
+			'NAME' => $name
+		];
 
-		$files[$id] = $name;
-
-		return $this->setting->set('CONFIGURATION_FILES_LIST', $files);
+		return $this->setting->set(self::CODE_CONFIGURATION_FILES_LIST, $file);
 	}
 
 	/**
@@ -139,7 +138,7 @@ class Structure
 	 */
 	public function getConfigurationFileList()
 	{
-		return $this->setting->get('CONFIGURATION_FILES_LIST');
+		return $this->setting->get(self::CODE_CONFIGURATION_FILES_LIST);
 	}
 
 	/**
@@ -150,15 +149,8 @@ class Structure
 	 */
 	public function saveFile($id, $additionalData = [])
 	{
-		$id = intval($id);
-		$files = $this->getFileList();
-		if(!is_array($files))
-		{
-			$files = [];
-		}
-		$files[$id] = $additionalData;
-
-		return $this->setting->set('FILES_LIST', $files);
+		$additionalData['ID'] = (int) $id;
+		return $this->setting->set(self::CODE_FILES_LIST, $additionalData);
 	}
 
 	/**
@@ -167,7 +159,7 @@ class Structure
 	 */
 	public function getFileList()
 	{
-		return $this->setting->get('FILES_LIST');
+		return $this->setting->get(self::CODE_FILES_LIST);
 	}
 
 	/**
@@ -180,7 +172,7 @@ class Structure
 	{
 		$result = false;
 		$fileContent = File::getFileContents($fileInfo["tmp_name"]);
-		if($fileContent)
+		if ($fileContent)
 		{
 			$type = (in_array($fileInfo["type"], $this->zipMimeType)) ? 'ZIP' : 'TAR.GZ';
 			$folder = $this->getFolder();
@@ -189,7 +181,7 @@ class Structure
 			File::putFileContents($filePath, $fileContent);
 			$archive = \CBXArchive::GetArchive($filePath, $type);
 			$res = $archive->Unpack($folder);
-			if($res)
+			if ($res)
 			{
 				$this->initUnpackFilesList();
 				$result = true;
@@ -203,31 +195,51 @@ class Structure
 	private function initUnpackFilesList()
 	{
 		$folder = $this->getFolder();
-		if(File::isFileExists($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION))
+		if (File::isFileExists($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION))
 		{
 			$content = File::getFileContents($folder.Helper::STRUCTURE_FILES_NAME.Helper::CONFIGURATION_FILE_EXTENSION);
 			try
 			{
 				$files = Json::decode($content);
-				if(is_array($files))
+				if (is_array($files))
 				{
-					$saveFiles = [];
 					foreach ($files as $file)
 					{
-						$id = intval($file['ID']);
-						if($id > 0 && File::isFileExists($folder.Helper::STRUCTURE_FILES_NAME.'/'.$id))
+						$id = (int) $file['ID'];
+						if ($id > 0 && File::isFileExists($folder . Helper::STRUCTURE_FILES_NAME . '/' . $id))
 						{
-							$file['PATH'] = $folder.Helper::STRUCTURE_FILES_NAME.'/'.$id;
-							$saveFiles[$id] = $file;
+							$file['PATH'] = $folder . Helper::STRUCTURE_FILES_NAME . '/' . $id;
+							$this->setting->set(self::CODE_UNPACK_FILE_PREFIX . $id, $file);
 						}
 					}
-					$this->setting->set('UNPACK_FILES', $saveFiles);
 				}
 			}
 			catch (\Exception $e)
 			{
 			}
 		}
+	}
+
+	/**
+	 * Adds files list to current context
+	 * @param array $filesInfo
+	 * @param array $files
+	 *
+	 * @return bool
+	 */
+	public function addFileList(array $filesInfo, array $files): bool
+	{
+		foreach ($filesInfo as $file)
+		{
+			$id = (int) $file['ID'];
+			if ($id > 0 && $files[$id])
+			{
+				$file['PATH'] = $files[$id];
+				$this->setting->set(self::CODE_UNPACK_FILE_PREFIX . $id, $file);
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -240,14 +252,14 @@ class Structure
 	public function setUnpackFilesFromDisk($folderId, $storageParams)
 	{
 		$result = false;
-		if(Loader::includeModule('disk'))
+		if (Loader::includeModule('disk'))
 		{
 			try
 			{
 				$storage = Driver::getInstance()->addStorageIfNotExist(
 					$storageParams
 				);
-				if($storage)
+				if ($storage)
 				{
 					$folder = $storage->getChild(
 						[
@@ -290,23 +302,22 @@ class Structure
 											]
 										);
 
-										$saveFiles = [];
 										foreach ($folderFiles as $file)
 										{
 											$id = $file->getOriginalName();
-											if(!empty($fileList[$id]))
+											if (!empty($fileList[$id]))
 											{
 												$path = $documentRoot . CFile::GetPath(
 													$file->getFileId()
 												);
-												if(File::isFileExists($path))
+												if (File::isFileExists($path))
 												{
-													$saveFiles[$id] = $fileList[$id];
-													$saveFiles[$id]['PATH'] = $path;
+													$saveFile = $fileList[$id];
+													$saveFile['PATH'] = $path;
+													$this->setting->set(self::CODE_UNPACK_FILE_PREFIX . $file->getFileId(), $saveFile);
 												}
 											}
 										}
-										$this->setting->set('UNPACK_FILES', $saveFiles);
 
 										$result = true;
 									}
@@ -331,8 +342,7 @@ class Structure
 	 */
 	public function getUnpackFile($id)
 	{
-		$files = $this->setting->get('UNPACK_FILES');
-		return !empty($files[$id]) ? $files[$id] : false;
+		return $this->setting->get(self::CODE_UNPACK_FILE_PREFIX . (int) $id);
 	}
 
 	/**
@@ -345,7 +355,7 @@ class Structure
 	{
 		$result = false;
 		$name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
-		if(!empty($name))
+		if (!empty($name))
 		{
 			$result = $this->setting->set(Setting::SETTING_EXPORT_ARCHIVE_NAME, $name);
 		}
@@ -373,30 +383,17 @@ class Structure
 		$deleteDate = new DateTime();
 		$deleteDate->add('-2 days');
 
-		$res = CFile::getList(
-			[],
+		$res = StorageTable::getList(
 			[
-				'MODULE_ID' => 'rest'
+				'filter' => [
+					'<CREATE_TIME' => $deleteDate
+				]
 			]
 		);
-
-		$startTime = microtime(true);
-		while ($file = $res->fetch())
+		while ($item = $res->fetch())
 		{
-			if ($file['DESCRIPTION'] == static::$fileDescriptionDelete)
-			{
-				$creatDate = DateTime::createFromTimestamp(strtotime($file['TIMESTAMP_X']));
-
-				if ($creatDate < $deleteDate)
-				{
-					CFile::Delete($file['ID']);
-				}
-			}
-
-			if (microtime(true) - $startTime > static::$maxAgentTime)
-			{
-				break;
-			}
+			StorageTable::deleteFile($item);
+			StorageTable::delete($item['ID']);
 		}
 
 		return '\Bitrix\Rest\Configuration\Structure::clearContentAgent();';

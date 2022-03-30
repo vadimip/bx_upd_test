@@ -1,10 +1,11 @@
-<?
+<?php
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/general/blog_post.php");
 
 class CBlogPost extends CAllBlogPost
 {
 	/*************** ADD, UPDATE, DELETE *****************/
-	function Add($arFields)
+	public static function Add($arFields)
 	{
 		global $DB, $USER_FIELD_MANAGER;
 
@@ -546,7 +547,7 @@ class CBlogPost extends CAllBlogPost
 		return False;
 	}
 
-	function GetList($arOrder = Array("ID" => "DESC"), $arFilter = Array(), $arGroupBy = false, $arNavStartParams = false, $arSelectFields = array())
+	public static function GetList($arOrder = Array("ID" => "DESC"), $arFilter = Array(), $arGroupBy = false, $arNavStartParams = false, $arSelectFields = array())
 	{
 		global $DB, $USER_FIELD_MANAGER, $USER, $APPLICATION;
 		static $blogPostEventIdList = null;
@@ -617,7 +618,7 @@ class CBlogPost extends CAllBlogPost
 			"DATE_PUBLISH" => array("FIELD" => "P.DATE_PUBLISH", "TYPE" => "datetime"),
 			"KEYWORDS" => array("FIELD" => "P.KEYWORDS", "TYPE" => "string"),
 			"PUBLISH_STATUS" => array("FIELD" => "P.PUBLISH_STATUS", "TYPE" => "string"),
-			"ATRIBUTE" => array("FIELD" => "P.ATRIBUTE", "TYPE" => "string"),
+			"ATRIBUTE" => array("FIELD" => "P.ATRIBUTE", "TYPE" => "string"),   /* deprecated. Not using nowhere */
 			"ATTACH_IMG" => array("FIELD" => "P.ATTACH_IMG", "TYPE" => "int"),
 			"ENABLE_TRACKBACK" => array("FIELD" => "P.ENABLE_TRACKBACK", "TYPE" => "string"),
 			"ENABLE_COMMENTS" => array("FIELD" => "P.ENABLE_COMMENTS", "TYPE" => "string"),
@@ -857,7 +858,7 @@ class CBlogPost extends CAllBlogPost
 						$arSqls["WHERE"] .= " AND ";
 					$arSqls["WHERE"] .=
 						" EXISTS ( ".
-							"SELECT ID ".
+							"SELECT SRX.ID ".
 							"FROM b_blog_socnet_rights SRX ".
 							"LEFT JOIN b_user_access UA ON (UA.ACCESS_CODE = SRX.ENTITY AND UA.USER_ID = ".intval($arFilter["FOR_USER"]).") ".
 							"WHERE P.ID = SRX.POST_ID 
@@ -995,7 +996,7 @@ class CBlogPost extends CAllBlogPost
 		return $dbRes;
 	}
 
-	function GetListCalendar($blogID, $year = false, $month = false, $day = false)
+	public static function GetListCalendar($blogID, $year = false, $month = false, $day = false)
 	{
 		global $DB, $USER, $APPLICATION;
 
@@ -1075,4 +1076,3 @@ class CBlogPost extends CAllBlogPost
 		return $arResult;
 	}
 }
-?>

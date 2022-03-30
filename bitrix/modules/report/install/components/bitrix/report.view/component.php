@@ -73,10 +73,13 @@ foreach ($requiredModules as $requiredModule)
 	}
 }
 
-if (!isset($arParams['REPORT_HELPER_CLASS'])
-	|| mb_strlen($arParams['REPORT_HELPER_CLASS']) < 1
-	|| !class_exists($arParams['REPORT_HELPER_CLASS'])
-	|| !is_subclass_of($arParams['REPORT_HELPER_CLASS'], 'CReportHelper'))
+$helperClassName = $arResult['HELPER_CLASS'] = ($arParams['REPORT_HELPER_CLASS'] ?? '');
+if (
+	!is_string($helperClassName)
+	|| mb_strlen($helperClassName) < 1
+	|| !class_exists($helperClassName)
+	|| !is_subclass_of($helperClassName, 'CReportHelper')
+)
 {
 	$errorMessage = GetMessage("REPORT_HELPER_NOT_DEFINED");
 	if ($isStExport)
@@ -88,6 +91,17 @@ if (!isset($arParams['REPORT_HELPER_CLASS'])
 		ShowError($errorMessage);
 		return 0;
 	}
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 // Suppress the timezone, while report works in server time
@@ -212,6 +226,23 @@ try
 
 	// action
 	$settings = unserialize($report['SETTINGS'], ['allowed_classes' => false]);
+
+	if (!is_array($settings))
+	{
+		$settings = [];
+	}
+	if (!is_array($settings['select']))
+	{
+		$settings['select'] = [];
+	}
+	if (!is_array($settings['filter']))
+	{
+		$settings['filter'] = [];
+	}
+	if (!is_array($settings['period']))
+	{
+		$settings['period'] = ['type' => 'days', 'value' => 1, 'hidden' => 'N'];
+	}
 
 	// prevent percent from percent
 	$prcntSelect = [];
@@ -997,17 +1028,27 @@ try
 				$dataType = call_user_func(array($arParams['REPORT_HELPER_CLASS'], 'getFieldDataType'), $field);
 
 				// rewrite date <=> {today, yesterday, tomorrow, etc}
-				if ($dataType === 'datetime'
-					&& !CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT'))
-				)
+				if ($dataType === 'datetime')
 				{
-					$fElem['value'] = ConvertTimeStamp(strtotime($fElem['value']), 'SHORT');
-
-					// ignore datetime filter with incorrect value
-					if (!CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT')))
+					$dateFormat = CSite::GetDateFormat('SHORT');
+					if (CheckDateTime($fElem['value'], $dateFormat))
 					{
-						unset($fInfo[$k]);
-						continue;
+						$dateArray = ParseDateTime($fElem['value'], $dateFormat);
+						$fElem['value'] = ConvertTimeStamp(
+							mktime(0, 0, 0, $dateArray["MM"], $dateArray["DD"], $dateArray["YYYY"]),
+							'SHORT'
+						);
+					}
+					else
+					{
+						$fElem['value'] = ConvertTimeStamp(strtotime($fElem['value']), 'SHORT');
+
+						// ignore datetime filter with incorrect value
+						if (!CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT')))
+						{
+							unset($fInfo[$k]);
+							continue;
+						}
 					}
 				}
 

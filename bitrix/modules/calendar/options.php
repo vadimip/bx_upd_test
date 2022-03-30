@@ -21,7 +21,7 @@ $tabControl = new CAdminTabControl("tabControl", $aTabs);
 CUtil::InitJSCore(array('ajax', 'window', 'popup', 'access'));
 
 $arTypes = CCalendarType::GetList();
-$dbSites = CSite::GetList($by = 'sort', $order = 'asc', array('ACTIVE' => 'Y'));
+$dbSites = CSite::GetList('sort', 'asc', array('ACTIVE' => 'Y'));
 $sites = array();
 $default_site = '';
 while ($arRes = $dbSites->GetNext())
@@ -344,7 +344,7 @@ BX.ready(function(){
 				}
 				?>
 				<tr>
-					<td class="field-name"><label for="cal_<?= $pathName?>"><?= $title?>:</label></td>
+					<td class="field-name"><label for="cal_<?= $pathName?>"><?= htmlspecialcharsbx($title)?>:</label></td>
 					<td>
 						<input name="pathes[<?= $siteId?>][<?= $pathName?>]" type="text" value="<?= htmlspecialcharsbx($val)?>" id="cal_<?= $pathName?>" size="60"/>
 					</td>

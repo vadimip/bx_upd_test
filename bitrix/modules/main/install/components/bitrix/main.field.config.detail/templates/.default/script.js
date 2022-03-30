@@ -41,15 +41,19 @@
 	  return data;
 	}
 
+	function _createForOfIteratorHelper(o, allowArrayLike) { var it; if (typeof Symbol === "undefined" || o[Symbol.iterator] == null) { if (Array.isArray(o) || (it = _unsupportedIterableToArray(o)) || allowArrayLike && o && typeof o.length === "number") { if (it) o = it; var i = 0; var F = function F() {}; return { s: F, n: function n() { if (i >= o.length) return { done: true }; return { done: false, value: o[i++] }; }, e: function e(_e) { throw _e; }, f: F }; } throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); } var normalCompletion = true, didErr = false, err; return { s: function s() { it = o[Symbol.iterator](); }, n: function n() { var step = it.next(); normalCompletion = step.done; return step; }, e: function e(_e2) { didErr = true; err = _e2; }, f: function f() { try { if (!normalCompletion && it.return != null) it.return(); } finally { if (didErr) throw err; } } }; }
+
+	function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+
+	function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) { arr2[i] = arr[i]; } return arr2; }
+
 	function _classStaticPrivateFieldSpecGet(receiver, classConstructor, descriptor) { if (receiver !== classConstructor) { throw new TypeError("Private static access of wrong provenance"); } if (descriptor.get) { return descriptor.get.call(receiver); } return descriptor.value; }
 	var namespace = main_core.Reflection.namespace('BX.Main.UserField');
 	/**
 	 * @memberOf BX.Main.UserField
 	 */
 
-	var Config =
-	/*#__PURE__*/
-	function () {
+	var Config = /*#__PURE__*/function () {
 	  function Config(params) {
 	    babelHelpers.classCallCheck(this, Config);
 	    babelHelpers.defineProperty(this, "id", 0);
@@ -357,6 +361,8 @@
 	      setTimeout(function () {
 	        _this5.saveButton.setWaiting(false);
 
+	        main_core.Dom.removeClass(_this5.saveButton.getContainer(), 'ui-btn-wait');
+
 	        if (_this5.deleteButton) {
 	          _this5.deleteButton.setWaiting(false);
 
@@ -395,29 +401,20 @@
 
 	      if (settingsForm) {
 	        var formData = new FormData(settingsForm);
-	        var _iteratorNormalCompletion = true;
-	        var _didIteratorError = false;
-	        var _iteratorError = undefined;
+
+	        var _iterator = _createForOfIteratorHelper(formData.entries()),
+	            _step;
 
 	        try {
-	          for (var _iterator = formData.entries()[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	          for (_iterator.s(); !(_step = _iterator.n()).done;) {
 	            var pair = _step.value;
 	            var name = pair[0].substr(9, pair[0].length - 10);
 	            settings[name] = pair[1];
 	          }
 	        } catch (err) {
-	          _didIteratorError = true;
-	          _iteratorError = err;
+	          _iterator.e(err);
 	        } finally {
-	          try {
-	            if (!_iteratorNormalCompletion && _iterator.return != null) {
-	              _iterator.return();
-	            }
-	          } finally {
-	            if (_didIteratorError) {
-	              throw _iteratorError;
-	            }
-	          }
+	          _iterator.f();
 	        }
 	      }
 
@@ -454,6 +451,12 @@
 	        var index = 1;
 	        var rows = Array.from(this.container.querySelectorAll('[data-role="main-user-field-enum-row"]'));
 	        rows.forEach(function (row) {
+	          var input = row.querySelector('[data-role="main-user-field-enum-value"]');
+
+	          if (!input) {
+	            return;
+	          }
+
 	          var def = 'N';
 
 	          if (selectedDefaultIndex === index) {
@@ -463,7 +466,7 @@
 	          sort += sortStep;
 	          var id = main_core.Text.toInteger(row.dataset['id']);
 	          list.push({
-	            value: row.querySelector('[data-role="main-user-field-enum-value"]').value,
+	            value: input.value,
 	            def: def,
 	            sort: sort,
 	            id: id
@@ -605,7 +608,7 @@
 	      var userTypeId = this.getSelectedUserTypeId();
 
 	      if (userTypeId === 'enumeration') {
-	        listTab.style.display = 'block';
+	        listTab.style.display = 'flex';
 	      } else {
 	        listTab.style.display = 'none';
 	      }
@@ -740,7 +743,13 @@
 	        var rows = Array.from(this.container.querySelectorAll('[data-role="main-user-field-enum-row"]'));
 	        rows.forEach(function (row) {
 	          var id = main_core.Text.toInteger(row.dataset['id']);
-	          var value = row.querySelector('[data-role="main-user-field-enum-value"]').value;
+	          var input = row.querySelector('[data-role="main-user-field-enum-value"]');
+
+	          if (!input) {
+	            return;
+	          }
+
+	          var value = input.value;
 	          var selected = id > 0 && id === selectedId || value === selectedValue;
 
 	          if (value.length > 0) {
@@ -769,9 +778,7 @@
 	  value: new Map()
 	};
 
-	var DragDropItem =
-	/*#__PURE__*/
-	function () {
+	var DragDropItem = /*#__PURE__*/function () {
 	  function DragDropItem() {
 	    babelHelpers.classCallCheck(this, DragDropItem);
 	    this.itemContainer = null;
@@ -873,9 +880,7 @@
 	  return DragDropItem;
 	}();
 
-	var DragDropBtnContainer =
-	/*#__PURE__*/
-	function () {
+	var DragDropBtnContainer = /*#__PURE__*/function () {
 	  function DragDropBtnContainer() {
 	    babelHelpers.classCallCheck(this, DragDropBtnContainer);
 	    this.container = document.querySelector('.main-user-field-enum-row-list');

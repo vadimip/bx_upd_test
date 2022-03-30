@@ -2,8 +2,9 @@
 return [
 	'controllers' => [
 		'value' => [
+			'defaultNamespace' => '\\Bitrix\\Socialnetwork\\Controller',
 			'namespaces' => [
-				'\\Bitrix\\SocialNetwork\\Controller' => 'api',
+				'\\Bitrix\\Socialnetwork\\Controller' => 'api',
 			],
 			'restIntegration' => [
 				'enabled' => true
@@ -28,6 +29,13 @@ return [
 					],
 				],
 				[
+					'entityId' => 'fired-user',
+					'provider' => [
+						'moduleId' => 'socialnetwork',
+						'className' => '\\Bitrix\\Socialnetwork\\Integration\\UI\\EntitySelector\\FiredUserProvider'
+					],
+				],
+				[
 					'entityId' => 'project',
 					'provider' => [
 						'moduleId' => 'socialnetwork',
@@ -40,7 +48,21 @@ return [
 						'moduleId' => 'socialnetwork',
 						'className' => '\\Bitrix\\Socialnetwork\\Integration\\UI\\EntitySelector\\MetaUserProvider'
 					],
-				]
+				],
+				[
+					'entityId' => 'project-tag',
+					'provider' => [
+						'moduleId' => 'socialnetwork',
+						'className' => '\\Bitrix\\SocialNetwork\\Integration\\UI\\EntitySelector\\ProjectTagProvider',
+					],
+				],
+				[
+					'entityId' => 'project-roles',
+					'provider' => [
+						'moduleId' => 'socialnetwork',
+						'className' => '\\Bitrix\\SocialNetwork\\Integration\\UI\\EntitySelector\\ProjectRolesProvider',
+					],
+				],
 			],
 			'extensions' => ['socialnetwork.entity-selector'],
 		],

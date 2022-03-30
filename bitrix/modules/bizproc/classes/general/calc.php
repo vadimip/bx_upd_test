@@ -1,4 +1,5 @@
-<?
+<?php
+
 use Bitrix\Main;
 use Bitrix\Bizproc;
 
@@ -12,6 +13,7 @@ class CBPCalc
 	private static $yearHolidays;
 	private static $startWorkDay;
 	private static $endWorkDay;
+	private static $yearWorkdays;
 
 	// Operation priority
 	private $arPriority = [
@@ -57,6 +59,15 @@ class CBPCalc
 		'urlencode' => ['args' => true, 'func' => 'FunctionUrlencode'],
 		'touserdate' => ['args' => true, 'func' => 'FunctionToUserDate'],
 		'getuserdateoffset' => ['args' => true, 'func' => 'FunctionGetUserDateOffset'],
+		'strtolower' => ['args' => true, 'func' => 'FunctionStrtolower'],
+		'strtoupper' => ['args' => true, 'func' => 'FunctionStrtoupper'],
+		'ucwords' => ['args' => true, 'func' => 'FunctionUcwords'],
+		'ucfirst' => ['args' => true, 'func' => 'FunctionUcfirst'],
+		'strtotime' => ['args' => true, 'func' => 'FunctionStrtotime'],
+		'locdate' => ['args' => true, 'func' => 'FunctionLocDate'],
+		'shuffle' => ['args' => true, 'func' => 'FunctionShuffle'],
+		'firstvalue'=> ['args' => true, 'func' => 'FunctionFirstValue'],
+		'swirl' => ['args' => true, 'func' => 'FunctionSwirl'],
 	];
 
 	// Allowable errors
@@ -849,6 +860,58 @@ class CBPCalc
 		return CTimeZone::GetOffset($userId, true);
 	}
 
+	private function FunctionStrtotime($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$datetime = (string)array_shift($ar);
+		$baseDate = array_shift($ar);
+
+		$baseTimestamp = $baseDate ? $this->makeTimestamp($baseDate, true) : time();
+
+		if (!$baseTimestamp)
+		{
+			return null;
+		}
+
+		$timestamp = strtotime($datetime, (int)$baseTimestamp);
+
+		if ($timestamp === false)
+		{
+			return null;
+		}
+
+		return new Bizproc\BaseType\Value\DateTime($timestamp);
+	}
+
+	private function FunctionLocDate($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$format = array_shift($ar);
+		$date = array_shift($ar);
+
+		if (!$format || !is_string($format))
+		{
+			return null;
+		}
+
+		$reformFormat = $this->frameSymbolsInDateFormat($format);
+		$timestamp = $date ? $this->makeTimestamp($date, true) : time();
+
+		if (!$timestamp)
+		{
+			return null;
+		}
+
+		$formattedDate = date($reformFormat, $timestamp);
+
+		if ($formattedDate === false)
+		{
+			return null;
+		}
+
+		return $this->replaceDateToLocDate($formattedDate, $reformFormat);
+	}
+
 	/* Date - Helpers */
 
 	private function makeTimestamp($date, $appendOffset = false)
@@ -905,14 +968,26 @@ class CBPCalc
 
 	private function isHoliday($date)
 	{
-		list($weekHolidays, $yearHolidays) = $this->getCalendarHolidays();
+		[$yearWorkdays] = $this->getCalendarWorkdays();
+		[$weekHolidays, $yearHolidays] = $this->getCalendarHolidays();
+
+		$dayOfYear = date('j.n', $date);
+		if (in_array($dayOfYear, $yearWorkdays, true))
+		{
+			return false;
+		}
 
 		$dayOfWeek = date('w', $date);
 		if (in_array($dayOfWeek, $weekHolidays))
+		{
 			return true;
+		}
+
 		$dayOfYear = date('j.n', $date);
 		if (in_array($dayOfYear, $yearHolidays, true))
+		{
 			return true;
+		}
 
 		return false;
 	}
@@ -1001,7 +1076,7 @@ class CBPCalc
 				{
 					$date = explode('.', trim($yearHoliday));
 					if (count($date) == 2 && $date[0] && $date[1])
-						$yearHolidays[] = (int)$date[0].'.'.(int)$date[1];
+						$yearHolidays[] = (int)$date[0] . '.' . (int)$date[1];
 				}
 			}
 			static::$weekHolidays = $weekHolidays;
@@ -1040,6 +1115,30 @@ class CBPCalc
 		return [static::$startWorkDay, static::$endWorkDay];
 	}
 
+	private function getCalendarWorkdays()
+	{
+		if (static::$yearWorkdays === null)
+		{
+			$yearWorkdays = [];
+
+			$calendarSettings = CCalendar::GetSettings();
+			$calendarYearWorkdays = $calendarSettings['year_workdays'] ?? '';
+
+			foreach (explode(',', $calendarYearWorkdays) as $yearWorkday)
+			{
+				$date = explode('.', trim($yearWorkday));
+				if (count($date) === 2 && $date[0] && $date[1])
+				{
+					$yearWorkdays[] = (int)$date[0] . '.' . (int)$date[1];
+				}
+			}
+
+			static::$yearWorkdays = $yearWorkdays;
+		}
+
+		return [static::$yearWorkdays];
+	}
+
 	private function getDateTimeObject($date)
 	{
 		if ($date instanceof Bizproc\BaseType\Value\Date)
@@ -1068,6 +1167,96 @@ class CBPCalc
 			return $date->getOffset();
 		}
 		return 0;
+	}
+
+	private function frameSymbolsInDateFormat($format)
+	{
+		$complexSymbols = ['j F', 'd F', 'jS F'];
+		$symbols = ['D', 'l', 'F', 'M', 'r'];
+
+		$frameRule = [];
+		foreach ($symbols as $symbol)
+		{
+			$frameRule[$symbol] = '#' . $symbol . '#';
+			$frameRule['\\' . $symbol] = '\\' . $symbol;
+		}
+		foreach ($complexSymbols as $symbol)
+		{
+			$frameRule[$symbol] = substr($symbol, 0, -1) . '#' . $symbol[-1] . '_1#';
+			$frameRule['\\' . $symbol] = '\\' . substr($symbol, 0, -1) . '#' . $symbol[-1] . '#';
+		}
+
+		return strtr($format, $frameRule);
+	}
+
+	private function frameNamesInFormattedDateRFC2822($formattedDate)
+	{
+		$matches = [];
+		$pattern = "/#(\w{3}), \d{2} (\w{3}) \d{4} \d{2}:\d{2}:\d{2} [+-]\d{4}#/";
+		if (preg_match_all($pattern, $formattedDate, $matches))
+		{
+			foreach ($matches[0] as $key => $match)
+			{
+				$day = $matches[1][$key];
+				$month = $matches[2][$key];
+
+				$reformMatch = str_replace(
+					[$day, $month],
+					['#' . $day . '#', '#' . $month . '#'],
+					$match
+				);
+				$reformMatch = substr($reformMatch, 1, -1);
+
+				$formattedDate = str_replace($match, $reformMatch, $formattedDate);
+			}
+		}
+
+		return $formattedDate;
+	}
+
+	private function replaceDateToLocDate($formattedDate, $format)
+	{
+		$lenShortName = 3;
+		$dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+		$monthNames = [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July',
+			'August',
+			'September',
+			'October',
+			'November',
+			'December',
+		];
+
+		if (strpos($format, '#r#') !== false)
+		{
+			$formattedDate = $this->frameNamesInFormattedDateRFC2822($formattedDate);
+		}
+
+		$replacementRule = [];
+		foreach (array_merge($dayNames, $monthNames) as $name)
+		{
+			$replacementRule['#' . $name . '#'] = GetMessage(
+				'BPCGCALC_LOCDATE_' . strtoupper($name)
+			);
+			$shortName = substr($name, 0, $lenShortName);
+			$replacementRule['#' . $shortName . '#'] = GetMessage(
+				'BPCGCALC_LOCDATE_' . strtoupper($shortName) . '_SHORT'
+			);
+		}
+		foreach ($monthNames as $monthName)
+		{
+			$replacementRule['#' . $monthName . '_1' . '#'] = GetMessage(
+				'BPCGCALC_LOCDATE_' . strtoupper($monthName) . '_1'
+			);
+		}
+
+		return strtr($formattedDate, $replacementRule);
 	}
 
 	/* String & Formatting */
@@ -1256,6 +1445,66 @@ class CBPCalc
 		return $result;
 	}
 
+	private function FunctionStrtolower($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$str = array_shift($ar);
+
+		if (!is_scalar($str))
+		{
+			return null;
+		}
+
+		return mb_strtolower((string) $str);
+	}
+
+	private function FunctionStrtoupper($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$str = array_shift($ar);
+
+		if (!is_scalar($str))
+		{
+			return null;
+		}
+
+		return mb_strtoupper((string) $str);
+	}
+
+	private function FunctionUcwords($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$str = array_shift($ar);
+
+		if (!is_scalar($str))
+		{
+			return null;
+		}
+
+		return mb_convert_case((string) $str, MB_CASE_TITLE);
+	}
+
+	private function FunctionUcfirst($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		$str = array_shift($ar);
+
+		if (!is_scalar($str))
+		{
+			return null;
+		}
+
+		return $this->mb_ucfirst((string) $str);
+	}
+
+	private function mb_ucfirst($str)
+	{
+		$len = mb_strlen($str);
+		$firstChar = mb_substr($str, 0, 1);
+		$otherChars = mb_substr($str, 1, $len - 1);
+		return mb_strtoupper($firstChar) . $otherChars;
+	}
+
 	/* Complex values */
 
 	private function FunctionMerge($args)
@@ -1268,5 +1517,36 @@ class CBPCalc
 			$a = is_object($a) ? [$a] : (array)$a;
 		}
 		return call_user_func_array('array_merge', $args);
+	}
+
+	private function FunctionShuffle($args)
+	{
+		if (!is_array($args) || $args === [])
+		{
+			return null;
+		}
+
+		$array = $this->ArrgsToArray($args);
+		shuffle($array);
+
+		return $array;
+	}
+
+	private function FunctionFirstValue($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+
+		return $ar[0] ?? null;
+	}
+
+	private function FunctionSwirl($args)
+	{
+		$ar = $this->ArrgsToArray($args);
+		if (count($ar) <= 1)
+		{
+			return $ar[0] ?? null;
+		}
+
+		return array_merge(array_slice($ar, 1), [$ar[0]]);
 	}
 }

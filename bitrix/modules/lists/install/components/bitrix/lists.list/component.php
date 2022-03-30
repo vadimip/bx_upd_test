@@ -129,7 +129,11 @@ if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_ib
 	$arResult["PROCESSES"] = true;
 }
 
-if ($arResult["IBLOCK"]["BIZPROC"] == "Y" && CModule::IncludeModule('bizproc') && CBPRuntime::isFeatureEnabled())
+if (
+	$arResult["IBLOCK"]["BIZPROC"] == "Y"
+	&& CModule::IncludeModule('bizproc')
+	&& CLists::isBpFeatureEnabled($arParams["IBLOCK_TYPE_ID"])
+)
 {
 	$arParams["CAN_EDIT_BIZPROC"] = (
 		!$arResult["IS_SOCNET_GROUP_CLOSED"]
@@ -398,7 +402,11 @@ $grid_options = new Bitrix\Main\Grid\Options($arResult["GRID_ID"]);
 $grid_columns = $grid_options->GetVisibleColumns();
 $grid_sort = $grid_options->GetSorting(array("sort"=>array("name"=>"asc")));
 
-if($arResult["IBLOCK"]["BIZPROC"]=="Y" && CModule::IncludeModule('bizproc') && CBPRuntime::isFeatureEnabled())
+if (
+	$arResult["IBLOCK"]["BIZPROC"]=="Y"
+	&& CModule::IncludeModule('bizproc')
+	&& CLists::isBpFeatureEnabled($arParams["IBLOCK_TYPE_ID"])
+)
 {
 	$arDocumentTemplates = CBPDocument::GetWorkflowTemplatesForDocumentType(
 		BizProcDocument::generateDocumentComplexType($arParams["IBLOCK_TYPE_ID"], $arResult["IBLOCK_ID"]),
@@ -605,8 +613,8 @@ foreach($filterData as $key => $value)
 		{
 			$userId = array();
 			$userQuery = CUser::GetList(
-				$by = "ID",
-				$order = "ASC",
+				"ID",
+				"ASC",
 				array("NAME" => $value),
 				array("FIELDS" => array("ID"))
 			);
@@ -980,7 +988,10 @@ while($obElement = $rsElements->GetNextElement())
 		/* *** */
 	}
 
-	if (CLists::isEnabledLockFeature($IBLOCK_ID) && in_array("LOCK_STATUS", $grid_columns))
+	if (
+		CLists::isEnabledLockFeature($IBLOCK_ID)
+		&& in_array("LOCK_STATUS", $grid_columns) || empty($grid_columns)
+	)
 	{
 		ob_start();
 		$APPLICATION->IncludeComponent(

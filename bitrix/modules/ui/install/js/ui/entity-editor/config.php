@@ -41,5 +41,7 @@ return [
 		"ui.dropdown",
 		"ui.buttons",
 		"ui.forms",
+		"ui.draganddrop.draggable",
+		"ui.entity-selector",
 	]
 ];

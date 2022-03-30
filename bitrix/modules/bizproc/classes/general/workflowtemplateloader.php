@@ -1,4 +1,4 @@
-<?
+<?php
 IncludeModuleLangFile(__FILE__);
 
 define("BP_EI_DIRECTION_EXPORT", 0);
@@ -250,12 +250,15 @@ class CAllBPWorkflowTemplateLoader
 		$loader = CBPWorkflowTemplateLoader::GetLoader();
 		$loader->DeleteTemplate($id);
 		self::cleanTemplateCache($id);
+
+		\Bitrix\Bizproc\Storage\Factory::getInstance()->onAfterTemplateDelete($id);
 	}
 
 	protected static function cleanTemplateCache($id)
 	{
 		$cache = \Bitrix\Main\Application::getInstance()->getManagedCache();
-		$cache->clean(self::CONSTANTS_CACHE_TAG_PREFIX.$id);
+		$cache->clean(self::CONSTANTS_CACHE_TAG_PREFIX . $id);
+		unset(self::$workflowConstants[$id]);
 	}
 
 	public function DeleteTemplate($id)
@@ -431,16 +434,13 @@ class CAllBPWorkflowTemplateLoader
 		);
 
 		$type = "CBP".$arWorkflowTemplate[0]["Type"];
-		$bStateMachine = false;
-		while ($type <> '')
-		{
-			if ($type == "CBPStateMachineWorkflowActivity")
-			{
-				$bStateMachine = true;
-				break;
-			}
-			$type = get_parent_class($type);
-		}
+		$bStateMachine = (
+			$type === CBPStateMachineWorkflowActivity::class
+			|| (
+				class_exists($type)
+				&& is_subclass_of($type, CBPStateMachineWorkflowActivity::class)
+			)
+		);
 
 		if ($bStateMachine)
 		{
@@ -1146,7 +1146,7 @@ class CBPWorkflowTemplateResult extends CDBResult
 	public function __construct($res, $useGZipCompression)
 	{
 		$this->useGZipCompression = $useGZipCompression;
-		parent::CDBResult($res);
+		parent::__construct($res);
 	}
 
 	private function GetFromSerializedForm($value)
@@ -1160,7 +1160,7 @@ class CBPWorkflowTemplateResult extends CDBResult
 					$value = $value1;
 			}
 
-			$value = unserialize($value);
+			$value = unserialize($value, ['allowed_classes' => false]);
 			if (!is_array($value))
 				$value = array();
 		}

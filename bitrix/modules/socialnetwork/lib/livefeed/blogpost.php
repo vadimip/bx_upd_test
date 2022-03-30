@@ -1,10 +1,11 @@
 <?php
+
 namespace Bitrix\Socialnetwork\Livefeed;
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Config\Option;
+use Bitrix\Main\Text\Emoji;
 
 Loc::loadMessages(__FILE__);
 
@@ -13,14 +14,16 @@ class BlogPost extends Provider
 	public const PROVIDER_ID = 'BLOG_POST';
 	public const CONTENT_TYPE_ID = 'BLOG_POST';
 
+	protected static $blogPostClass = \CBlogPost::class;
+
 	public static function getId(): string
 	{
 		return static::PROVIDER_ID;
 	}
 
-	public function getEventId()
+	public function getEventId(): array
 	{
-		$result = array('blog_post', 'blog_post_important', 'blog_post_micro');
+		$result = [ 'blog_post', 'blog_post_important', 'blog_post_micro' ];
 		if (ModuleManager::isModuleInstalled('intranet'))
 		{
 			$result[] = 'blog_post_grat';
@@ -33,12 +36,12 @@ class BlogPost extends Provider
 		return $result;
 	}
 
-	public function getType()
+	public function getType(): string
 	{
 		return Provider::TYPE_POST;
 	}
 
-	public function getCommentProvider()
+	public function getCommentProvider(): Provider
 	{
 		return new BlogComment();
 	}
@@ -60,11 +63,11 @@ class BlogPost extends Provider
 		}
 		elseif (Loader::includeModule('blog'))
 		{
-			$res = \CBlogPost::getList(
-				array(),
-				array(
-					"ID" => $postId
-				)
+			$res = self::$blogPostClass::getList(
+				[],
+				[
+					'ID' => $postId
+				]
 			);
 
 			$post = $res->fetch();
@@ -83,7 +86,7 @@ class BlogPost extends Provider
 
 		if (!empty($post['DETAIL_TEXT']))
 		{
-			$post['DETAIL_TEXT'] = \Bitrix\Main\Text\Emoji::decode($post['DETAIL_TEXT']);
+			$post['DETAIL_TEXT'] = Emoji::decode($post['DETAIL_TEXT']);
 		}
 
 		$this->setSourceFields($post);
@@ -93,7 +96,7 @@ class BlogPost extends Provider
 		$this->setSourceDiskObjects($this->getDiskObjects($postId, $this->cloneDiskObjects));
 	}
 
-	public function getPinnedTitle()
+	public function getPinnedTitle(): string
 	{
 		$result = '';
 
@@ -108,9 +111,7 @@ class BlogPost extends Provider
 			return $result;
 		}
 
-		$result = ($post['MICRO'] === 'N' ? truncateText($post['TITLE'], 100) : '');
-
-		return $result;
+		return ($post['MICRO'] === 'N' ? truncateText($post['TITLE'], 100) : '');
 	}
 
 	public function getPinnedDescription()
@@ -128,8 +129,8 @@ class BlogPost extends Provider
 			return $result;
 		}
 
-		$result = truncateText(htmlspecialcharsBack(\CTextParser::clearAllTags($post['DETAIL_TEXT'])), 100);
-		$result = str_replace((\Bitrix\Main\Application::isUtfMode() ? "\xC2\xA0" : "\xA0"), '', $result);
+		$result = truncateText(str_replace('&#39;', "'", htmlspecialcharsBack(\CTextParser::clearAllTags($post['DETAIL_TEXT']))), 100);
+		$result = preg_replace('/^' . (\Bitrix\Main\Application::isUtfMode() ? "\xC2\xA0" : "\xA0") . '$/', '', $result);
 
 		if (
 			$result === ''
@@ -156,40 +157,11 @@ class BlogPost extends Provider
 
 	protected function getAttachedDiskObjects($clone = false)
 	{
-		global $USER_FIELD_MANAGER;
-		static $cache = array();
-
-		$postId = $this->entityId;
-
-		$result = array();
-		$cacheKey = $postId.$clone;
-
-		if (isset($cache[$cacheKey]))
-		{
-			$result = $cache[$cacheKey];
-		}
-		else
-		{
-			$postUF = $USER_FIELD_MANAGER->getUserFields("BLOG_POST", $postId, LANGUAGE_ID);
-			if (
-				!empty($postUF['UF_BLOG_POST_FILE'])
-				&& !empty($postUF['UF_BLOG_POST_FILE']['VALUE'])
-				&& is_array($postUF['UF_BLOG_POST_FILE']['VALUE'])
-			)
-			{
-				if ($clone)
-				{
-					$this->attachedDiskObjectsCloned = self::cloneUfValues($postUF['UF_BLOG_POST_FILE']['VALUE']);
-					$result = $cache[$cacheKey] = array_values($this->attachedDiskObjectsCloned);
-				}
-				else
-				{
-					$result = $cache[$cacheKey] = $postUF['UF_BLOG_POST_FILE']['VALUE'];
-				}
-			}
-		}
-
-		return $result;
+		return $this->getEntityAttachedDiskObjects([
+			'userFieldEntity' => 'BLOG_POST',
+			'userFieldCode' => 'UF_BLOG_POST_FILE',
+			'clone' => $clone,
+		]);
 	}
 
 	public static function canRead($params): bool
@@ -201,15 +173,15 @@ class BlogPost extends Provider
 			&& (int)$params > 0
 		)
 		{
-			$params = array(
-				'POST' => \CBlogPost::getById($params)
-			);
+			$params = [
+				'POST' => \CBlogPost::getById($params),
+			];
 		}
 
 		$result = false;
 		if (
-			isset($params["POST"])
-			&& is_array($params["POST"])
+			isset($params['POST'])
+			&& is_array($params['POST'])
 		)
 		{
 			if ($blogPostProvider === null)
@@ -217,7 +189,7 @@ class BlogPost extends Provider
 				$blogPostProvider = new self;
 			}
 
-			$permissions = $blogPostProvider->getPermissions($params["POST"]);
+			$permissions = $blogPostProvider->getPermissions($params['POST']);
 			$result = ($permissions > self::PERMISSION_DENY);
 		}
 
@@ -232,20 +204,20 @@ class BlogPost extends Provider
 
 		if (Loader::includeModule('blog'))
 		{
-			if((int)$post["AUTHOR_ID"] === (int)$USER->getId())
+			if ((int)$post['AUTHOR_ID'] === (int)$USER->getId())
 			{
 				$result = self::PERMISSION_FULL;
 			}
 			else
 			{
-				$perms = \CBlogPost::getSocNetPostPerms(array(
-					"POST_ID" => $post["ID"],
-					"NEED_FULL" => true,
-					"USER_ID" => false,
-					"POST_AUTHOR_ID" => $post["AUTHOR_ID"],
-					"PUBLIC" => false,
-					"LOG_ID" => false
-				));
+				$perms = \CBlogPost::getSocNetPostPerms([
+					'POST_ID' => $post['ID'],
+					'NEED_FULL' => true,
+					'USER_ID' => false,
+					'POST_AUTHOR_ID' => $post['AUTHOR_ID'],
+					'PUBLIC' => false,
+					'LOG_ID' => false,
+				]);
 
 				if ($perms >= BLOG_PERMS_FULL)
 				{
@@ -276,13 +248,16 @@ class BlogPost extends Provider
 			&& !empty($post)
 		)
 		{
-			$pathToPost = \CComponentEngine::makePathFromTemplate($pathToPost, array("post_id" => $post["ID"], "user_id" => $post["AUTHOR_ID"]));
+			$pathToPost = \CComponentEngine::makePathFromTemplate($pathToPost, [
+				'post_id' => $post['ID'],
+				'user_id' => $post['AUTHOR_ID']
+			]);
 		}
 
 		return $pathToPost;
 	}
 
-	public function getSuffix()
+	public function getSuffix(): string
 	{
 		return '2';
 	}
@@ -290,8 +265,8 @@ class BlogPost extends Provider
 
 class BlogPostService
 {
-	public function getPathToPost()
+	public function getPathToPost(): string
 	{
-		return Option::get('socialnetwork', 'userblogpost_page', '', SITE_ID);
+		return \Bitrix\Socialnetwork\Helper\Path::get('userblogpost_page');
 	}
 }

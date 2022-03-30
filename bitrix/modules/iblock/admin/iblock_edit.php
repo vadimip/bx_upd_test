@@ -1,12 +1,13 @@
-<?
+<?php
 /** @global CMain $APPLICATION */
 /** @global CDatabase $DB */
 /** @global CUser $USER */
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+/** @global string $type */
 
-use Bitrix\Main,
-	Bitrix\Main\Loader,
-	Bitrix\Iblock;
-use Bitrix\Main\Localization\Loc;
+use Bitrix\Main;
+use Bitrix\Main\Loader;
+use Bitrix\Iblock;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 Loader::includeModule('iblock');
@@ -19,8 +20,8 @@ if (!CIBlockRights::UserHasRightTo($ID, $ID, "iblock_edit"))
 
 Main\Page\Asset::getInstance()->addJs('/bitrix/js/iblock/iblock_edit.js');
 
-define('CATALOG_NEW_OFFERS_IBLOCK_NEED','-1');
-define('PROPERTY_EMPTY_ROW_SIZE',5);
+const CATALOG_NEW_OFFERS_IBLOCK_NEED = '-1';
+const PROPERTY_EMPTY_ROW_SIZE = 5;
 $strPREFIX_OF_PROPERTY = 'OF_PROPERTY_';
 $strPREFIX_IB_PROPERTY = 'IB_PROPERTY_';
 
@@ -91,7 +92,7 @@ $arHiddenPropFields = array(
 	'FEATURES'
 );
 
-function CheckIBlockTypeID($strIBlockTypeID,$strNewIBlockTypeID,$strNeedAdd)
+function CheckIBlockTypeID($strIBlockTypeID,$strNewIBlockTypeID,$strNeedAdd): array
 {
 	$arResult = false;
 	$strNeedAdd = ('Y' == $strNeedAdd ? 'Y': 'N');
@@ -118,7 +119,7 @@ function CheckIBlockTypeID($strIBlockTypeID,$strNewIBlockTypeID,$strNeedAdd)
 					'IN_RSS' => 'N',
 					'SORT' => 500,
 				);
-				$rsLanguages = CLanguage::GetList($by="sort", $order="desc",array('ACTIVE' => 'Y'));
+				$rsLanguages = CLanguage::GetList("sort", "desc", array('ACTIVE' => 'Y'));
 				while ($arLanguage = $rsLanguages->Fetch())
 				{
 					$arFields['LANG'][$arLanguage['LID']]['NAME'] = $strNewIBlockTypeID;
@@ -233,7 +234,7 @@ function GetPropertyInfo($strPrefix, $ID, $boolUnpack = true, $arHiddenPropField
 
 			if ($boolUnpack)
 			{
-				$arPropInfo = unserialize($strPropInfo);
+				$arPropInfo = unserialize($strPropInfo, ['allowed_classes' => false]);
 				foreach ($arHiddenPropFields as &$strFieldKey)
 				{
 					$arResult[$strFieldKey] = (isset($arPropInfo[$strFieldKey]) ? $arPropInfo[$strFieldKey] : $arDefPropInfo[$strFieldKey]);
@@ -274,7 +275,7 @@ function GetPropertyInfo($strPrefix, $ID, $boolUnpack = true, $arHiddenPropField
 	return $arResult;
 }
 
-function CheckSKUProperty($ID, $SKUID)
+function CheckSKUProperty($ID, $SKUID): array
 {
 	$ID = (int)$ID;
 	$SKUID = (int)$SKUID;
@@ -1817,9 +1818,7 @@ $tabControl->BeginNextTab();
 		if ('O' == $str_CATALOG_TYPE)
 		{
 			?><div class="adm-list"><?
-			$by="sort";
-			$order="asc";
-			$l = CLang::GetList($by, $order);
+			$l = CLang::GetList();
 			$arLidValue = $str_LID;
 			if(!is_array($arLidValue))
 				$arLidValue = array($arLidValue);
@@ -4732,7 +4731,7 @@ if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
 	<tr class="heading">
 		<td colspan="2"><?echo GetMessage("IB_E_RIGHTS_MODE_SECTION_TITLE")?></td>
 	</tr>
-	<?if($str_RIGHTS_MODE === "E"):?>
+	<?if($str_RIGHTS_MODE === Iblock\IblockTable::RIGHTS_EXTENDED):?>
 		<tr>
 			<td width="40%" class="adm-detail-valign-top"><label for="RIGHTS_MODE"><?echo GetMessage("IB_E_RIGHTS_MODE")?></label></td>
 			<td width="60%">
@@ -4835,7 +4834,7 @@ if(CIBlockRights::UserHasRightTo($ID, $ID, "iblock_rights_edit"))
 			<td colspan="2"><?echo GetMessage("IB_E_GROUP_ACCESS_TITLE")?></td>
 		</tr>
 		<?
-		$groups = CGroup::GetList($by="sort", $order="asc", Array("ID"=>"~2"));
+		$groups = CGroup::GetList("sort", "asc", Array("ID"=>"~2"));
 		while($r = $groups->GetNext()):
 			if($bVarsFromForm)
 				$strSelected = $GROUP[$r["ID"]];

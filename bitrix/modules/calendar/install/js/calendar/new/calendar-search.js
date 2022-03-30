@@ -72,7 +72,7 @@
 							attrs: {'data-bx-counter': this.counters[i].id},
 							html: '<span class="calendar-counter-inner">' +
 								'<span class="calendar-counter-number">' + this.counters[i].value + '</span>' +
-								'<span class="calendar-counter-text">' + this.util.getMessagePlural(this.counters[i].pluralMessageId,this.counters[i].value) + '</span>' +
+								'<span class="calendar-counter-text">' + BX.Loc.getMessagePlural(this.counters[i].pluralMessageId, this.counters[i].value) + '</span>' +
 							'</span>',
 							events: {
 								click: (function (counter)
@@ -183,13 +183,18 @@
 			}
 			this.calendar.getView().displayResult(entries);
 
-			if (BX.type.isPlainObject(response.counters))
+			this.setCountersValue(response.counters);
+		},
+
+		setCountersValue: function(counters)
+		{
+			if (BX.type.isPlainObject(counters))
 			{
-				for (i = 0; i < this.counters.length; i++)
+				for (var i = 0; i < this.counters.length; i++)
 				{
-					if (response.counters[this.counters[i].id] !== undefined)
+					if (counters[this.counters[i].id] !== undefined)
 					{
-						this.counters[i].value = response.counters[this.counters[i].id] || 0;
+						this.counters[i].value = counters[this.counters[i].id] || 0;
 					}
 				}
 				this.updateCounters();

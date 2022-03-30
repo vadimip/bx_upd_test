@@ -96,7 +96,6 @@ $MESS["MAIL_CLIENT_CONFIG_TITLE"] = "Підключення поштової с�
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_1"] = "день";
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_2"] = "дня";
 $MESS["MAIL_MAILBOX_DAYS_PLURAL_3"] = "днів";
-$MESS["MAIL_MAILBOX_LICENSE_AGE_LIMIT_DESCR"] = "Об'єм";
 $MESS["MAIL_MAILBOX_LICENSE_AGE_LIMIT_TITLE"] = "Завантаження пошти з поштової скриньки";
 $MESS["MAIL_MAILBOX_LICENSE_SHARED_LIMIT_BODY"] = "Кількість поштових скриньок, загальний доступ до яких можна дати співробітникам, залежить від тарифного плану Бітрікс24.
 <br><br>

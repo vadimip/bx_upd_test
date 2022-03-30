@@ -1,9 +1,6 @@
 <?php
-namespace Bitrix\Socialnetwork\Component\LogList;
 
-use Bitrix\Socialnetwork\LogPageTable;
-use Bitrix\Socialnetwork\LogViewTable;
-use Bitrix\Socialnetwork\UserToGroupTable;
+namespace Bitrix\Socialnetwork\Component\LogList;
 
 class Counter
 {
@@ -29,7 +26,7 @@ class Counter
 		}
 		else
 		{
-			$this->request = Util::getRequest();;
+			$this->request = Util::getRequest();
 		}
 	}
 
@@ -47,16 +44,16 @@ class Counter
 		return $this->processorInstance;
 	}
 
-	public function setEmptyCounter($value = false)
+	public function setEmptyCounter($value = false): void
 	{
 		$this->emptyCounter = $value;
 	}
-	public function getEmptyCounter()
+	public function getEmptyCounter(): bool
 	{
 		return $this->emptyCounter;
 	}
 
-	public function processCounterTypeData(&$result)
+	public function processCounterTypeData(&$result): void
 	{
 		$params = $this->getComponent()->arParams;
 
@@ -69,37 +66,41 @@ class Counter
 		elseif(
 			$params['IS_CRM'] === 'Y'
 			&& (
-				$params['SET_LOG_COUNTER'] != 'N'
-				|| $params['SET_LOG_PAGE_CACHE'] != 'N'
+				$params['SET_LOG_COUNTER'] !== 'N'
+				|| $params['SET_LOG_PAGE_CACHE'] !== 'N'
 			)
 		)
 		{
 			$result['COUNTER_TYPE'] = (
 				is_set($params['CUSTOM_DATA'])
 				&& is_set($params['CUSTOM_DATA']['CRM_PRESET_TOP_ID'])
-				&& $params['CUSTOM_DATA']['CRM_PRESET_TOP_ID'] == 'all'
+				&& $params['CUSTOM_DATA']['CRM_PRESET_TOP_ID'] === 'all'
 					? 'CRM_**_ALL'
 					: 'CRM_**'
 			);
 		}
-		elseif($params['EXACT_EVENT_ID'] == 'blog_post')
+		elseif($params['EXACT_EVENT_ID'] === 'blog_post')
 		{
 			$result['COUNTER_TYPE'] = 'blog_post';
 		}
 	}
 
-	public function clearLogCounter(&$result)
+	public function clearLogCounter(&$result): void
 	{
 		$params = $this->getComponent()->arParams;
 
 		if (
-			Util::checkUserAuthorized()
-			&& $params['SET_LOG_COUNTER'] == 'Y'
-			&& !(isset($result['EXPERT_MODE_SET']) && $result['EXPERT_MODE_SET'])
-			&& (
-				intval($result['LOG_COUNTER']) > 0
-				|| $this->getEmptyCounter()
-			)
+			$params['SET_LOG_COUNTER'] !== 'Y'
+			|| (isset($result['EXPERT_MODE_SET']) && $result['EXPERT_MODE_SET'])
+			|| !Util::checkUserAuthorized()
+		)
+		{
+			return;
+		}
+
+		if (
+			(int)$result['LOG_COUNTER'] > 0
+			|| $this->getEmptyCounter()
 		)
 		{
 			\CUserCounter::clearByUser(
@@ -109,7 +110,7 @@ class Counter
 				true
 			);
 
-			if (intval($result['LOG_COUNTER_IMPORTANT']) > 0)
+			if ((int)$result['LOG_COUNTER_IMPORTANT'] > 0)
 			{
 				\CUserCounter::clearByUser(
 					$result['currentUserId'],
@@ -121,12 +122,27 @@ class Counter
 			$res = getModuleEvents('socialnetwork', 'OnSonetLogCounterClear');
 			while ($eventFields = $res->fetch())
 			{
-				executeModuleEventEx($eventFields, [ $result['COUNTER_TYPE'], intval($result['LAST_LOG_TS']) ]);
+				executeModuleEventEx($eventFields, [ $result['COUNTER_TYPE'], (int)$result['LAST_LOG_TS'] ]);
 			}
+		}
+		else // set last date only
+		{
+			$pool = \Bitrix\Main\Application::getInstance()->getConnectionPool();
+			$pool->useMasterOnly(true);
+
+			\CUserCounter::clearByUser(
+				$result['currentUserId'],
+				[ SITE_ID, '**' ],
+				$result['COUNTER_TYPE'],
+				false, // multiple
+				false // sendPull
+			);
+
+			$pool->useMasterOnly(false);
 		}
 	}
 
-	public function setLogCounter(&$result)
+	public function setLogCounter(&$result): void
 	{
 		$params = $this->getComponent()->arParams;
 
@@ -134,27 +150,28 @@ class Counter
 		$result['LOG_COUNTER_IMPORTANT'] = 0;
 
 		if (
-			Util::checkUserAuthorized()
-			&& $params['SET_LOG_COUNTER'] == 'Y'
+			$params['SET_LOG_COUNTER'] !== 'Y'
+			|| !Util::checkUserAuthorized()
 		)
 		{
-			$counters = \CUserCounter::getValues($result['currentUserId'], SITE_ID);
+			return;
+		}
 
-			if (isset($counters['BLOG_POST_IMPORTANT']))
-			{
-				$result['LOG_COUNTER_IMPORTANT'] = intval($counters['BLOG_POST_IMPORTANT']);
-			}
+		$counters = \CUserCounter::getValues($result['currentUserId'], SITE_ID);
 
-			if (isset($counters[$result['COUNTER_TYPE']]))
-			{
-				$result['LOG_COUNTER'] = intval($counters[$result['COUNTER_TYPE']]);
-			}
-			else
-			{
-				$this->setEmptyCounter(true);
-				$result['LOG_COUNTER'] = 0;
-			}
+		if (isset($counters['BLOG_POST_IMPORTANT']))
+		{
+			$result['LOG_COUNTER_IMPORTANT'] = (int)$counters['BLOG_POST_IMPORTANT'];
+		}
+
+		if (isset($counters[$result['COUNTER_TYPE']]))
+		{
+			$result['LOG_COUNTER'] = (int)$counters[$result['COUNTER_TYPE']];
+		}
+		else
+		{
+			$this->setEmptyCounter(true);
+			$result['LOG_COUNTER'] = 0;
 		}
 	}
 }
-?>

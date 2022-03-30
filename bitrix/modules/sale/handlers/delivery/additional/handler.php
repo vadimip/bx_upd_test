@@ -98,6 +98,14 @@ class AdditionalHandler extends Base
 		$this->deliveryRequestHandler = $this->getDeliveryRequestHandler();
 	}
 
+	/**
+	 * @return string
+	 */
+	public function getHandlerCode(): string
+	{
+		return 'BITRIX_ADDITIONAL_' . (string)$this->serviceType;
+	}
+
 	public function getDeliveryRequestHandler()
 	{
 		$result = null;
@@ -905,7 +913,7 @@ class AdditionalHandler extends Base
 			$price += $itemFieldValues["PRICE"] * $itemFieldValues["QUANTITY"];
 
 			if(!empty($itemFieldValues["DIMENSIONS"]) && is_string($itemFieldValues["DIMENSIONS"]))
-				$itemFieldValues["DIMENSIONS"] = unserialize($itemFieldValues["DIMENSIONS"]);
+				$itemFieldValues["DIMENSIONS"] = unserialize($itemFieldValues["DIMENSIONS"], ['allowed_classes' => false]);
 
 			$result["ITEMS"][] = $itemFieldValues;
 		}
@@ -930,7 +938,7 @@ class AdditionalHandler extends Base
 		}
 
 		$delivery= Manager::getObjectById($shipment->getDeliveryId());
-		$result['DELIVERY_SERVICE_CONFIG'] = $delivery->getConfigValues();
+		$result['DELIVERY_SERVICE_CONFIG'] = $delivery ? $delivery->getConfigValues() : [];
 		$result['WEIGHT'] = $shipment->getWeight();
 		$result['PRICE'] = $price;
 		$result['SHIPMENT_ID'] = $shipment->getId();
@@ -1041,5 +1049,20 @@ class AdditionalHandler extends Base
 			$fields['CONFIG']['MAIN']['SHIPPING_POINT']['ADDITIONAL'] = htmlspecialcharsback($fields['CONFIG']['MAIN']['SHIPPING_POINT']['ADDITIONAL']);
 
 		return parent::prepareFieldsForSaving($fields);
+	}
+
+	/** @inheritDoc */
+	public static function isHandlerCompatible()
+	{
+		if(!parent::isHandlerCompatible())
+		{
+			return false;
+		}
+
+		return in_array(
+			\Bitrix\Sale\Delivery\Helper::getPortalZone(),
+			['', 'ru', 'kz', 'by'],
+			true
+		);
 	}
 }

@@ -124,6 +124,11 @@ class SaleAccountPay extends \CBitrixComponent
 			}
 		}
 
+		if (empty($params['RETURN_URL']))
+		{
+			$params['RETURN_URL'] = (new Sale\PaySystem\Context())->getUrl();
+		}
+
 		return $params;
 	}
 
@@ -157,7 +162,7 @@ class SaleAccountPay extends \CBitrixComponent
 	{
 		global $APPLICATION;
 
-		$amountArray = unserialize(Main\Config\Option::get("sale", "pay_amount"), false);
+		$amountArray = unserialize(Main\Config\Option::get("sale", "pay_amount"), ['allowed_classes' => false]);
 
 		if (empty($amountArray))
 		{
@@ -296,7 +301,8 @@ class SaleAccountPay extends \CBitrixComponent
 				'PERSON_TYPE' => (int)$this->arParams['PERSON_TYPE'],
 				'SELL_CURRENCY' => $this->arParams['SELL_CURRENCY'],
 				'NAME_CONFIRM_TEMPLATE' => $this->arParams['NAME_CONFIRM_TEMPLATE'],
-				'PATH_TO_PAYMENT' => $this->arParams['PATH_TO_PAYMENT']
+				'PATH_TO_PAYMENT' => $this->arParams['PATH_TO_PAYMENT'],
+				'RETURN_URL' => $this->arParams['RETURN_URL'],
 			);
 			$this->arResult['SIGNED_PARAMS'] = base64_encode($signer->sign(serialize($ajaxParams), 'sale.account.pay'));
 		}
@@ -744,6 +750,11 @@ class SaleAccountPay extends \CBitrixComponent
 			}
 			else
 			{
+				if ($returnUrl = $this->arParams['RETURN_URL'])
+				{
+					$paySystemObject->getContext()->setUrl($returnUrl);
+				}
+
 				$paySystemBufferedOutput = $paySystemObject->initiatePay($payment, null, PaySystem\BaseServiceHandler::STRING);
 				if ($paySystemBufferedOutput->isSuccess())
 				{

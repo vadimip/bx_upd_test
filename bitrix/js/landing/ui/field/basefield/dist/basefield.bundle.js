@@ -1,7 +1,7 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.UI = this.BX.Landing.UI || {};
-(function (exports,main_core,main_core_events) {
+(function (exports,main_core,main_core_events,landing_ui_component_internal) {
 	'use strict';
 
 	function _templateObject4() {
@@ -75,6 +75,8 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	    _this.setEventNamespace('BX.Landing.UI.Field');
 
+	    _this.subscribeFromOptions(landing_ui_component_internal.fetchEventsFromOptions(options));
+
 	    _this.data = babelHelpers.objectSpread({}, options);
 	    _this.options = _this.data;
 	    _this.id = Reflect.has(_this.data, 'id') ? _this.data.id : main_core.Text.getRandom();
@@ -90,6 +92,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    _this.property = main_core.Type.isString(_this.data.property) ? _this.data.property : '';
 	    _this.style = Reflect.has(_this.data, 'style') ? _this.data.style : '';
 	    _this.cache = new main_core.Cache.MemoryCache();
+	    _this.contentRoot = Reflect.has(_this.data, 'contentRoot') ? _this.data.contentRoot : null;
 	    var onValueChange = _this.data.onValueChange;
 	    _this.onValueChangeHandler = main_core.Type.isFunction(onValueChange) ? onValueChange : function () {};
 	    _this.onPaste = _this.onPaste.bind(babelHelpers.assertThisInitialized(_this));
@@ -108,10 +111,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      main_core.Dom.addClass(_this.layout, _this.className);
 	    }
 
-	    if (main_core.Type.isString(_this.descriptionText) && _this.descriptionText !== '') {
-	      _this.description = BaseField.createDescription(_this.descriptionText);
-	      main_core.Dom.append(_this.description, _this.layout);
-	    }
+	    _this.setDescription(_this.descriptionText);
 
 	    if (_this.data.disabled === true) {
 	      _this.disable();
@@ -121,6 +121,11 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	    _this.init();
 
+	    if (_this.data.help) {
+	      BX.Dom.append(top.BX.UI.Hint.createNode(_this.data.help), _this.header);
+	      top.BX.UI.Hint.init(BX.Landing.UI.Panel.StylePanel.getInstance().layout);
+	    }
+
 	    return _this;
 	  }
 
@@ -128,6 +133,28 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    key: "setTitle",
 	    value: function setTitle(title) {
 	      this.header.innerHTML = main_core.Text.encode(title);
+	    }
+	  }, {
+	    key: "getDescription",
+	    value: function getDescription() {
+	      return this.layout.querySelector('.landing-ui-field-description');
+	    }
+	  }, {
+	    key: "setDescription",
+	    value: function setDescription(description) {
+	      if (main_core.Type.isString(description) && description !== '') {
+	        this.descriptionText = description;
+	        this.description = BaseField.createDescription(this.descriptionText);
+	        main_core.Dom.remove(this.getDescription());
+	        main_core.Dom.append(this.description, this.layout);
+	      }
+	    }
+	  }, {
+	    key: "removeDescription",
+	    value: function removeDescription() {
+	      main_core.Dom.remove(this.getDescription());
+	      this.description = null;
+	      this.descriptionText = '';
 	    }
 	  }, {
 	    key: "createInput",
@@ -146,6 +173,11 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      }
 
 	      return window;
+	    }
+	  }, {
+	    key: "getContentRoot",
+	    value: function getContentRoot() {
+	      return this.contentRoot; // return this.contentRoot || this.getContext().document.body;
 	    } // eslint-disable-next-line class-methods-use-this
 
 	  }, {
@@ -226,6 +258,9 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    key: "reset",
 	    value: function reset() {}
 	  }, {
+	    key: "onFrameLoad",
+	    value: function onFrameLoad() {}
+	  }, {
 	    key: "clone",
 	    value: function clone(data) {
 	      return new this.constructor(main_core.Runtime.clone(data || this.data));
@@ -240,6 +275,38 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    value: function setLayoutClass(className) {
 	      main_core.Dom.addClass(this.layout, className);
 	    }
+	    /**
+	     * If field has inline style-properties (f.e. css variables) - get name of them
+	    	 * @returns {string[]}
+	     */
+
+	  }, {
+	    key: "getInlineProperties",
+	    value: function getInlineProperties() {
+	      return [];
+	    }
+	    /**
+	     * If field need match computed styles by node - get name of style properties
+	     * @returns {string[]}
+	     */
+
+	  }, {
+	    key: "getComputedProperties",
+	    value: function getComputedProperties() {
+	      // todo: get from typeSetting
+	      return [];
+	    }
+	    /**
+	     * If field work with pseudo element - return them (f.e. :after)
+	     * @returns {?string}
+	     */
+
+	  }, {
+	    key: "getPseudoElement",
+	    value: function getPseudoElement() {
+	      // todo: from type settings
+	      return null;
+	    }
 	  }]);
 	  return BaseField;
 	}(main_core_events.EventEmitter);
@@ -247,5 +314,5 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	exports.BaseField = BaseField;
 
-}((this.BX.Landing.UI.Field = this.BX.Landing.UI.Field || {}),BX,BX.Event));
+}((this.BX.Landing.UI.Field = this.BX.Landing.UI.Field || {}),BX,BX.Event,BX.Landing.UI.Component));
 //# sourceMappingURL=basefield.bundle.js.map

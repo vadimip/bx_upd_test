@@ -2,35 +2,7 @@ this.BX = this.BX || {};
 (function (exports,main_core_events,calendar_util,main_core,main_popup) {
 	'use strict';
 
-	function _templateObject3() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-selector-control\"></div>"]);
-
-	  _templateObject3 = function _templateObject3() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject2() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-selector-notice\" style=\"display: none\"></div>"]);
-
-	  _templateObject2 = function _templateObject2() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class=\"calendar-planner-timeline-selector\" data-bx-planner-meta=\"selector\">\n\t\t\t\t<span data-bx-planner-meta=\"selector-resize-left\" class=\"calendar-planner-timeline-drag-left\"></span>\n\t\t\t\t<span class=\"calendar-planner-timeline-selector-grip\"></span>\n\t\t\t\t<span data-bx-planner-meta=\"selector-resize-right\" class=\"calendar-planner-timeline-drag-right\"></span>\n\t\t\t</div>"]);
-
-	  _templateObject = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
+	var _templateObject, _templateObject2, _templateObject3;
 	var Selector = /*#__PURE__*/function (_EventEmitter) {
 	  babelHelpers.inherits(Selector, _EventEmitter);
 
@@ -55,6 +27,7 @@ this.BX = this.BX || {};
 	    _this.getPosDateMap = params.getPosDateMap;
 	    _this.getTimelineWidth = params.getTimelineWidth;
 	    _this.getScaleInfo = params.getScaleInfo;
+	    _this.solidStatus = params.solidStatus;
 	    _this.useAnimation = params.useAnimation !== false;
 	    _this.DOM.timelineWrap = params.timelineWrap;
 
@@ -66,14 +39,14 @@ this.BX = this.BX || {};
 	  babelHelpers.createClass(Selector, [{
 	    key: "render",
 	    value: function render() {
-	      this.DOM.wrap = main_core.Tag.render(_templateObject()); // prefent draging selector and activating uploader controll in livefeed
+	      this.DOM.wrap = main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class=\"calendar-planner-timeline-selector\" data-bx-planner-meta=\"selector\">\n\t\t\t\t<span data-bx-planner-meta=\"selector-resize-left\" class=\"calendar-planner-timeline-drag-left\"></span>\n\t\t\t\t<span class=\"calendar-planner-timeline-selector-grip\"></span>\n\t\t\t\t<span data-bx-planner-meta=\"selector-resize-right\" class=\"calendar-planner-timeline-drag-right\"></span>\n\t\t\t</div>"]))); // prefent draging selector and activating uploader controll in livefeed
 
 	      this.DOM.wrap.ondrag = BX.False;
 	      this.DOM.wrap.ondragstart = BX.False;
-	      this.DOM.titleNode = main_core.Tag.render(_templateObject2());
+	      this.DOM.titleNode = main_core.Tag.render(_templateObject2 || (_templateObject2 = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-selector-notice\" style=\"display: none\"></div>"])));
 
 	      if (this.selectMode) {
-	        result.controlWrap = this.DOM.wrap.appendChild(main_core.Tag.render(_templateObject3()));
+	        result.controlWrap = this.DOM.wrap.appendChild(main_core.Tag.render(_templateObject3 || (_templateObject3 = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-selector-control\"></div>"]))));
 	      }
 	    }
 	  }, {
@@ -102,67 +75,28 @@ this.BX = this.BX || {};
 	    key: "update",
 	    value: function update() {
 	      var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-	      if (!main_core.Type.isPlainObject(params)) params = {};
+
+	      if (!main_core.Type.isPlainObject(params)) {
+	        params = {};
+	      }
+
 	      params.updateScaleType = !!params.updateScaleType;
 	      params.updateScaleLimits = !!params.updateScaleLimits;
 	      params.animation = !!params.animation;
-	      var from = main_core.Type.isDate(params.from) ? params.from : BX.parseDate(params.from) || this.currentDateFrom,
-	          to = main_core.Type.isDate(params.to) ? params.to : BX.parseDate(params.to) || this.currentDateTo,
-	          fullDay = params.fullDay !== undefined ? params.fullDay : this.currentFullDay;
+	      var from = main_core.Type.isDate(params.from) ? params.from : BX.parseDate(params.from) || this.currentDateFrom;
+	      var to = main_core.Type.isDate(params.to) ? params.to : BX.parseDate(params.to) || this.currentDateTo;
+	      this.fullDayMode = params.fullDay !== undefined ? params.fullDay : this.currentFullDay;
 
 	      if (main_core.Type.isDate(from) && main_core.Type.isDate(to)) {
 	        this.currentDateFrom = from;
 	        this.currentDateTo = to;
-	        this.currentFullDay = fullDay; //this.SetFullDayMode(fullDay);
+	        this.currentFullDay = this.fullDayMode;
 
-	        if (fullDay) {
+	        if (this.fullDayMode) {
 	          to = new Date(to.getTime() + calendar_util.Util.getDayLength());
 	          from.setHours(0, 0, 0, 0);
-	          to.setHours(0, 0, 0, 0); // if (this.scaleType !== '1day')
-	          // {
-	          // 	this.setScaleType('1day');
-	          // 	rebuildTimeline = true;
-	          // }
-	        } // Update limits of scale
-	        // if (params.updateScaleLimits && this.scaleType !== '1day')
-	        // {
-	        // 	let timeFrom = parseInt(from.getHours()) + Math.floor(from.getMinutes() / 60);
-	        // 	let timeTo = parseInt(to.getHours()) + Math.ceil(to.getMinutes() / 60);
-	        //
-	        // 	if (Util.formatDate(from) !== Util.formatDate(to))
-	        // 	{
-	        // 		this.extendScaleTime(0, 24);
-	        // 		rebuildTimeline = true;
-	        // 	}
-	        // 	else
-	        // 	{
-	        // 		if (timeFrom < this.shownScaleTimeFrom)
-	        // 		{
-	        // 			this.extendScaleTime(timeFrom, false);
-	        // 			rebuildTimeline = true;
-	        // 		}
-	        //
-	        // 		if (timeTo > this.shownScaleTimeTo)
-	        // 		{
-	        // 			this.extendScaleTime(false, timeTo);
-	        // 			rebuildTimeline = true;
-	        // 		}
-	        //
-	        // 		if (rebuildTimeline)
-	        // 		{
-	        // 			this.adjustCellWidth();
-	        // 		}
-	        // 	}
-	        // }
-	        //if (params.RRULE)
-	        //{
-	        //	this.HandleRecursion(params);
-	        //}
-	        // if (rebuildTimeline)
-	        // {
-	        // 	this.RebuildPlanner({updateSelector: false});
-	        // }
-	        // Update selector
+	          to.setHours(0, 0, 0, 0);
+	        } // Update selector
 
 
 	        this.show(from, to, {
@@ -174,9 +108,9 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "show",
 	    value: function show(from, to, params) {
-	      var animation = params.animation && this.useAnimation !== false,
-	          focus = params.focus,
-	          alignCenter = params.alignCenter !== false;
+	      var animation = params.animation && this.useAnimation !== false;
+	      var focus = params.focus !== false;
+	      var alignCenter = params.alignCenter !== false;
 	      this.DOM.wrap.style.display = 'block';
 
 	      if (main_core.Type.isDate(from) && main_core.Type.isDate(to)) {
@@ -188,13 +122,17 @@ this.BX = this.BX || {};
 	          this.transit({
 	            toX: fromPos,
 	            triggerChangeEvents: false,
-	            focus: focus === true
+	            focus: focus
 	          });
 	        } else {
 	          this.DOM.wrap.style.left = fromPos + 'px';
 	          this.DOM.wrap.style.width = toPos - fromPos + 'px';
-	          this.focus(false, 200, alignCenter);
-	          this.checkStatus(fromPos);
+
+	          if (focus) {
+	            this.focus(false, 200, alignCenter);
+	          }
+
+	          this.checkStatus(fromPos, true);
 	        }
 	      }
 	    }
@@ -347,14 +285,11 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "checkStatus",
 	    value: function checkStatus(selectorPos, checkPosition) {
-	      // if (this.config.useSolidBlueSelector)
-	      // {
-	      // 	Dom.removeClass(this.DOM.wrap, 'calendar-planner-timeline-selector-warning');
-	      // 	Dom.removeClass(this.mainContWrap, 'calendar-planner-selector-warning');
-	      // 	Dom.addClass(this.DOM.wrap, 'solid');
-	      // }
-	      // else
-	      {
+	      if (this.solidStatus) {
+	        main_core.Dom.removeClass(this.DOM.wrap, 'calendar-planner-timeline-selector-warning');
+	        main_core.Dom.removeClass(this.mainContWrap, 'calendar-planner-selector-warning');
+	        main_core.Dom.addClass(this.DOM.wrap, 'solid');
+	      } else {
 	        if (!selectorPos) {
 	          selectorPos = Selector.roundPos(this.DOM.wrap.style.left);
 	        }
@@ -416,18 +351,20 @@ this.BX = this.BX || {};
 	        selectorPos = parseInt(this.getTimelineWidth()) - selectorWidth;
 	      }
 
-	      var dateFrom = this.getDateByPos(selectorPos),
-	          dateTo = this.getDateByPos(selectorPos + selectorWidth, true);
+	      var dateFrom = this.getDateByPos(selectorPos);
+	      var dateTo = this.getDateByPos(selectorPos + selectorWidth, true);
 
 	      if (dateFrom && dateTo) {
 	        this.currentDateFrom = dateFrom;
 	        this.currentDateTo = dateTo;
+	        this.currentFullDay = this.fullDayMode;
 
 	        if (this.fullDayMode) {
-	          dateTo = new Date(dateTo.getTime() - calendar_util.Util.getDayLength());
+	          var dateToTime = dateTo.getTime();
+	          this.currentDateTo = new Date(dateToTime - 1000);
+	          dateTo = new Date(dateToTime - calendar_util.Util.getDayLength());
 	        }
 
-	        this.currentFullDay = this.fullDayMode;
 	        this.emit('onChange', new main_core_events.BaseEvent({
 	          data: {
 	            dateFrom: dateFrom,
@@ -442,10 +379,10 @@ this.BX = this.BX || {};
 	    value: function checkPosition(fromPos, selectorWidth, toPos) {
 	      var scaleInfo = this.getScaleInfo();
 
-	      if (scaleInfo.shownTimeFrom !== 0 || scaleInfo.shownTimeTo !== 24 && (scaleInfo.type !== '1day' || this.fullDayMode)) {
-	        if (!fromPos) fromPos = parseInt(this.DOM.wrap.style.left);
-	        if (!selectorWidth) selectorWidth = parseInt(this.DOM.wrap.style.width);
-	        if (!toPos) toPos = fromPos + selectorWidth;
+	      if ((scaleInfo.shownTimeFrom !== 0 || scaleInfo.shownTimeTo !== 24) && (scaleInfo.type !== '1day' || this.fullDayMode)) {
+	        fromPos = fromPos || parseInt(this.DOM.wrap.style.left);
+	        selectorWidth = selectorWidth || parseInt(this.DOM.wrap.style.width);
+	        toPos = toPos || fromPos + selectorWidth;
 
 	        if (toPos > parseInt(this.getTimelineWidth())) {
 	          fromPos = parseInt(this.getTimelineWidth()) - selectorWidth;
@@ -768,55 +705,7 @@ this.BX = this.BX || {};
 	  return Selector;
 	}(main_core_events.EventEmitter);
 
-	function _templateObject5() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div bx-tooltip-user-id=\"", "\" bx-tooltip-classname=\"calendar-planner-user-tooltip\" title=\"", "\" class=\"ui-icon calendar-planner-user-image-icon\"><i style=\"background-image: url('", "')\"></i></div>"]);
-
-	  _templateObject5 = function _templateObject5() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject4() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div bx-tooltip-user-id=\"", "\" bx-tooltip-classname=\"calendar-planner-user-tooltip\" title=\"", "\" class=\"ui-icon calendar-planner-user-image-icon ", "\"><i></i></div>"]);
-
-	  _templateObject4 = function _templateObject4() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject3$1() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<span class=\"calendar-planner-option-tab ", "\" data-bx-planner-scale=\"", "\">", "</span>"]);
-
-	  _templateObject3$1 = function _templateObject3() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject2$1() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-timeline-space\" style=\"top:", "px\" data-bx-planner-entry=\"", "\"></div>"]);
-
-	  _templateObject2$1 = function _templateObject2() {
-	    return data;
-	  };
-
-	  return data;
-	}
-
-	function _templateObject$1() {
-	  var data = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-settings-icon-container\" title=\"", "\"><span class=\"calendar-planner-settings-title\">", "</span><span class=\"calendar-planner-settings-icon\"></span></div>"]);
-
-	  _templateObject$1 = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
+	var _templateObject$1, _templateObject2$1, _templateObject3$1, _templateObject4, _templateObject5, _templateObject6, _templateObject7;
 	var Planner = /*#__PURE__*/function (_EventEmitter) {
 	  babelHelpers.inherits(Planner, _EventEmitter);
 
@@ -826,83 +715,61 @@ this.BX = this.BX || {};
 	  // ms
 	  // in days
 	  function Planner() {
-	    var _this2;
+	    var _this;
 
 	    var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 	    babelHelpers.classCallCheck(this, Planner);
-	    _this2 = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Planner).call(this));
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "DOM", {});
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "config", {});
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "entryStatusMap", {
+	    _this = babelHelpers.possibleConstructorReturn(this, babelHelpers.getPrototypeOf(Planner).call(this));
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "DOM", {});
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "config", {});
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "entryStatusMap", {
 	      h: 'user-status-h',
 	      y: 'user-status-y',
 	      q: 'user-status-q',
 	      n: 'user-status-n'
 	    });
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "scaleTypes", ['15min', '30min', '1hour', '2hour', '1day']);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "savedScaleType", null);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "SCALE_OFFSET_BEFORE", 3);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "SCALE_OFFSET_AFTER", 10);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "EXPAND_OFFSET", 3);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "EXPAND_DELAY", 2000);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "REBUILD_DELAY", 100);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "maxTimelineSize", 20);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "MIN_ENTRY_ROWS", 3);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "MAX_ENTRY_ROWS", 300);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "width", 700);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "height", 84);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "minWidth", 700);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "minHeight", 84);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "workTime", [9, 18]);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "scrollStep", 10);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "shown", false);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "built", false);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "shownScaleTimeFrom", 24);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "shownScaleTimeTo", 0);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "timelineCellWidthOrig", false);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "proposeTimeLimit", 60);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "expandTimelineDelay", 600);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "limitScaleSizeMode", false);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "useAnimation", true);
-	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this2), "checkTimeCache", {});
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "scaleTypes", ['15min', '30min', '1hour', '2hour', '1day']);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "savedScaleType", null);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "SCALE_OFFSET_BEFORE", 3);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "SCALE_OFFSET_AFTER", 10);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "EXPAND_OFFSET", 3);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "EXPAND_DELAY", 2000);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "REBUILD_DELAY", 100);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "maxTimelineSize", 20);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "MIN_ENTRY_ROWS", 3);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "MAX_ENTRY_ROWS", 300);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "width", 700);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "height", 84);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "minWidth", 700);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "minHeight", 84);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "workTime", [9, 18]);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "scrollStep", 10);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "shown", false);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "built", false);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "locked", false);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "shownScaleTimeFrom", 24);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "shownScaleTimeTo", 0);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "timelineCellWidthOrig", false);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "proposeTimeLimit", 60);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "expandTimelineDelay", 600);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "limitScaleSizeMode", false);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "useAnimation", true);
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "checkTimeCache", {});
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "entriesIndex", new Map());
+	    babelHelpers.defineProperty(babelHelpers.assertThisInitialized(_this), "solidStatus", false);
 
-	    _this2.setEventNamespace('BX.Calendar.Planner');
+	    _this.setEventNamespace('BX.Calendar.Planner');
 
-	    _this2.config = params;
-	    _this2.id = params.id;
-	    _this2.userId = params.userId || main_core.Loc.getMessage('USER_ID');
-	    _this2.DOM.wrap = params.wrap;
-	    _this2.SCALE_TIME_FORMAT = BX.isAmPmMode() ? 'g a' : 'G';
-	    _this2.entriesIndex = new Map();
+	    _this.config = params;
+	    _this.id = params.id;
+	    _this.userId = parseInt(params.userId || main_core.Loc.getMessage('USER_ID'));
+	    _this.DOM.wrap = params.wrap;
+	    _this.SCALE_TIME_FORMAT = BX.isAmPmMode() ? 'g a' : 'G';
+	    _this.expandTimelineDebounce = main_core.Runtime.debounce(_this.expandTimeline, _this.EXPAND_DELAY, babelHelpers.assertThisInitialized(_this));
 
-	    _this2.setConfig(params); // this.SetLoadedDataLimits(this.scaleDateFrom, this.scaleDateTo);
-	    // BX.addCustomEvent('OnCalendarPlannerDoUpdate', BX.proxy(this.DoUpdate, this));
-	    // BX.addCustomEvent('OnCalendarPlannerDoExpand', BX.proxy(this.DoExpand, this));
-	    // BX.addCustomEvent('OnCalendarPlannerDoResize', BX.proxy(this.DoResize, this));
-	    // BX.addCustomEvent('OnCalendarPlannerDoSetConfig', BX.proxy(this.DoSetConfig, this));
-	    // BX.addCustomEvent('OnCalendarPlannerDoUninstall', BX.proxy(this.DoUninstall, this));
-	    //BX.addCustomEvent('OnCalendarPlannerDoProposeTime', BX.proxy(this.DoProposeTime, this));
-	    // if (initialUpdateParams)
-	    // {
-	    // 	initialUpdateParams.plannerId = this.id;
-	    // 	if (initialUpdateParams.selector)
-	    // 	{
-	    // 		if (initialUpdateParams.selector.from && !initialUpdateParams.selector.from.getTime)
-	    // 		{
-	    // 			initialUpdateParams.selector.from = Util.parseDate(initialUpdateParams.selector.from);
-	    // 		}
-	    // 		if (initialUpdateParams.selector.to && !initialUpdateParams.selector.to.getTime)
-	    // 		{
-	    // 			initialUpdateParams.selector.to = Util.parseDate(initialUpdateParams.selector.to);
-	    // 		}
-	    // 	}
-	    // 	this.useAnimation = false;
-	    // 	this.DoUpdate(initialUpdateParams);
-	    // 	setTimeout(BX.delegate(function(){this.useAnimation = true;}, this), 2000);
-	    // }
+	    _this.setConfig(params);
 
-
-	    return _this2;
+	    return _this;
 	  }
 
 	  babelHelpers.createClass(Planner, [{
@@ -919,8 +786,7 @@ this.BX = this.BX || {};
 	        this.bindEventHandlers();
 	      } else {
 	        this.resizePlannerWidth(this.width);
-	      } //this.HideSelector();
-
+	      }
 
 	      this.buildTimeline();
 
@@ -929,8 +795,19 @@ this.BX = this.BX || {};
 	      }
 
 	      this.DOM.wrap.style.display = '';
-	      if (this.readonly) main_core.Dom.addClass(this.DOM.mainWrap, 'calendar-planner-readonly');else main_core.Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-readonly');
-	      if (this.compactMode) main_core.Dom.addClass(this.DOM.mainWrap, 'calendar-planner-compact');else main_core.Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-compact');
+
+	      if (this.readonly) {
+	        main_core.Dom.addClass(this.DOM.mainWrap, 'calendar-planner-readonly');
+	      } else {
+	        main_core.Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-readonly');
+	      }
+
+	      if (this.compactMode) {
+	        main_core.Dom.addClass(this.DOM.mainWrap, 'calendar-planner-compact');
+	      } else {
+	        main_core.Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-compact');
+	      }
+
 	      this.DOM.entriesOuterWrap.style.display = this.compactMode ? 'none' : '';
 
 	      {
@@ -942,49 +819,7 @@ this.BX = this.BX || {};
 	      }
 
 	      this.shown = true;
-	    } // Hide(animation)
-	    // {
-	    // 	if (this.showAnimation)
-	    // 	{
-	    // 		this.showAnimation.stop();
-	    // 		this.showAnimation = null;
-	    // 	}
-	    //
-	    // 	if (this.shown)
-	    // 	{
-	    // 		this.shown = false;
-	    //
-	    // 		if (animation)
-	    // 		{
-	    // 			if (this.hideAnimation)
-	    // 			{
-	    // 				this.hideAnimation.stop();
-	    // 			}
-	    // 			this.hideAnimation = new BX.easing({
-	    // 				duration: 300,
-	    // 				start: {height: this.height},
-	    // 				finish: {height: 0},
-	    // 				transition: BX.easing.makeEaseOut(BX.easing.transitions.quart),
-	    // 				step: (state)=>{this.DOM.wrap.style.height = state.height + 'px';},
-	    // 				complete: ()=>{
-	    // 					this.hideAnimation = null;
-	    // 					this.Hide(false);
-	    // 				}
-	    // 			});
-	    // 			this.hideAnimation.animate();
-	    // 		}
-	    // 		else
-	    // 		{
-	    // 			this.DOM.wrap.style.display = 'none';
-	    // 			Dom.clean(this.DOM.timelineScaleWrap);
-	    // 			this.DOM.timelineInnerWrap.removeAttribute('style');
-	    // 			this.DOM.wrap.removeAttribute('style');
-	    // 			this.DOM.mainWrap.removeAttribute('style');
-	    // 			this.DOM.entriesOuterWrap.removeAttribute('style');
-	    // 		}
-	    // 	}
-	    // }
-
+	    }
 	  }, {
 	    key: "setConfig",
 	    value: function setConfig(params) {
@@ -1059,6 +894,7 @@ this.BX = this.BX || {};
 
 	      this.entriesListWidth = parseInt(params.entriesListWidth) || this.entriesListWidth || 200;
 	      this.timelineCellWidth = params.timelineCellWidth || this.timelineCellWidth || 40;
+	      this.solidStatus = params.solidStatus === true;
 	      this.showEntiesHeader = params.showEntiesHeader === undefined ? true : !!params.showEntiesHeader;
 	      this.showEntryName = params.showEntryName === undefined ? true : !!params.showEntryName;
 
@@ -1072,6 +908,10 @@ this.BX = this.BX || {};
 
 	      if (this.allowAdjustCellWidth === undefined || params.allowAdjustCellWidth !== undefined) {
 	        this.allowAdjustCellWidth = this.readonly && this.compactMode && params.allowAdjustCellWidth !== false;
+	      }
+
+	      if (params.locked !== undefined) {
+	        this.locked = params.locked;
 	      }
 
 	      this.adjustCellWidth(); // Scale params
@@ -1148,7 +988,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "build",
 	    value: function build() {
-	      var _this4 = this;
+	      var _this3 = this;
 
 	      if (!main_core.Type.isDomNode(this.DOM.wrap)) {
 	        throw new TypeError("Wrap is not DOM node");
@@ -1227,14 +1067,12 @@ this.BX = this.BX || {};
 	        }
 	      })); // Fixed cont with specific width and height
 
-	      this.DOM.timelineFixedWrap = this.DOM.mainWrap.appendChild(BX.create("DIV", {
-	        props: {
-	          className: 'calendar-planner-timeline-wrapper'
-	        },
-	        style: {
-	          height: this.height + 'px'
-	        }
-	      })); // Movable cont - used to move scale and data containers easy and at the same time
+	      this.DOM.timelineFixedWrap = this.DOM.mainWrap.appendChild(main_core.Tag.render(_templateObject$1 || (_templateObject$1 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"calendar-planner-timeline-wrapper\" style=\"height: ", "px\"></div>\n\t\t"])), this.height));
+
+	      if (this.isLocked()) {
+	        this.lock();
+	      } // Movable cont - used to move scale and data containers easy and at the same time
+
 
 	      this.DOM.timelineInnerWrap = this.DOM.timelineFixedWrap.appendChild(BX.create("DIV", {
 	        props: {
@@ -1271,18 +1109,19 @@ this.BX = this.BX || {};
 	        getPosByDate: this.getPosByDate.bind(this),
 	        getDateByPos: this.getDateByPos.bind(this),
 	        getPosDateMap: function getPosDateMap() {
-	          return _this4.posDateMap;
+	          return _this3.posDateMap;
 	        },
 	        useAnimation: this.useAnimation,
+	        solidStatus: this.solidStatus,
 	        getScaleInfo: function getScaleInfo() {
 	          return {
-	            scale: _this4.scaleType,
-	            shownTimeFrom: _this4.shownScaleTimeFrom,
-	            shownTimeTo: _this4.shownScaleTimeTo
+	            scale: _this3.scaleType,
+	            shownTimeFrom: _this3.shownScaleTimeFrom,
+	            shownTimeTo: _this3.shownScaleTimeTo
 	          };
 	        },
 	        getTimelineWidth: function getTimelineWidth() {
-	          return parseInt(_this4.DOM.timelineInnerWrap.style.width);
+	          return parseInt(_this3.DOM.timelineInnerWrap.style.width);
 	        }
 	      });
 	      this.DOM.timelineDataWrap.appendChild(this.selector.getWrap());
@@ -1309,7 +1148,7 @@ this.BX = this.BX || {};
 	      }
 
 	      if (!this.compactMode) {
-	        this.DOM.settingsButton = this.DOM.mainWrap.appendChild(main_core.Tag.render(_templateObject$1(), main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE'), main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE')));
+	        this.DOM.settingsButton = this.DOM.mainWrap.appendChild(main_core.Tag.render(_templateObject2$1 || (_templateObject2$1 = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-settings-icon-container\" title=\"", "\"><span class=\"calendar-planner-settings-title\">", "</span><span class=\"calendar-planner-settings-icon\"></span></div>"])), main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE'), main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE')));
 	        main_core.Event.bind(this.DOM.settingsButton, 'click', this.showSettingsPopup.bind(this));
 	      }
 
@@ -1379,13 +1218,13 @@ this.BX = this.BX || {};
 	          }
 	        }
 
-	        var mapDatePosRes = this.mapDatePos(); //this.datePosMap = mapDatePosRes.datePosMap;
-
+	        var mapDatePosRes = this.mapDatePos();
 	        this.posDateMap = mapDatePosRes.posDateMap;
 	        var timelineOffset = this.DOM.timelineScaleWrap.offsetWidth;
 	        this.DOM.timelineInnerWrap.style.width = timelineOffset + 'px';
 	        this.DOM.entrieListWrap.style.top = parseInt(this.DOM.timelineDataWrap.offsetTop) + 10 + 'px';
-	        this.lastTimelineKey = this.getTimelineShownKey(); //this.checkRebuildTimeout(timelineOffset);
+	        this.lastTimelineKey = this.getTimelineShownKey();
+	        this.checkRebuildTimeout(timelineOffset);
 	      }
 	    }
 	  }, {
@@ -1396,11 +1235,9 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "checkRebuildTimeout",
 	    value: function checkRebuildTimeout(timelineOffset) {
-	      var _this5 = this;
+	      var _this4 = this;
 
-	      var timeout = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 200;
-
-	      var _this = this;
+	      var timeout = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 300;
 
 	      if (!this._checkRebuildTimeoutCount) {
 	        this._checkRebuildTimeoutCount = 0;
@@ -1410,19 +1247,21 @@ this.BX = this.BX || {};
 	        this.rebuildTimeout = !!clearTimeout(this.rebuildTimeout);
 	      }
 
-	      if (this._checkRebuildTimeoutCount <= 5) {
+	      if (this._checkRebuildTimeoutCount <= 10 && main_core.Type.isElementNode(this.DOM.timelineScaleWrap) && main_core.Dom.isShown(this.DOM.timelineScaleWrap)) {
 	        this._checkRebuildTimeoutCount++;
 	        this.rebuildTimeout = setTimeout(function () {
-	          if (timelineOffset !== _this.DOM.timelineScaleWrap.offsetWidth) {
-	            if (_this5.rebuildTimeout) {
-	              _this5.rebuildTimeout = !!clearTimeout(_this5.rebuildTimeout);
+	          if (timelineOffset !== _this4.DOM.timelineScaleWrap.offsetWidth) {
+	            if (_this4.rebuildTimeout) {
+	              _this4.rebuildTimeout = !!clearTimeout(_this4.rebuildTimeout);
 	            }
 
-	            _this5.rebuild();
+	            _this4.rebuild();
 
-	            _this5.FocusSelector(true, 200);
+	            if (_this4.selector) {
+	              _this4.selector.focus(false, 300);
+	            }
 	          } else {
-	            _this5.checkRebuildTimeout(timelineOffset, timeout);
+	            _this4.checkRebuildTimeout(timelineOffset, timeout);
 	          }
 	        }, timeout);
 	      } else {
@@ -1496,147 +1335,6 @@ this.BX = this.BX || {};
 	    value: function isOneDayScale() {
 	      return this.scaleType === '1day';
 	    }
-	    /**
-	     * Updates data on scale of planner
-	     *
-	     * @params array array of parameters
-	     * @params[entries] - array of entries to display on scale
-	     * @params[accessibility] - object contains informaton about accessibility for entries
-	     * @return null
-	     */
-	    // UpdateData(params)
-	    // {
-	    // 	if (!params.accessibility)
-	    // 	{
-	    // 		params.accessibility = {};
-	    // 	}
-	    //
-	    // 	this.accessibility = params.accessibility;
-	    // 	this.entries = params.entries;
-	    //
-	    // 	let i, k, entry, acc, userId = this.userId;
-	    // 	// Compact mode
-	    // 	if (this.compactMode)
-	    // 	{
-	    // 		let data = [];
-	    // 		for (k in params.accessibility)
-	    // 		{
-	    // 			if (params.accessibility.hasOwnProperty(k) && params.accessibility[k] && params.accessibility[k].length > 0)
-	    // 			{
-	    // 				for (i = 0; i < params.accessibility[k].length; i++)
-	    // 				{
-	    // 					data.push(Planner.prepareAccessibilityItem(params.accessibility[k][i]));
-	    // 				}
-	    // 			}
-	    // 		}
-	    //
-	    // 		// Fuse access
-	    // 		//data = this.FuseAccessibility(data);
-	    // 		this.compactRowWrap = this.DOM.accessibilityWrap.appendChild(BX.create("DIV", {
-	    // 			props: {className: 'calendar-planner-timeline-space'},
-	    // 			style: {}
-	    // 		}));
-	    //
-	    // 		// this.currentData = [data];
-	    // 		// for (i = 0; i < data.length; i++)
-	    // 		// {
-	    // 		// 	this.addAccessibilityItem(data[i], this.compactRowWrap);
-	    // 		// }
-	    // 	}
-	    // 	else
-	    // 	{
-	    // 		// sort entries list by amount of accessibilities data
-	    // 		// Enties without accessibilitity data should be in the end of the array
-	    // 		// But first in the list will be meeting room
-	    // 		// And second (or first) will be owner-host of the event
-	    //
-	    // 		if (params.entries && params.entries.length)
-	    // 		{
-	    // 			params.entries.sort(function(a, b)
-	    // 			{
-	    // 				if (b.status === 'h' || b.id == userId && a.status !== 'h')
-	    // 				{
-	    // 					return 1;
-	    // 				}
-	    // 				if (a.status === 'h' || a.id == userId && b.status !== 'h')
-	    // 				{
-	    // 					return  -1;
-	    // 				}
-	    // 				return 0;
-	    // 			});
-	    //
-	    // 			if (this.selectedEntriesWrap)
-	    // 			{
-	    // 				Dom.clean(this.selectedEntriesWrap);
-	    //
-	    // 				if (this.selector && this.selector.controlWrap)
-	    // 				{
-	    // 					Dom.clean(this.selector.controlWrap);
-	    // 				}
-	    // 			}
-	    //
-	    // 			let
-	    // 				cutData = [],
-	    // 				usersCount = 0,
-	    // 				cutAmount = 0,
-	    // 				dispDataCount = 0,
-	    // 				cutDataTitle = [];
-	    //
-	    // 			for (i = 0; i < params.entries.length; i++)
-	    // 			{
-	    // 				entry = params.entries[i];
-	    // 				acc = params.accessibility[entry.id] || [];
-	    // 				entry.uid = this.getEntryUniqueId(entry);
-	    //
-	    // 				if (entry.type === 'user')
-	    // 					usersCount++;
-	    //
-	    // 				if (this.MIN_ENTRY_ROWS && (i < this.MIN_ENTRY_ROWS || params.entries.length === this.MIN_ENTRY_ROWS + 1))
-	    // 				{
-	    // 					dispDataCount++;
-	    // 					this.displayEntryRow(entry, acc);
-	    // 				}
-	    // 				else
-	    // 				{
-	    // 					cutAmount++;
-	    // 					cutDataTitle.push(entry.name);
-	    // 					if (acc.length > 0)
-	    // 					{
-	    // 						for (k = 0; k < acc.length; k++)
-	    // 						{
-	    // 							cutData.push(Planner.prepareAccessibilityItem(acc[k]));
-	    // 						}
-	    // 					}
-	    // 				}
-	    // 			}
-	    //
-	    // 			// Update entries title count
-	    // 			if (this.entriesListTitleCounter)
-	    // 			{
-	    // 				this.entriesListTitleCounter.innerHTML = usersCount > this.MAX_ENTRY_ROWS ? '(' + usersCount + ')' : '';
-	    // 			}
-	    //
-	    // 			if (cutAmount > 0)
-	    // 			{
-	    // 				if (dispDataCount === this.MAX_ENTRY_ROWS)
-	    // 				{
-	    // 					this.displayEntryRow({name: Loc.getMessage('EC_PL_ATTENDEES_LAST') + ' (' + cutAmount + ')', type: 'lastUsers', title: cutDataTitle.join(', ')}, cutData);
-	    // 				}
-	    // 				else
-	    // 				{
-	    // 					this.displayEntryRow({name: Loc.getMessage('EC_PL_ATTENDEES_SHOW_MORE') + ' (' + cutAmount + ')', type: 'moreLink'}, cutData);
-	    // 				}
-	    // 			}
-	    // 		}
-	    // 	}
-	    // 	this.adjustHeight();
-	    //
-	    // 	BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
-	    // 		plannerId: this.id,
-	    // 		entries: this.entries
-	    // 	}]);
-	    // }
-
 	  }, {
 	    key: "addAccessibilityItem",
 	    value: function addAccessibilityItem(entry, wrap) {
@@ -1707,7 +1405,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "displayEntryRow",
 	    value: function displayEntryRow(entry) {
-	      var _this6 = this;
+	      var _this5 = this;
 
 	      var accessibility = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
 	      var rowWrap;
@@ -1816,9 +1514,8 @@ this.BX = this.BX || {};
 	            props: {
 	              className: 'calendar-planner-user-name'
 	            }
-	          })).appendChild(BX.create("A", {
+	          })).appendChild(BX.create("span", {
 	            props: {
-	              href: entry.url ? entry.url : '#',
 	              className: 'calendar-planner-entry-name'
 	            },
 	            style: {
@@ -1888,7 +1585,7 @@ this.BX = this.BX || {};
 	      }
 
 	      var top = rowWrap.offsetTop + 13;
-	      var dataRowWrap = this.DOM.accessibilityWrap.appendChild(main_core.Tag.render(_templateObject2$1(), top, entry.uid || 0));
+	      var dataRowWrap = this.DOM.accessibilityWrap.appendChild(main_core.Tag.render(_templateObject3$1 || (_templateObject3$1 = babelHelpers.taggedTemplateLiteral(["<div class=\"calendar-planner-timeline-space\" style=\"top:", "px\" data-bx-planner-entry=\"", "\"></div>"])), top, entry.uid || 0));
 
 	      if (this.selectMode) {
 	        entry.selectorControlWrap = this.selector.controlWrap.appendChild(BX.create("DIV", {
@@ -1912,7 +1609,7 @@ this.BX = this.BX || {};
 	        item = Planner.prepareAccessibilityItem(item);
 
 	        if (item) {
-	          _this6.addAccessibilityItem(item, dataRowWrap);
+	          _this5.addAccessibilityItem(item, dataRowWrap);
 	        }
 	      });
 	    }
@@ -1974,15 +1671,10 @@ this.BX = this.BX || {};
 	    key: "bindEventHandlers",
 	    value: function bindEventHandlers() {
 	      main_core.Event.bind(this.DOM.wrap, 'click', this.handleClick.bind(this));
-	      main_core.Event.bind(this.DOM.wrap, 'mousedown', BX.proxy(this.handleMousedown, this));
-	      main_core.Event.bind(document, "mousemove", BX.proxy(this.handleMousemove, this));
-	      main_core.Event.bind(document, "mouseup", BX.proxy(this.handleMouseup, this));
-
-	      if ('onwheel' in document) {
-	        main_core.Event.bind(this.DOM.timelineFixedWrap, "wheel", this.mouseWheelTimelineHandler.bind(this));
-	      } else {
-	        main_core.Event.bind(this.DOM.timelineFixedWrap, "mousewheel", this.mouseWheelTimelineHandler.bind(this));
-	      }
+	      main_core.Event.bind(this.DOM.wrap, 'mousedown', this.handleMousedown.bind(this));
+	      main_core.Event.bind(document, 'mousemove', this.handleMousemove.bind(this));
+	      main_core.Event.bind(document, 'mouseup', this.handleMouseup.bind(this));
+	      main_core.Event.bind(this.DOM.timelineFixedWrap, 'onwheel' in document ? 'wheel' : 'mousewheel', this.mouseWheelTimelineHandler.bind(this));
 	    }
 	  }, {
 	    key: "handleClick",
@@ -2106,33 +1798,38 @@ this.BX = this.BX || {};
 	      e = e || window.event;
 
 	      if (this.shown && !this.readonly) {
-	        var delta = e.deltaY || e.detail || e.wheelDelta;
-
-	        if (Math.abs(delta) > 0) {
-	          var newScroll = this.DOM.timelineFixedWrap.scrollLeft + Math.round(delta / 3);
-	          this.DOM.timelineFixedWrap.scrollLeft = Math.max(newScroll, 0);
+	        if (main_core.Browser.isMac()) {
 	          this.checkTimelineScroll();
-	          return BX.PreventDefault(e);
+	        } else {
+	          var delta = e.deltaY || e.detail || e.wheelDelta;
+
+	          if (Math.abs(delta) > 0) {
+	            this.DOM.timelineFixedWrap.scrollLeft = Math.max(this.DOM.timelineFixedWrap.scrollLeft + Math.round(delta / 3), 0);
+	            this.checkTimelineScroll();
+	            return BX.PreventDefault(e);
+	          }
 	        }
 	      }
 	    }
 	  }, {
 	    key: "checkTimelineScroll",
 	    value: function checkTimelineScroll() {
-	      var _this7 = this;
-
-	      var minScroll = this.scrollStep,
-	          maxScroll = this.DOM.timelineFixedWrap.scrollWidth - this.DOM.timelineFixedWrap.offsetWidth - this.scrollStep; // Check and expand only if it is visible
+	      var minScroll = this.scrollStep;
+	      var maxScroll = this.DOM.timelineFixedWrap.scrollWidth - this.DOM.timelineFixedWrap.offsetWidth - this.scrollStep; // Check and expand only if it is visible
 
 	      if (this.DOM.timelineFixedWrap.offsetWidth > 0) {
 	        if (this.DOM.timelineFixedWrap.scrollLeft <= minScroll) {
-	          main_core.Runtime.debounce(function () {
-	            _this7.expandTimeline('left');
-	          }, this.EXPAND_DELAY)();
+	          this.expandTimelineDirection = 'past';
 	        } else if (this.DOM.timelineFixedWrap.scrollLeft >= maxScroll) {
-	          main_core.Runtime.debounce(function () {
-	            _this7.expandTimeline('right');
-	          }, this.EXPAND_DELAY)();
+	          this.expandTimelineDirection = 'future';
+	        }
+
+	        if (this.expandTimelineDirection) {
+	          if (!this.isLoaderShown()) {
+	            this.showLoader();
+	          }
+
+	          this.expandTimelineDebounce();
 	        }
 	      }
 	    }
@@ -2274,16 +1971,15 @@ this.BX = this.BX || {};
 	    value: function getPosByDate(date) {
 	      var x = 0;
 
-	      if (date && babelHelpers.typeof(date) !== 'object') {
+	      if (date && babelHelpers["typeof"](date) !== 'object') {
 	        date = calendar_util.Util.parseDate(date);
 	      }
 
-	      if (date && babelHelpers.typeof(date) === 'object') {
-	        var i,
-	            curInd = 0,
-	            timestamp = date.getTime();
+	      if (date && babelHelpers["typeof"](date) === 'object') {
+	        var curInd = 0;
+	        var timestamp = date.getTime();
 
-	        for (i = 0; i < this.scaleData.length; i++) {
+	        for (var i = 0; i < this.scaleData.length; i++) {
 	          if (timestamp >= this.scaleData[i].timestamp) {
 	            curInd = i;
 	          } else {
@@ -2293,8 +1989,8 @@ this.BX = this.BX || {};
 
 	        if (this.scaleData[curInd] && this.scaleData[curInd].cell) {
 	          x = this.scaleData[curInd].cell.offsetLeft;
-	          var cellWidth = this.scaleData[curInd].cell.offsetWidth,
-	              deltaTs = Math.round((timestamp - this.scaleData[curInd].timestamp) / 1000);
+	          var cellWidth = this.scaleData[curInd].cell.offsetWidth;
+	          var deltaTs = Math.round((timestamp - this.scaleData[curInd].timestamp) / 1000);
 
 	          if (deltaTs > 0) {
 	            x += Math.round(deltaTs * 10 / this.scaleSize * cellWidth) / 10;
@@ -2346,7 +2042,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "resizePlannerHeight",
 	    value: function resizePlannerHeight(height) {
-	      var _this8 = this;
+	      var _this6 = this;
 
 	      var animation = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 	      this.height = height;
@@ -2368,10 +2064,10 @@ this.BX = this.BX || {};
 	          },
 	          transition: BX.easing.makeEaseOut(BX.easing.transitions.quart),
 	          step: function step(state) {
-	            _this8.resizePlannerHeight(state.height, false);
+	            _this6.resizePlannerHeight(state.height, false);
 	          },
 	          complete: function complete() {
-	            _this8.resizeAnimation = null;
+	            _this6.resizeAnimation = null;
 	          }
 	        });
 	        this.resizeAnimation.animate();
@@ -2399,40 +2095,20 @@ this.BX = this.BX || {};
 	        this.DOM.mainWrap.style.width = width + 'px';
 	        this.DOM.entriesOuterWrap.style.width = entriesListWidth + 'px';
 	      }
-	    } // ExpandFromCompactMode()
-	    // {
-	    // 	this.readonly = false;
-	    // 	this.compactMode = false;
-	    // 	this.showTimelineDayTitle = true;
-	    // 	Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-readonly');
-	    // 	Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-compact');
-	    // 	this.DOM.entriesOuterWrap.style.display = '';
-	    //
-	    // 	if (this.scaleDateFrom && this.scaleDateFrom.getTime)
-	    // 	{
-	    // 		this.scaleDateFrom = new Date(this.scaleDateFrom.getTime() - Util.getDayLength() * this.SCALE_OFFSET_BEFORE /* days before */);
-	    // 	}
-	    //
-	    // 	if (this.scaleDateTo && this.scaleDateTo.getTime)
-	    // 	{
-	    // 		this.scaleDateTo = new Date(this.scaleDateTo.getTime() + Util.getDayLength() * this.SCALE_OFFSET_AFTER /* days after */);
-	    // 	}
-	    //
-	    // 	this.rebuild();
-	    //
-	    // 	this.FocusSelector(false, 300);
-	    // }
-
+	    }
 	  }, {
 	    key: "expandTimeline",
-	    value: function expandTimeline(direction, scaleDateFrom, scaleDateTo) {
-	      var _this9 = this;
+	    value: function expandTimeline(scaleDateFrom, scaleDateTo) {
+	      var _this7 = this;
 
-	      var loadedTimelineSize, scrollLeft;
-	      if (!scaleDateFrom) scaleDateFrom = this.loadedDataFrom || this.scaleDateFrom;
-	      if (!scaleDateTo) scaleDateTo = this.loadedDataTo || this.scaleDateTo;
+	      var loadedTimelineSize;
+	      var scrollLeft;
+	      var prevScaleDateFrom = this.scaleDateFrom;
+	      var prevScaleDateTo = this.scaleDateTo;
+	      if (!scaleDateFrom) scaleDateFrom = this.scaleDateFrom;
+	      if (!scaleDateTo) scaleDateTo = this.scaleDateTo;
 
-	      if (direction === 'left') {
+	      if (this.expandTimelineDirection === 'past') {
 	        var oldScaleDateFrom = new Date(this.scaleDateFrom.getTime());
 	        this.scaleDateFrom = new Date(scaleDateFrom.getTime() - calendar_util.Util.getDayLength() * this.EXPAND_OFFSET);
 	        loadedTimelineSize = (this.scaleDateTo.getTime() - this.scaleDateFrom.getTime()) / calendar_util.Util.getDayLength();
@@ -2444,9 +2120,8 @@ this.BX = this.BX || {};
 	          this.limitScaleSizeMode = true;
 	        }
 
-	        this.rebuildDebounce();
 	        scrollLeft = this.getPosByDate(oldScaleDateFrom);
-	      } else if (direction === 'right') {
+	      } else if (this.expandTimelineDirection === 'future') {
 	        var oldDateTo = this.scaleDateTo;
 	        scrollLeft = this.DOM.timelineFixedWrap.scrollLeft;
 	        this.scaleDateTo = new Date(scaleDateTo.getTime() + calendar_util.Util.getDayLength() * this.EXPAND_OFFSET);
@@ -2458,50 +2133,43 @@ this.BX = this.BX || {};
 	          this.loadedDataTo = this.scaleDateTo;
 	          scrollLeft = this.getPosByDate(oldDateTo) - this.DOM.timelineFixedWrap.offsetWidth;
 	          setTimeout(function () {
-	            _this9.DOM.timelineFixedWrap.scrollLeft = _this9.getPosByDate(oldDateTo) - _this9.DOM.timelineFixedWrap.offsetWidth;
+	            _this7.DOM.timelineFixedWrap.scrollLeft = _this7.getPosByDate(oldDateTo) - _this7.DOM.timelineFixedWrap.offsetWidth;
 	          }, 10);
 	          this.limitScaleSizeMode = true;
 	        }
-
-	        this.rebuildDebounce();
 	      } else {
 	        this.scaleDateFrom = new Date(scaleDateFrom.getTime() - calendar_util.Util.getDayLength() * this.SCALE_OFFSET_BEFORE);
 	        this.scaleDateTo = new Date(scaleDateTo.getTime() + calendar_util.Util.getDayLength() * this.SCALE_OFFSET_AFTER);
-	        this.rebuildDebounce();
 	      }
+
+	      var reloadData = this.scaleDateFrom.getTime() < prevScaleDateFrom.getTime() || this.scaleDateTo.getTime() > prevScaleDateTo.getTime();
+	      this.hideLoader();
+	      this.emit('onExpandTimeline', new main_core_events.BaseEvent({
+	        data: {
+	          reload: reloadData,
+	          dateFrom: this.scaleDateFrom,
+	          dateTo: this.scaleDateTo
+	        }
+	      }));
+	      this.rebuild({
+	        updateSelector: false
+	      });
 
 	      if (scrollLeft !== undefined) {
 	        this.DOM.timelineFixedWrap.scrollLeft = scrollLeft;
-	      } // let i, entry, entrieIds = [];
-	      //
-	      // if (!BX.type.isArray(this.entries))
-	      // 	this.entries = [];
-	      //
-	      // for (i = 0; i < this.entries.length; i++)
-	      // {
-	      // 	entry = this.entries[i];
-	      // 	entrieIds.push(entry.id);
-	      // }
-	      //this.loadDataLock = true;
-	      // BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
-	      // 	from: Util.formatDate(loadedDataFrom),
-	      // 	to: Util.formatDate(loadedDataTo),
-	      // 	entrieIds: entrieIds,
-	      // 	entries: this.entries,
-	      // 	focusSelector: focusSelector === true
-	      // }]);
+	      }
 
+	      this.expandTimelineDirection = null;
 	    }
 	  }, {
 	    key: "update",
 	    value: function update() {
-	      var _this10 = this;
+	      var _this8 = this;
 
 	      var entries = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
 	      var accessibility = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 	      main_core.Dom.clean(this.DOM.entrieListWrap);
-	      main_core.Dom.clean(this.DOM.accessibilityWrap); //this.entriesRowMap = new WeakMap();
-
+	      main_core.Dom.clean(this.DOM.accessibilityWrap);
 	      this.entriesDataRowMap = new Map();
 
 	      if (!main_core.Type.isArray(entries)) {
@@ -2540,16 +2208,16 @@ this.BX = this.BX || {};
 	          entry.uid = Planner.getEntryUniqueId(entry);
 	          var accData = main_core.Type.isArray(accessibility[entry.uid]) ? accessibility[entry.uid] : [];
 
-	          _this10.entriesIndex.set(entry.uid, entry);
+	          _this8.entriesIndex.set(entry.uid, entry);
 
 	          if (entry.type === 'user') {
 	            usersCount++;
 	          }
 
-	          if (ind < _this10.MIN_ENTRY_ROWS || entries.length === _this10.MIN_ENTRY_ROWS + 1) {
+	          if (ind < _this8.MIN_ENTRY_ROWS || entries.length === _this8.MIN_ENTRY_ROWS + 1) {
 	            dispDataCount++;
 
-	            _this10.displayEntryRow(entry, accData);
+	            _this8.displayEntryRow(entry, accData);
 	          } else {
 	            cutAmount++;
 	            cutDataTitle.push(entry.name);
@@ -2567,6 +2235,12 @@ this.BX = this.BX || {};
 	          this.entriesListTitleCounter.innerHTML = usersCount > this.MAX_ENTRY_ROWS ? '(' + usersCount + ')' : '';
 	        }
 
+	        this.emit('onDisplayAttendees', new main_core_events.BaseEvent({
+	          data: {
+	            usersCount: usersCount
+	          }
+	        }));
+
 	        if (cutAmount > 0) {
 	          if (dispDataCount === this.MAX_ENTRY_ROWS) {
 	            this.displayEntryRow({
@@ -2583,12 +2257,16 @@ this.BX = this.BX || {};
 	        }
 	      }
 
+	      calendar_util.Util.extendPlannerWatches({
+	        entries: entries,
+	        userId: this.userId
+	      });
 	      this.adjustHeight();
 	    }
 	  }, {
 	    key: "updateAccessibility",
 	    value: function updateAccessibility(accessibility) {
-	      var _this11 = this;
+	      var _this9 = this;
 
 	      this.accessibility = accessibility;
 
@@ -2598,14 +2276,14 @@ this.BX = this.BX || {};
 	        for (key in accessibility) {
 	          if (accessibility.hasOwnProperty(key) && main_core.Type.isArray(accessibility[key]) && accessibility[key].length) {
 	            (function () {
-	              var wrap = _this11.entriesDataRowMap.get(key);
+	              var wrap = _this9.entriesDataRowMap.get(key);
 
 	              if (main_core.Type.isDomNode(wrap)) {
 	                accessibility[key].forEach(function (event) {
 	                  event = Planner.prepareAccessibilityItem(event);
 
 	                  if (event) {
-	                    _this11.addAccessibilityItem(event, wrap);
+	                    _this9.addAccessibilityItem(event, wrap);
 	                  }
 	                });
 	              }
@@ -2617,6 +2295,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "updateSelector",
 	    value: function updateSelector(from, to, fullDay) {
+	      var options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
 
 	      if (this.shown && this.selector) {
 	        this.setFullDayMode(fullDay); // Update limits of scale
@@ -2639,16 +2318,20 @@ this.BX = this.BX || {};
 	        }
 
 	        if (to.getTime() > this.scaleDateTo.getTime() || from.getTime() < this.scaleDateFrom.getTime()) {
-	          this.expandTimeline(false, from, to);
+	          this.expandTimelineDirection = false;
+	          this.expandTimeline(from, to);
 	        }
 
 	        this.selector.update({
 	          from: from,
 	          to: to,
-	          fullDay: fullDay
-	        }); //this.selector.focus();
+	          fullDay: fullDay,
+	          focus: options.focus !== false
+	        });
 
-	        this.selector.focus(false, 300);
+	        if (options.focus !== false) {
+	          this.selector.focus(false, 300);
+	        }
 	      }
 	    }
 	  }, {
@@ -2666,6 +2349,7 @@ this.BX = this.BX || {};
 	    value: function doCheckSelectorStatus(event) {
 	      if (event instanceof main_core_events.BaseEvent) {
 	        var data = event.getData();
+	        this.clearCacheTime();
 	        var selectorStatus = this.checkTimePeriod(data.dateFrom, data.dateTo) === true;
 	        this.selector.setSelectorStatus(selectorStatus);
 
@@ -2677,207 +2361,7 @@ this.BX = this.BX || {};
 	          this.showProposeControl();
 	        }
 	      }
-	    } // DoUpdate(params)
-	    // {
-	    // 	if (this.id === params.plannerId)
-	    // 	{
-	    // 		let rebuild = false;
-	    // 		if (params.selector && params.selector.fullDay)
-	    // 		{
-	    // 			this.setFullDayMode(params.selector.fullDay);
-	    // 		}
-	    //
-	    // 		if (params.config)
-	    // 		{
-	    // 			if (this.fullDayMode && params.config.changeFromFullDay)
-	    // 			{
-	    // 				params.config.scaleType = params.config.changeFromFullDay.scaleType;
-	    // 				params.config.timelineCellWidth = params.config.changeFromFullDay.timelineCellWidth;
-	    // 				delete params.config.changeFromFullDay;
-	    // 			}
-	    //
-	    // 			// Check if we should rebuild scale
-	    // 			if (params.config.scaleDateFrom && params.config.scaleDateFrom !== this.scaleDateFrom)
-	    // 				rebuild = true;
-	    // 			if (!rebuild && params.config.scaleDateTo && params.config.scaleDateTo !== this.scaleDateTo)
-	    // 				rebuild = true;
-	    // 			if (!rebuild && params.config.scaleType && params.config.scaleType !== this.scaleType)
-	    // 				rebuild = true;
-	    // 			if (params.config.shownScaleTimeFrom && params.config.shownScaleTimeFrom !== this.shownScaleTimeFrom)
-	    // 			{
-	    // 				this.shownScaleTimeFrom = params.config.shownScaleTimeFrom;
-	    // 				rebuild = true;
-	    // 			}
-	    // 			if (params.config.shownScaleTimeTo && params.config.shownScaleTimeTo !== this.shownScaleTimeTo)
-	    // 			{
-	    // 				this.shownScaleTimeTo = params.config.shownScaleTimeTo;
-	    // 				rebuild = true;
-	    // 			}
-	    //
-	    // 			this.setConfig(params.config);
-	    // 		}
-	    //
-	    // 		if (!this.shown && params.show)
-	    // 		{
-	    // 			this.show({animation: true});
-	    // 		}
-	    // 		else if (rebuild)
-	    // 		{
-	    // 			this.rebuild({updateSelector: false});
-	    // 		}
-	    //
-	    // 		if (params.hide && this.shown)
-	    // 		{
-	    // 			this.Hide(params.hideAnimation !== false);
-	    // 		}
-	    //
-	    // 		if (this.shown)
-	    // 		{
-	    // 			if (params.data !== undefined && params.data !== false)
-	    // 			{
-	    // 				this.ClearAccessibilityData();
-	    // 				this.UpdateData(params.data);
-	    // 				this.SetLoadedDataLimits(params.loadedDataFrom, params.loadedDataTo);
-	    // 			}
-	    //
-	    // 			if (params.selector !== undefined &&
-	    // 				params.selector.from && params.selector.to)
-	    // 			{
-	    // 				params.selector.focus = params.focusSelector === true;
-	    // 				params.selector.updateScaleType = false;
-	    //
-	    // 				// this.limitScaleSizeMode - is true if timeline scrolled by mouse or
-	    // 				// mousewheel and we load some data from deep future or from past
-	    // 				// (so we should't expand timeline in this case)
-	    // 				if (params.selector.to.getTime() > this.loadedDataTo.getTime()
-	    // 					&& !this.limitScaleSizeMode)
-	    // 				{
-	    // 					this.expandTimeline('right', false, params.selector.to, true);
-	    // 				}
-	    // 				else if (params.selector.from.getTime() < this.loadedDataFrom.getTime()
-	    // 					&& !this.limitScaleSizeMode)
-	    // 				{
-	    // 					this.expandTimeline('left', params.selector.from, false, true);
-	    // 				}
-	    // 				else
-	    // 				{
-	    // 					if (!this.readonly)
-	    // 					{
-	    // 						this.scaleDateFrom = this.loadedDataFrom;
-	    // 						this.scaleDateTo = this.loadedDataTo;
-	    // 					}
-	    //
-	    // 					this.rebuild({
-	    // 						updateSelector: true,
-	    // 						selectorParams: params.selector
-	    // 					});
-	    // 				}
-	    // 			}
-	    //
-	    // 			if (!this.compactMode && this.loadedDataTo !== this.scaleDateTo)
-	    // 			{
-	    // 				this.checkTimelineScroll();
-	    // 			}
-	    // 		}
-	    //
-	    // 		if (params.params && params.params.callback)
-	    // 		{
-	    // 			params.params.callback();
-	    // 		}
-	    //
-	    // 		if (this.expandTimelineTimeout)
-	    // 			this.expandTimelineTimeout = !!clearTimeout(this.expandTimelineTimeout);
-	    //
-	    // 		let _this = this;
-	    // 		this.expandTimelineTimeout = setTimeout(
-	    // 			function()
-	    // 			{
-	    // 				_this.loadDataLock = false;
-	    // 				if (_this.lastExpandparams)
-	    // 				{
-	    // 					let p = _this.lastExpandparams;
-	    // 					_this.expandTimeline(p.direction, p.loadedDataFrom, p.loadedDataTo, p.focusSelector);
-	    // 				}
-	    // 			},
-	    // 			this.expandTimelineDelay
-	    // 		);
-	    //
-	    // 		// We reset value to the false to allow user to extend timeline manually
-	    // 		this.limitScaleSizeMode = false;
-	    //
-	    // 		BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
-	    // 			plannerId: this.id,
-	    // 			entries: this.entries
-	    // 		}]);
-	    // 	}
-	    // }
-	    // DoExpand(params)
-	    // {
-	    // 	if (this.id == params.plannerId)
-	    // 	{
-	    // 		if (this.compactMode)
-	    // 		{
-	    // 			if (params.config)
-	    // 			{
-	    // 				this.setConfig(params.config);
-	    // 			}
-	    //
-	    // 			this.ExpandFromCompactMode();
-	    // 		}
-	    // 	}
-	    // }
-	    //
-	    // DoSetConfig(params)
-	    // {
-	    // 	if (this.id == params.plannerId && params.config)
-	    // 	{
-	    // 		this.setConfig(params.config);
-	    // 	}
-	    // }
-	    //
-	    // DoResize(params)
-	    // {
-	    // 	if (this.id == params.plannerId)
-	    // 	{
-	    // 		let _this = this;
-	    //
-	    // 		if (params.width)
-	    // 			params.width = parseInt(params.width) || this.width;
-	    // 		params.width = Math.max(params.width, this.minWidth);
-	    //
-	    // 		this.width = params.width;
-	    // 		this.adjustCellWidth();
-	    //
-	    // 		this.resizePlannerWidth(params.width, false);
-	    //
-	    // 		if (this.resizeRebuildTimeout)
-	    // 			this.resizeRebuildTimeout = clearTimeout(this.resizeRebuildTimeout);
-	    //
-	    // 		this.resizeRebuildTimeout = setTimeout(function()
-	    // 		{
-	    // 			_this.rebuild();
-	    // 		}, 200);
-	    // 	}
-	    // }
-	    //
-	    // DoUninstall(params)
-	    // {
-	    // 	if (params && this.id == params.plannerId)
-	    // 	{
-	    // 		Dom.clean(this.DOM.wrap, 1);
-	    // 		BX.removeCustomEvent('OnCalendarPlannerDoUpdate', BX.proxy(this.DoUpdate, this));
-	    // 		BX.removeCustomEvent('OnCalendarPlannerDoExpand', BX.proxy(this.DoExpand, this));
-	    // 		BX.removeCustomEvent('OnCalendarPlannerDoResize', BX.proxy(this.DoResize, this));
-	    // 		BX.removeCustomEvent('OnCalendarPlannerDoSetConfig', BX.proxy(this.DoSetConfig, this));
-	    // 		BX.removeCustomEvent('OnCalendarPlannerDoUninstall', BX.proxy(this.DoUninstall, this));
-	    //
-	    // 		if (this.settingsPopup)
-	    // 		{
-	    // 			this.settingsPopup.close();
-	    // 		}
-	    // 	}
-	    // }
-
+	    }
 	  }, {
 	    key: "proposeTime",
 	    value: function proposeTime() {
@@ -2965,17 +2449,7 @@ this.BX = this.BX || {};
 	              for (i = 0; i < this.entries.length; i++) {
 	                entry = this.entries[i];
 	                entrieIds.push(entry.id);
-	              } // BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
-	              // 	from: Util.formatDate(this.loadedDataFrom),
-	              // 	to: Util.formatDate(loadedDataTo),
-	              // 	entrieIds: entrieIds,
-	              // 	entries: this.entries,
-	              // 	focusSelector: true,
-	              // 	params: {
-	              // 		callback: function(){_this.ProposeTime({checkedFuture: true});}
-	              // 	}
-	              // }]);
-
+	              }
 	            }
 	          } else {
 	            if (this.fullDayMode) dateTo = new Date(dateTo.getTime() - calendar_util.Util.getDayLength());
@@ -3012,22 +2486,27 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "checkTimePeriod",
 	    value: function checkTimePeriod(fromDate, toDate, data) {
-	      var _this12 = this;
+	      var _this10 = this;
 
-	      var result = true,
-	          entry,
-	          fromTimestamp = fromDate.getTime(),
-	          toTimestamp = toDate.getTime(),
-	          cacheKey = fromTimestamp + '_' + toTimestamp,
-	          accuracy = 60 * 1000,
-	          // 1min
-	      item,
-	          i;
+	      var result = true;
+	      var entry;
+
+	      if (!main_core.Type.isDate(fromDate) || !main_core.Type.isDate(toDate)) {
+	        return result;
+	      }
+
+	      var fromTimestamp = fromDate.getTime();
+	      var toTimestamp = toDate.getTime();
+	      var cacheKey = fromTimestamp + '_' + toTimestamp;
+	      var accuracy = 3 * 60 * 1000; // 3min
 
 	      if (main_core.Type.isArray(data)) {
-	        for (i = 0; i < data.length; i++) {
-	          item = data[i];
-	          if (item.type && item.type === 'hr') continue;
+	        for (var i = 0; i < data.length; i++) {
+	          var item = data[i];
+
+	          if (item.type && item.type === 'hr') {
+	            continue;
+	          }
 
 	          if (item.fromTimestamp + accuracy <= toTimestamp && (item.toTimestampReal || item.toTimestamp) - accuracy >= fromTimestamp) {
 	            result = item;
@@ -3036,16 +2515,16 @@ this.BX = this.BX || {};
 	        }
 	      } else if (main_core.Type.isArray(this.entries)) {
 	        (function () {
-	          var selectorAccuracy = _this12.selectorAccuracy * 1000,
+	          var selectorAccuracy = _this10.selectorAccuracy * 1000,
 	              entryId;
 
-	          if (_this12.checkTimeCache[cacheKey] !== undefined) {
-	            result = _this12.checkTimeCache[cacheKey];
+	          if (_this10.checkTimeCache[cacheKey] !== undefined) {
+	            result = _this10.checkTimeCache[cacheKey];
 	          } else {
-	            for (entryId in _this12.accessibility) {
-	              if (_this12.accessibility.hasOwnProperty(entryId)) {
-	                if (_this12.selectMode) {
-	                  entry = _this12.entries.find(function (el) {
+	            for (entryId in _this10.accessibility) {
+	              if (_this10.accessibility.hasOwnProperty(entryId)) {
+	                if (_this10.selectMode) {
+	                  entry = _this10.entries.find(function (el) {
 	                    return parseInt(el.id) === parseInt(entryId);
 	                  });
 
@@ -3054,35 +2533,24 @@ this.BX = this.BX || {};
 	                  }
 	                }
 
-	                if (main_core.Type.isArray(_this12.accessibility[entryId])) {
-	                  for (i = 0; i < _this12.accessibility[entryId].length; i++) {
-	                    item = _this12.accessibility[entryId][i];
+	                if (main_core.Type.isArray(_this10.accessibility[entryId])) {
+	                  for (var _i = 0; _i < _this10.accessibility[entryId].length; _i++) {
+	                    var _item = _this10.accessibility[entryId][_i];
 
-	                    if (item.type && item.type === 'hr') {
+	                    if (_item.type && _item.type === 'hr') {
 	                      continue;
 	                    }
 
-	                    if (item.fromTimestamp + selectorAccuracy <= toTimestamp && (item.toTimestampReal || item.toTimestamp) - selectorAccuracy >= fromTimestamp) {
-	                      result = item;
+	                    if (_item.fromTimestamp + selectorAccuracy <= toTimestamp && (_item.toTimestampReal || _item.toTimestamp) - selectorAccuracy >= fromTimestamp) {
+	                      result = _item;
 	                      break;
 	                    }
 	                  }
 	                }
 	              }
-	            } // for (i = 0; i < this.entries.length; i++)
-	            // {
-	            // 	if (entriesAccessibleIndex[this.entries[i].id] !== undefined)
-	            // 	{
-	            // 		this.entries[i].currentStatus = !!entriesAccessibleIndex[this.entries[i].id];
-	            // 	}
-	            // 	else
-	            // 	{
-	            // 		this.entries[i].currentStatus = true;
-	            // 	}
-	            // }
+	            }
 
-
-	            _this12.checkTimeCache[cacheKey] = result;
+	            _this10.checkTimeCache[cacheKey] = result;
 	          }
 	        })();
 	      }
@@ -3115,7 +2583,7 @@ this.BX = this.BX || {};
 	  }, {
 	    key: "showSettingsPopup",
 	    value: function showSettingsPopup() {
-	      var _this13 = this;
+	      var _this11 = this;
 
 	      var settingsDialogCont = BX.create('DIV', {
 	        props: {
@@ -3140,7 +2608,7 @@ this.BX = this.BX || {};
 	      }
 
 	      this.scaleTypes.forEach(function (scale) {
-	        scaleWrap.appendChild(main_core.Tag.render(_templateObject3$1(), scale === _this13.scaleType ? ' calendar-planner-option-tab-active' : '', scale, main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE_' + scale.toUpperCase())));
+	        scaleWrap.appendChild(main_core.Tag.render(_templateObject4 || (_templateObject4 = babelHelpers.taggedTemplateLiteral(["<span class=\"calendar-planner-option-tab ", "\" data-bx-planner-scale=\"", "\">", "</span>"])), scale === _this11.scaleType ? ' calendar-planner-option-tab-active' : '', scale, main_core.Loc.getMessage('EC_PL_SETTINGS_SCALE_' + scale.toUpperCase())));
 	      }); // Create and show settings popup
 
 	      var popup = main_popup.PopupWindowManager.create(this.id + "-settings-popup", this.DOM.settingsButton, {
@@ -3158,12 +2626,12 @@ this.BX = this.BX || {};
 	      });
 	      popup.show(true);
 	      main_core.Event.bind(scaleWrap, 'click', function (e) {
-	        if (!_this13.fullDayMode) {
+	        if (!_this11.fullDayMode) {
 	          var nodeTarget = e.target || e.srcElement,
 	              scale = nodeTarget && nodeTarget.getAttribute && nodeTarget.getAttribute('data-bx-planner-scale');
 
 	          if (scale) {
-	            _this13.changeScaleType(scale);
+	            _this11.changeScaleType(scale);
 
 	            popup.close();
 	          }
@@ -3282,8 +2750,9 @@ this.BX = this.BX || {};
 	    key: "showLoader",
 	    value: function showLoader() {
 	      this.hideLoader();
-	      this.DOM.loader = this.DOM.mainWrap.appendChild(calendar_util.Util.getLoader(50));
+	      this.DOM.loader = this.DOM.mainWrap.appendChild(calendar_util.Util.getLoader(40));
 	      main_core.Dom.addClass(this.DOM.loader, 'calendar-planner-main-loader');
+	      this.loaderShown = true;
 	    }
 	  }, {
 	    key: "hideLoader",
@@ -3291,6 +2760,13 @@ this.BX = this.BX || {};
 	      if (main_core.Type.isDomNode(this.DOM.loader)) {
 	        main_core.Dom.remove(this.DOM.loader);
 	      }
+
+	      this.loaderShown = false;
+	    }
+	  }, {
+	    key: "isLoaderShown",
+	    value: function isLoaderShown() {
+	      return this.loaderShown;
 	    }
 	  }, {
 	    key: "isShown",
@@ -3301,6 +2777,21 @@ this.BX = this.BX || {};
 	    key: "isBuilt",
 	    value: function isBuilt() {
 	      return this.built;
+	    }
+	  }, {
+	    key: "isLocked",
+	    value: function isLocked() {
+	      return this.locked;
+	    }
+	  }, {
+	    key: "lock",
+	    value: function lock() {
+	      if (!this.DOM.lockScreen) {
+	        this.DOM.lockScreen = main_core.Tag.render(_templateObject5 || (_templateObject5 = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"calendar-planner-timeline-locker\">\n\t\t\t\t\t<div class=\"calendar-planner-timeline-locker-container\">\n\t\t\t\t\t\t<div class=\"calendar-planner-timeline-locker-top\">\n\t\t\t\t\t\t\t<div class=\"calendar-planner-timeline-locker-icon\"></div>\n\t\t\t\t\t\t\t<div class=\"calendar-planner-timeline-text\">", "</div>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t\t<div class=\"calendar-planner-timeline-locker-button\">\n\t\t\t\t\t\t\t<a href=\"javascript:void(0)\" onclick=\"top.BX.UI.InfoHelper.show('limit_crm_calender_planner');\" class=\"ui-btn ui-btn-sm ui-btn-light-border ui-btn-round\">", "</a>\n\t\t\t\t\t\t</div>\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t"])), main_core.Loc.getMessage('EC_PL_LOCKED_TITLE'), main_core.Loc.getMessage('EC_PL_UNLOCK_FEATURE'));
+	      }
+
+	      main_core.Dom.addClass(this.DOM.timelineFixedWrap, '--lock');
+	      this.DOM.timelineFixedWrap.appendChild(this.DOM.lockScreen);
 	    }
 	  }], [{
 	    key: "prepareAccessibilityItem",
@@ -3343,9 +2834,9 @@ this.BX = this.BX || {};
 	      var img = entry.avatar;
 
 	      if (!img || img === "/bitrix/images/1.gif") {
-	        imageNode = main_core.Tag.render(_templateObject4(), entry.id, main_core.Text.encode(entry.name), entry.emailUser ? 'ui-icon-common-user-mail' : 'ui-icon-common-user');
+	        imageNode = main_core.Tag.render(_templateObject6 || (_templateObject6 = babelHelpers.taggedTemplateLiteral(["<div bx-tooltip-user-id=\"", "\" bx-tooltip-classname=\"calendar-planner-user-tooltip\" title=\"", "\" class=\"ui-icon calendar-planner-user-image-icon ", "\"><i></i></div>"])), entry.id, main_core.Text.encode(entry.name), entry.emailUser ? 'ui-icon-common-user-mail' : 'ui-icon-common-user');
 	      } else {
-	        imageNode = main_core.Tag.render(_templateObject5(), entry.id, main_core.Text.encode(entry.name), entry.avatar);
+	        imageNode = main_core.Tag.render(_templateObject7 || (_templateObject7 = babelHelpers.taggedTemplateLiteral(["<div bx-tooltip-user-id=\"", "\" bx-tooltip-classname=\"calendar-planner-user-tooltip\" title=\"", "\" class=\"ui-icon calendar-planner-user-image-icon\"><i style=\"background-image: url('", "')\"></i></div>"])), entry.id, main_core.Text.encode(entry.name), entry.avatar);
 	      }
 
 	      return imageNode;

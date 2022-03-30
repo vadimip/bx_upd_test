@@ -7,10 +7,26 @@
  */
 namespace Bitrix\Socialnetwork;
 
-use Bitrix\Main\Application;
-use Bitrix\Main\Entity;
+use Bitrix\Main\ORM;
+use Bitrix\Socialnetwork\Item\LogIndex;
 
-class LogTable extends Entity\DataManager
+/**
+ * Class LogTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Log_Query query()
+ * @method static EO_Log_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Log_Result getById($id)
+ * @method static EO_Log_Result getList(array $parameters = array())
+ * @method static EO_Log_Entity getEntity()
+ * @method static \Bitrix\Socialnetwork\EO_Log createObject($setDefaultValues = true)
+ * @method static \Bitrix\Socialnetwork\EO_Log_Collection createCollection()
+ * @method static \Bitrix\Socialnetwork\EO_Log wakeUpObject($row)
+ * @method static \Bitrix\Socialnetwork\EO_Log_Collection wakeUpCollection($rows)
+ */
+class LogTable extends ORM\Data\DataManager
 {
 	public static function getTableName()
 	{
@@ -58,6 +74,9 @@ class LogTable extends Entity\DataManager
 			'URL' => array(
 				'data_type' => 'string',
 			),
+			'MODULE_ID' => [
+				'data_type' => 'string',
+			],
 			'PARAMS' => array(
 				'data_type' => 'text',
 			),
@@ -97,5 +116,54 @@ class LogTable extends Entity\DataManager
 		return self::update($id, array(
 			'INACTIVE' => ($status ? 'Y' : 'N')
 		));
+	}
+
+	public static function onDelete(ORM\Event $event)
+	{
+		$result = new ORM\EventResult;
+		$primary = $event->getParameter('primary');
+		$logId = (!empty($primary['ID']) ? (int)$primary['ID'] : 0);
+
+		if ($logId > 0)
+		{
+			$tabletList = [
+				[ '\Bitrix\Socialnetwork\LogCommentTable', 'LOG_ID' ],
+				[ '\Bitrix\Socialnetwork\LogRightTable', 'LOG_ID' ],
+				[ '\Bitrix\Socialnetwork\LogSiteTable', 'LOG_ID' ],
+				[ '\Bitrix\Socialnetwork\LogFavoritesTable', 'LOG_ID' ],
+				[ '\Bitrix\Socialnetwork\LogTagTable', 'LOG_ID' ]
+			];
+
+			foreach($tabletList as list($tablet, $fieldName))
+			{
+				$collection = $tablet::query()
+					->where($fieldName, $logId)
+					->fetchCollection();
+
+				foreach ($collection as $entity)
+				{
+					$entity->delete();
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	public static function onAfterDelete(ORM\Event $event)
+	{
+		$result = new ORM\EventResult;
+		$primary = $event->getParameter('primary');
+		$logId = (!empty($primary['ID']) ? (int)$primary['ID'] : 0);
+
+		if ($logId > 0)
+		{
+			LogIndex::deleteIndex(array(
+				'itemType' => LogIndexTable::ITEM_TYPE_LOG,
+				'itemId' => $logId
+			));
+		}
+
+		return $result;
 	}
 }

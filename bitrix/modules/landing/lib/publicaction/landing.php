@@ -206,10 +206,7 @@ class Landing
 			{
 				$data['SORT'] = -1;
 			}
-			$newBlockId = $landing->addBlock(
-				isset($fields['CODE']) ? $fields['CODE'] : '',
-				$data
-			);
+			$newBlockId = $landing->addBlock($fields['CODE'] ?? '', $data, true);
 			// re-sort
 			$landing->resortBlocks();
 			// want return content ob block
@@ -218,7 +215,7 @@ class Landing
 				$fields['RETURN_CONTENT'] == 'Y'
 			)
 			{
-				$return = BlockCore::getBlockContent($newBlockId, true);
+				$return = BlockCore::getBlockContent($newBlockId, false);
 			}
 			else
 			{
@@ -307,7 +304,10 @@ class Landing
 			{
 				$result->setResult($landing->downBlock($block));
 			}
-			$landing->resortBlocks();
+			if ($landing->getError()->isEmpty())
+			{
+				$landing->resortBlocks();
+			}
 		}
 		$result->setError($landing->getError());
 		return $result;
@@ -417,7 +417,7 @@ class Landing
 			{
 				$result->setResult(array(
 					'result' => $res > 0,
-					'content' => BlockCore::getBlockContent($res, true)
+					'content' => BlockCore::getBlockContent($res, false)
 				));
 			}
 			else

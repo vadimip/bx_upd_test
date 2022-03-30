@@ -382,7 +382,7 @@
 				var value = this.getValue();
 				value.url = decodeDataValue(value.url);
 
-				var disableLink = !!this.node.closest("a");
+				var disableLink = !!this.node.closest("a") || !!this.manifest.disableLink;
 
 				this.field = new BX.Landing.UI.Field.Image({
 					selector: this.selector,
@@ -391,6 +391,7 @@
 					disableLink: disableLink,
 					content: value,
 					dimensions: !!this.manifest.dimensions ? this.manifest.dimensions : {},
+					create2xByDefault: this.manifest.create2xByDefault,
 					disableAltField: isBackground(this),
 					uploadParams: this.uploadParams
 				});

@@ -1,16 +1,16 @@
 <?php
+
 IncludeModuleLangFile(__FILE__);
 
 class CAllCatalogDocs
 {
-
-	static $types = array(
-		"A" => "CCatalogArrivalDocs",
-		"M" => "CCatalogMovingDocs",
-		"R" => "CCatalogReturnsDocs",
-		"D" => "CCatalogDeductDocs",
-		"U" => "CCatalogUnReservedDocs",
-	);
+	static $types = [
+		CCatalogDocsTypes::TYPE_ARRIVAL => "CCatalogArrivalDocs",
+		CCatalogDocsTypes::TYPE_MOVING => "CCatalogMovingDocs",
+		CCatalogDocsTypes::TYPE_RETURN => "CCatalogReturnsDocs",
+		CCatalogDocsTypes::TYPE_DEDUCT => "CCatalogDeductDocs",
+		CCatalogDocsTypes::TYPE_UNDO_RESERVE => "CCatalogUnReservedDocs",
+	];
 
 	/**
 	 * @param $id
@@ -101,7 +101,7 @@ class CAllCatalogDocs
 	 * @param $arFields
 	 * @return bool
 	 */
-	protected function checkFields($action, &$arFields)
+	protected static function checkFields($action, &$arFields)
 	{
 		global $DB;
 		global $APPLICATION;
@@ -124,14 +124,13 @@ class CAllCatalogDocs
 		{
 			$arFields['~DATE_STATUS'] = $DB->GetNowFunction();
 		}
-		if(isset($arFields["DATE_DOCUMENT"]) && (!CDataBase::IsDate($arFields["DATE_DOCUMENT"])))
+		if(isset($arFields["DATE_DOCUMENT"]) && (!$DB->IsDate($arFields["DATE_DOCUMENT"])))
 		{
 			unset($arFields["DATE_DOCUMENT"]);
 			$arFields['~DATE_DOCUMENT'] = $DB->GetNowFunction();
 		}
 		return true;
 	}
-
 
 	/**
 	 * @param $documentId
@@ -158,6 +157,7 @@ class CAllCatalogDocs
 		{
 			if ('Y' != $arDocType['STATUS'])
 			{
+				/** @var \CCatalogDocsTypes $documentClass */
 				$documentClass = self::$types[$arDocType["DOC_TYPE"]];
 				if($arDocType["CURRENCY"] <> '')
 					$currency = $arDocType["CURRENCY"];

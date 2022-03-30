@@ -3,9 +3,7 @@
 	if (window["FCList"])
 		return;
 
-	var safeEditing = true, // Why?
-		safeEditingCurrentObj = null,  // Why?
-		quoteData = null,
+	var quoteData = null,
 		repo = {
 			listById : new Map(),
 			listByXmlId : new Map()
@@ -20,6 +18,7 @@
 		this.node = {
 			main : params["mainNode"],
 			navigation : params["navigationNode"], // container for pagination,
+			navigationLoader : params["navigationNodeLoader"], // container for pagination,
 			history : params["nodeForOldMessages"],
 			newComments : params["nodeForNewMessages"],
 			formHolder: params["nodeFormHolder"],
@@ -255,6 +254,23 @@
 					this.recalcMoreButtonComment(nodes[ii].getAttribute("bx-mpl-entity-id"));
 				}
 			}.bind(this),
+			"BX.BXUrlPreview.onImageLoaded": function(params) {
+
+				if (
+					!BX.type.isPlainObject(params)
+					|| !BX.type.isDomNode(params.imageNode)
+				)
+				{
+					return;
+				}
+
+				var commentNode = BX.findParent(params.imageNode, { className: "feed-com-block-cover"});
+				if (BX.type.isDomNode(commentNode))
+				{
+					this.recalcMoreButtonComment(commentNode.getAttribute("bx-mpl-entity-id"));
+				}
+
+			}.bind(this)
 		};
 
 		if (this.params["NOTIFY_TAG"] && this.params["NOTIFY_TEXT"] && window["UC"]["Informer"])
@@ -276,6 +292,8 @@
 		BX.onCustomEvent(this.eventNode, "OnUCInitialized", [this.exemplarId]);
 		BX.addCustomEvent(this.eventNode, "OnUCInitialized", this.destroy.bind(this));
 		this.windowEvents["OnUCInitialized"] = this.checkAndDestroy.bind(this);
+
+		BX.Event.EventEmitter.incrementMaxListeners("OnUCInitialized");
 		BX.addCustomEvent(window, "OnUCInitialized", this.windowEvents["OnUCInitialized"]);
 
 		BX.ready((function() {
@@ -376,17 +394,34 @@
 			this.hideWriter = this.hideWriter.bind(this);
 			this.quoteShow = this.quoteShow.bind(this);
 
-			this.bindEvents.unshift([
-				this.eventNode,
-				"mouseup",
-				this.privateEvents["onQuote"]
-			]);
-			// dnd
-			this.bindEvents.unshift([
-				this.node.formHolder,
-				"dragenter",
-				this.reply.bind(this)
-			]);
+			this.bindEvents.unshift([this.eventNode, "mouseup", this.privateEvents["onQuote"]]);
+			//region dnd
+			var timerListenEnter = 0;
+			var stopListenEnter = function() {
+				if (timerListenEnter > 0)
+				{
+					clearTimeout(timerListenEnter);
+					timerListenEnter = 0;
+				}
+				this.node.formHolder.classList.remove('feed-com-add-box-dnd-over')
+			}.bind(this);
+			var fireDragEnter = function() {
+				stopListenEnter();
+				this.reply.apply(this, arguments);
+			}.bind(this);
+			var startListenEnter = function() {
+				if (timerListenEnter <= 0)
+				{
+					timerListenEnter = setTimeout(fireDragEnter, 3000);
+					this.node.formHolder.classList.add('feed-com-add-box-dnd-over')
+				}
+			}.bind(this);
+			this.bindEvents.unshift([this.node.main, "dragover", startListenEnter]);
+			this.bindEvents.unshift([this.node.main, "dragenter", startListenEnter]);
+			this.bindEvents.unshift([this.node.main, "dragleave", stopListenEnter]);
+			this.bindEvents.unshift([this.node.main, "dragexit", stopListenEnter]);
+			this.bindEvents.unshift([this.node.main, "drop", stopListenEnter]);
+			//region
 		},
 		url : {
 			activity : '/bitrix/components/bitrix/main.post.list/activity.php'
@@ -405,6 +440,7 @@
 				if (this.privateEvents.hasOwnProperty(ii))
 				{
 					BX.removeCustomEvent(this.eventNode, ii, this.privateEvents[ii]);
+					BX.Event.EventEmitter.decrementMaxListeners(this.eventNode, ii);
 					this.privateEvents[ii] = null;
 				}
 			}
@@ -415,6 +451,7 @@
 				{
 					BX.removeCustomEvent(window, ii, this.windowEvents[ii]);
 					this.windowEvents[ii] = null;
+					BX.Event.EventEmitter.decrementMaxListeners(ii);
 				}
 			}
 			this.windowEvents = null;
@@ -511,7 +548,6 @@
 					}
 					else
 					{
-						safeEditingCurrentObj = safeEditing;
 						BX.onCustomEvent(
 							window,
 							"OnUCQuote",
@@ -519,7 +555,7 @@
 								this.ENTITY_XML_ID,
 								params["author"],
 								params["text"],
-								safeEditingCurrentObj
+								true
 							]
 						);
 					}
@@ -644,6 +680,7 @@
 			}
 			else
 			{
+				BX.adjust(this.node.navigationLoader, {style : {"display" : "flex"}});
 				BX.ajax({
 					url: (url + (url.indexOf('?') !== -1 ? "&" : "?") + BX.ajax.prepareData(data)),
 					method: "GET",
@@ -662,6 +699,7 @@
 
 			this.status = "ready";
 			this.wait("hide");
+			BX.adjust(this.node.navigationLoader, {style : {"display" : "none"}});
 			BX.removeClass(this.node.navigation, "feed-com-all-hover");
 
 			var ob = BX.processHTML(data["messageList"], false);
@@ -735,6 +773,7 @@
 			this.status = "done";
 			BX.removeClass(this.node.navigation, "feed-com-all-hover");
 			this.wait("hide");
+			BX.adjust(this.node.navigationLoader, {style : {"display" : "none"}});
 		},
 		getCommentsCount : function() {
 			var count = 0;
@@ -775,9 +814,8 @@
 			}
 			else
 			{
-				safeEditingCurrentObj = safeEditing;
 				var eventResult = {caught : false};
-				BX.onCustomEvent(window, "OnUCReply", [this.ENTITY_XML_ID, author.id, author.name, safeEditingCurrentObj, eventResult]);
+				BX.onCustomEvent(window, "OnUCReply", [this.ENTITY_XML_ID, author.id, author.name, true, eventResult]);
 			}
 		},
 		getPlaceholder : function(messageId) {
@@ -1081,6 +1119,12 @@
 					BX.getClass('BX.SidePanel.Instance') &&
 					BX.SidePanel.Instance.isOpen()
 				)
+				&& !(
+					BX.type.isNotEmptyObject(BXRL) &&
+					BX.type.isNotEmptyObject(BXRL.render) &&
+					BX.type.isDomNode(BXRL.render.reactionsPopup) &&
+					!BXRL.render.reactionsPopup.classList.contains('feed-post-emoji-popup-invisible')
+				)
 			)
 			{
 				var curPos = BX.pos(container),
@@ -1155,7 +1199,11 @@
 			return true;
 		},
 		act : function(url, id, act) {
-			if (url.substr(0, 1) !== '/')
+			if (
+				this.ajax["processComment"] !== true
+				&& BX.type.isNotEmptyString(url)
+				&& url.substr(0, 1) !== '/'
+			)
 			{
 				try { eval(url); return false; }
 				catch(e) {}
@@ -1232,7 +1280,21 @@
 
 			var onfailure = function(data){
 				this.closeWait(id);
-				this.showError(id, data);
+
+				var errorText = data;
+
+				if (BX.type.isNotEmptyObject(data))
+				{
+					if (BX.type.isArray(data.errors) && BX.type.isNotEmptyString(data.errors[0].message))
+					{
+						errorText = data.errors[0].message;
+					}
+					else if (BX.type.isNotEmptyObject(data.data) && BX.type.isNotEmptyString(data.data.message))
+					{
+						errorText = data.data.message;
+					}
+				}
+				this.showError(id, errorText);
 			}.bind(this);
 
 			if (this.ajax["processComment"] === true)
@@ -1887,27 +1949,96 @@
 			});
 		}
 
+		var entityXmlId = el.getAttribute('bx-mpl-post-entity-xml-id');
 		if (
-			el.getAttribute("bx-mpl-createtask-show") == "Y"
-			&& typeof oLF != "undefined"
+			el.getAttribute('bx-mpl-edit-show') == 'Y'
+			&& BX.Tasks.ResultAction
+			&& entityXmlId.indexOf('TASK_') === 0
+			&& BX.Tasks.ResultAction.getInstance().canCreateResult(+/\d+/.exec(entityXmlId))
 		)
 		{
-			var
-				commentEntityType = el.getAttribute("bx-mpl-comment-entity-type"),
-				postEntityType = el.getAttribute("bx-mpl-post-entity-type");
+			var taskId = +/\d+/.exec(entityXmlId);
+			var result = BX.Tasks.ResultManager.getInstance().getResult(taskId);
+
+			if (
+				result
+				&& result.context === 'task'
+				&& result.isResult(parseInt(ID, 10))
+				&& !result.isClosed
+			)
+			{
+				panels.push({
+					text : BX.message("BPC_MES_REMOVE_TASK_RESULT"),
+					onclick : function() {
+						BX.Tasks.ResultAction.getInstance().deleteFromComment(ID);
+						this.popupWindow.close();
+						return false;
+					}
+				});
+			}
+			else if (
+				result
+				&& result.context === 'task'
+				&& !result.isResult(parseInt(ID, 10))
+			)
+			{
+				panels.push({
+					text : BX.message("BPC_MES_CREATE_TASK_RESULT"),
+					onclick : function() {
+						BX.Tasks.ResultAction.getInstance().createFromComment(ID);
+						this.popupWindow.close();
+						return false;
+					}
+				});
+			}
+		}
+
+		if (
+			el.getAttribute('bx-mpl-createtask-show') === 'Y'
+			&& !BX.type.isUndefined(BX.Livefeed)
+		)
+		{
+			var commentEntityType = el.getAttribute('bx-mpl-comment-entity-type');
+			var postEntityType = el.getAttribute('bx-mpl-post-entity-type');
 
 			panels.push({
-				text : BX.message("BPC_MES_CREATE_TASK"),
+				text : BX.message('BPC_MES_CREATE_TASK'),
 				onclick : function() {
-					oLF.createTask({
-						postEntityType: (BX.type.isNotEmptyString(postEntityType) ? postEntityType : "BLOG_POST"),
-						entityType: (BX.type.isNotEmptyString(commentEntityType) ? commentEntityType : "BLOG_COMMENT"),
-						entityId: ID
+					BX.Livefeed.TaskCreator.create({
+						postEntityType: (BX.type.isNotEmptyString(postEntityType) ? postEntityType : 'BLOG_POST'),
+						entityType: (BX.type.isNotEmptyString(commentEntityType) ? commentEntityType : 'BLOG_COMMENT'),
+						entityId: ID,
 					});
 					this.popupWindow.close();
 					return false;
 				}
 			});
+		}
+
+		if (
+			el.getAttribute('bx-mpl-createsubtask-show') === 'Y'
+			&& !BX.type.isUndefined(BX.Livefeed)
+		)
+		{
+			var postEntityXmlId = el.getAttribute('bx-mpl-post-entity-xml-id');
+
+			var matches = postEntityXmlId.match(/^TASK_(\d+)$/i);
+			if (matches)
+			{
+				panels.push({
+					text : BX.message('BPC_MES_CREATE_SUBTASK'),
+					onclick : function() {
+						BX.Livefeed.TaskCreator.create({
+							postEntityType: postEntityType,
+							entityType: commentEntityType,
+							entityId: ID,
+							parentTaskId: parseInt(matches[1]),
+						});
+						this.popupWindow.close();
+						return false;
+					}
+				});
+			}
 		}
 
 		if (panels.length > 0) {
@@ -1929,14 +2060,6 @@
 				}
 			};
 
-			if (BX.getClass('BX.SidePanel.Instance'))
-			{
-				var slider = BX.SidePanel.Instance.getTopSlider();
-				if (slider && slider.isSelfContained())
-				{
-					popupParams.zIndex = slider.getZindex();
-				}
-			}
 			BX.onCustomEvent("OnUCCommentActionsShown", [eventNode, ID, panels, popupParams]);
 			BX.PopupMenu.show("action-" + linkId, el,
 				panels,
@@ -2150,13 +2273,17 @@
 				authorStyle = " feed-com-name-extranet";
 			}
 			var commentText = res["POST_MESSAGE_TEXT"].replace(/\001/gi, "").replace(/#/gi, "\001");
+			res.AUX_LIVE_PARAMS = (BX.type.isPlainObject(res.AUX_LIVE_PARAMS) ? res.AUX_LIVE_PARAMS : {});
 
 			if (
 				!!res.AUX
-				&& BX.util.in_array(res["AUX"], ["createtask", "fileversion"])
+				&& (
+					BX.util.in_array(res.AUX, ['createentity', 'createtask', 'fileversion'])
+					|| (res.AUX === 'TASKINFO' && BX.type.isNotEmptyObject(res.AUX_LIVE_PARAMS))
+				)
 			)
 			{
-				commentText = BX.CommentAux.getLiveText(res.AUX, (!!res.AUX_LIVE_PARAMS ? res.AUX_LIVE_PARAMS : {} ));
+				commentText = BX.CommentAux.getLiveText(res.AUX, res.AUX_LIVE_PARAMS);
 			}
 
 			replacement = {
@@ -2198,13 +2325,25 @@
 				"MODERATE_SHOW" : (params["RIGHTS"]["MODERATE"] == "Y" || params["RIGHTS"]["MODERATE"] == "ALL" ||
 					params["RIGHTS"]["MODERATE"] == "OWN" && BX.message("USER_ID") == res["AUTHOR"]["ID"] ? "Y" : "N"),
 				"DELETE_URL" : params["DELETE_URL"].replace("#ID#", res["ID"]).replace("#id#", res["ID"]),
-				"DELETE_SHOW" : (params["RIGHTS"]["DELETE"] == "Y" || params["RIGHTS"]["DELETE"] == "ALL" ||
-					params["RIGHTS"]["DELETE"] == "OWN" && BX.message("USER_ID") == res["AUTHOR"]["ID"] ? "Y" : "N"),
+				"DELETE_SHOW" : (
+					(!res["CAN_DELETE"] || res["CAN_DELETE"] === 'Y')
+					&& (
+						params["RIGHTS"]["DELETE"] == "Y"
+						|| params["RIGHTS"]["DELETE"] == "ALL"
+						|| params["RIGHTS"]["DELETE"] == "OWN" && BX.message("USER_ID") == res["AUTHOR"]["ID"] ? "Y" : "N")
+					),
 				"CREATETASK_SHOW" : (
 					(!res.AUX || res.AUX.length <= 0)
 					&& params["RIGHTS"]["CREATETASK"] == "Y"
 						? "Y"
 						: "N"
+				),
+				"CREATESUBTASK_SHOW" : (
+					(!res.AUX || res.AUX.length <= 0)
+					&& BX.type.isNotEmptyString(params.RIGHTS.CREATESUBTASK)
+					&& params.RIGHTS.CREATESUBTASK === "Y"
+						? 'Y'
+						: 'N'
 				),
 				"BEFORE_HEADER" : res["BEFORE_HEADER"],
 				"BEFORE_ACTIONS" : res["BEFORE_ACTIONS"],
@@ -2685,7 +2824,7 @@
 	BX.ready(function() {
 		//region for pull events
 		BX.addCustomEvent(window, "onPullEvent-unicomments", function(command, params) {
-			if (params["AUX"] && !BX.util.in_array(params["AUX"], ["createtask", "fileversion", "TASKINFO"]) ||
+			if (params["AUX"] && !BX.util.in_array(params["AUX"].toLowerCase(), BX.CommentAux.getLiveTypesList()) ||
 				getActiveEntitiesByXmlId(params["ENTITY_XML_ID"]).size <= 0)
 			{
 				return;

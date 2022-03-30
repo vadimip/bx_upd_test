@@ -9,7 +9,8 @@ let additionalRequestCompleted = true;
  */
 export class Backend
 {
-	static getInstance()
+	static +instance: Backend = null;
+	static getInstance(): Backend
 	{
 		if (!Backend.instance)
 		{
@@ -75,7 +76,11 @@ export class Backend
 				onsuccess: (sourceResponse) => {
 					const response = Backend.makeResponse(xhr, sourceResponse);
 
-					if (Type.isStringFilled(response.sessid) && additionalRequestCompleted)
+					if (
+						Type.isStringFilled(response.sessid) &&
+						Loc.getMessage('bitrix_sessid') !== response.sessid &&
+						additionalRequestCompleted
+					)
 					{
 						Loc.setMessage('bitrix_sessid', response.sessid);
 						additionalRequestCompleted = false;
@@ -198,7 +203,10 @@ export class Backend
 		uploadParams = {},
 	): Promise<{[key: string]: any}, any>
 	{
-		queryParams.site_id = this.getSiteId();
+		if (!queryParams.site_id)
+		{
+			queryParams.site_id = this.getSiteId();
+		}
 
 		const requestBody = {
 			sessid: Loc.getMessage('bitrix_sessid'),
@@ -230,19 +238,46 @@ export class Backend
 					BX.Landing.UI.Panel.StatusPanel.getInstance().update();
 				}
 
+				BX.onCustomEvent(
+					BX.Landing.PageObject.getRootWindow(),
+					'BX.Landing.Backend:action',
+					[action, data]
+				);
+
+				/*if (!response.result) {
+					BX.Landing.ErrorManager.getInstance().add({
+						type: 'error'
+					});
+				}*/
+
 				return response.result;
 			})
 			.catch((err) => {
-				if (requestBody.action !== 'Block::getById')
+				if (
+					requestBody.action !== 'Landing::downBlock'
+					&& requestBody.action !== 'Landing::upBlock'
+				)
 				{
-					const error = Type.isString(err) ? {type: 'error'} : err;
-					err.action = requestBody.action;
+					if (
+						requestBody.action !== 'Block::getById'
+						&& requestBody.action !== 'Block::publication'
+						&& requestBody.action !== 'Landing::move'
+						&& requestBody.action !== 'Landing::copy'
+						&& requestBody.action !== 'Landing::publication'
+						&& requestBody.action !== 'Site::publication'
+						&& requestBody.action !== 'Site::moveFolder'
+						&& requestBody.action !== 'Site::markDelete'
+					)
+					{
+						const error = Type.isString(err) ? {type: 'error'} : err;
+						err.action = requestBody.action;
 
-					// eslint-disable-next-line
-					BX.Landing.ErrorManager.getInstance().add(error);
+						// eslint-disable-next-line
+						BX.Landing.ErrorManager.getInstance().add(error);
+					}
+
+					return Promise.reject(err);
 				}
-
-				return Promise.reject(err);
 			});
 	}
 
@@ -269,20 +304,40 @@ export class Backend
 				data: requestBody,
 			})
 			.then((response) => {
+
 				// eslint-disable-next-line
 				BX.Landing.UI.Panel.StatusPanel.getInstance().update();
+
+				BX.onCustomEvent(
+					BX.Landing.PageObject.getRootWindow(),
+					'BX.Landing.Backend:batch',
+					[action, data]
+				);
+
+				/*if (!response.result) {
+					BX.Landing.ErrorManager.getInstance().add({
+						type: 'error'
+					});
+				}*/
+
 				return response;
 			})
 			.catch((err) => {
-				if (requestBody.action !== 'Block::getById')
+				if (
+					requestBody.action !== 'Landing::downBlock'
+					&& requestBody.action !== 'Landing::upBlock'
+				)
 				{
-					const error = Type.isString(err) ? {type: 'error'} : err;
-					error.action = requestBody.action;
-					// eslint-disable-next-line
-					BX.Landing.ErrorManager.getInstance().add(error);
-				}
+					if (requestBody.action !== 'Block::getById')
+					{
+						const error = Type.isString(err) ? {type: 'error'} : err;
+						error.action = requestBody.action;
+						// eslint-disable-next-line
+						BX.Landing.ErrorManager.getInstance().add(error);
+					}
 
-				return Promise.reject(err);
+					return Promise.reject(err);
+				}
 			});
 	}
 

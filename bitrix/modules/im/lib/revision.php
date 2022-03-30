@@ -22,12 +22,12 @@ class Revision
 	/**
 	 * Desktop Api revision
 	 */
-	const DESKTOP = 3;
+	const DESKTOP = 5;
 
 	/**
 	 * Rest Api revision
 	 */
-	const REST = 28;
+	const REST = 30;
 
 	public static function getWeb()
 	{

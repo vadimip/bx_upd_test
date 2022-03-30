@@ -13,7 +13,7 @@ use Bitrix\Main\Localization\Loc;
  */
 class MailsFoldersManager extends SyncInternalManager
 {
-	public function deleteMails()
+	public function deleteMails($deleteImmediately = false)
 	{
 		$result = $this->initData(MailboxDirectoryTable::TYPE_TRASH);
 		if (!$result->isSuccess())
@@ -21,7 +21,7 @@ class MailsFoldersManager extends SyncInternalManager
 			return $result;
 		}
 
-		return $this->processDelete($this->getDirPathByType(MailboxDirectoryTable::TYPE_TRASH));
+		return $this->processDelete($this->getDirPathByType(MailboxDirectoryTable::TYPE_TRASH),$deleteImmediately);
 	}
 
 	public function moveMails($folderToMoveName)
@@ -122,13 +122,13 @@ class MailsFoldersManager extends SyncInternalManager
 		return $this->processSpam($this->getDirPathByType(MailboxDirectoryTable::TYPE_SPAM));
 	}
 
-	private function processDelete($folderTrashName)
+	private function processDelete($folderTrashName, $deleteImmediately = false)
 	{
 		$messagesToMove = $messagesToDelete = [];
 
 		foreach ($this->messages as $messageUid)
 		{
-			if ($this->isMailToBeDeleted($messageUid))
+			if ($this->isMailToBeDeleted($messageUid) || $deleteImmediately)
 			{
 				$messagesToDelete[] = $messageUid;
 			}
@@ -137,6 +137,7 @@ class MailsFoldersManager extends SyncInternalManager
 				$messagesToMove[] = $messageUid;
 			}
 		}
+
 		$result = $this->processMoving($messagesToMove, $folderTrashName);
 		if (!$result->isSuccess())
 		{
@@ -239,8 +240,8 @@ class MailsFoldersManager extends SyncInternalManager
 		$folderCurrentName = base64_decode($folderCurrentNameEncoded);
 		$count = $this->mailboxHelper->syncDir($folderCurrentName);
 
-		// @TODO: delete after debag mail
-		$messagesForRemove = Mail\MailMessageUidTable::getList([
+		// @TODO: make a log optional
+		/*$messagesForRemove = Mail\MailMessageUidTable::getList([
 			 'runtime' => [
 				 new Main\ORM\Fields\Relations\Reference(
 					 'B_MAIL_MESSAGE', Mail\MailMessageTable::class, [
@@ -294,7 +295,7 @@ class MailsFoldersManager extends SyncInternalManager
 				'removedMessages'=>$messagesForRemove,
 			];
 			AddMessage2Log($toLog);
-		}
+		}*/
 
 		Mail\MailMessageUidTable::deleteList(
 			[

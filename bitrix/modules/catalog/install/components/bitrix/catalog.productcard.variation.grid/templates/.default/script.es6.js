@@ -21,6 +21,10 @@ class VariationGrid
 		this.modifyPropertyLink = settings.modifyPropertyLink;
 		this.gridEditData = settings.gridEditData;
 		this.canHaveSku = settings.canHaveSku || false;
+		if (settings.copyItemsMap)
+		{
+			this.getGrid().arParams.COPY_ITEMS_MAP = settings.copyItemsMap;
+		}
 
 		const isGridReload = settings.isGridReload || false;
 		if (!isGridReload)
@@ -41,6 +45,8 @@ class VariationGrid
 		{
 			this.enableEdit();
 			this.prepareNewNodes();
+			this.getGrid().updateCounterSelected();
+			this.getGrid().disableCheckAllCheckboxes();
 		}
 		else
 		{
@@ -55,9 +61,6 @@ class VariationGrid
 
 	subscribeCustomEvents()
 	{
-		this.onSubmitEntityEditorAjaxHandler = this.onSubmitEntityEditorAjax.bind(this);
-		EventEmitter.subscribeOnce('BX.UI.EntityEditorAjax:onSubmit', this.onSubmitEntityEditorAjaxHandler);
-
 		this.onGridUpdatedHandler = this.onGridUpdated.bind(this);
 		EventEmitter.subscribe('Grid::updated', this.onGridUpdatedHandler);
 
@@ -67,15 +70,27 @@ class VariationGrid
 		this.onAllRowsSelectHandler = this.enableEdit.bind(this)
 		EventEmitter.subscribe('Grid::allRowsSelected', this.onAllRowsSelectHandler);
 
+		this.onAllRowsUnselectHandler = this.disableEdit.bind(this);
+		EventEmitter.subscribe('Grid::allRowsUnselected', this.onAllRowsUnselectHandler);
+
 		this.showPropertySettingsSliderHandler = this.showPropertySettingsSlider.bind(this);
 		EventEmitter.subscribe('VariationGrid::propertyModify', this.showPropertySettingsSliderHandler);
 
 		this.onPrepareDropDownItemsHandler = this.onPrepareDropDownItems.bind(this);
 		EventEmitter.subscribe('Dropdown::onPrepareItems', this.onPrepareDropDownItemsHandler);
+
+		this.onCreatePopupHandler = this.onCreatePopup.bind(this);
+		EventEmitter.subscribe('UiSelect::onCreatePopup', this.onCreatePopupHandler);
 	}
 
 	unsubscribeCustomEvents()
 	{
+		if (this.onGridUpdatedHandler)
+		{
+			EventEmitter.unsubscribe('Grid::updated', this.onGridUpdatedHandler);
+			this.onGridUpdatedHandler = null;
+		}
+
 		if (this.onPropertySaveHandler)
 		{
 			EventEmitter.unsubscribe('SidePanel.Slider:onMessage', this.onPropertySaveHandler);
@@ -98,6 +113,18 @@ class VariationGrid
 		{
 			EventEmitter.unsubscribe('Grid::allRowsSelected', this.onAllRowsSelectHandler);
 			this.onAllRowsSelectHandler = null;
+		}
+
+		if (this.onAllRowsUnselectHandler)
+		{
+			EventEmitter.unsubscribe('Grid::allRowsUnselected', this.onAllRowsUnselectHandler);
+			this.onAllRowsUnselectHandler = null;
+		}
+
+		if (this.onCreatePopupHandler)
+		{
+			EventEmitter.unsubscribe('UiSelect::onCreatePopup', this.onCreatePopupHandler);
+			this.onCreatePopupHandler = null;
 		}
 	}
 
@@ -133,11 +160,6 @@ class VariationGrid
 		})
 	}
 
-	onSubmitEntityEditorAjax(event)
-	{
-		EventEmitter.emit(this.getGrid().getSettingsWindow().getPopup(), 'onDestroy');
-	}
-
 	onPrepareDropDownItems(event)
 	{
 		const [controlId, menuId, items] = event.getData();
@@ -171,7 +193,7 @@ class VariationGrid
 
 		items.push({
 			'action': 'create-new',
-			'text': `
+			'html': `
 				<li data-role="createItem" class="catalog-productcard-popup-select-item catalog-productcard-popup-select-item-new">
 					<label class="catalog-productcard-popup-select-label main-dropdown-item" data-pseudo="true">
 						<span class="catalog-productcard-popup-select-add"></span>
@@ -187,6 +209,39 @@ class VariationGrid
 			const popup = document.getElementById('menu-popup-' + menuId);
 			Dom.addClass(popup, 'catalog-productcard-popup-list');
 		});
+	}
+
+	onCreatePopup(event)
+	{
+		const [popup] = event.getData();
+		const bindElementId = popup?.bindElement?.id;
+
+		if (!Type.isStringFilled(bindElementId))
+		{
+			return;
+		}
+
+		if (bindElementId.indexOf('SKU_GRID_PROPERTY_') === -1)
+		{
+			return;
+		}
+
+		const propertyId = bindElementId.replace('SKU_GRID_PROPERTY_', '').replace('_control', '');
+
+		const addButton = Tag.render`
+			<div class="catalog-productcard-popup-select-item catalog-productcard-popup-multi-select-item-new">
+				<label 
+					class="catalog-productcard-popup-select-label main-dropdown-item">
+					<span class="catalog-productcard-popup-select-add"></span>
+					<span class="catalog-productcard-popup-select-text">
+						${Loc.getMessage('C_PVG_ADD_NEW_PROPERTY_VALUE_BUTTON')}
+					</span>
+				</label>
+			</div>
+		`;
+		Event.bind(addButton, 'mousedown', BX.Catalog.VariationGrid.firePropertyModification.bind(this, propertyId));
+
+		popup.contentContainer.appendChild(addButton);
 	}
 
 	clearGridSettingsPopupStuff()
@@ -232,10 +287,40 @@ class VariationGrid
 		return this.grid;
 	}
 
+	emitEditedRowsEvent()
+	{
+		if (this.getGrid().getRows().isSelected())
+		{
+			EventEmitter.emit('Grid::thereEditedRows', []);
+		}
+		else
+		{
+			EventEmitter.emit('Grid::noEditedRows', []);
+		}
+	}
+
+	disableEdit()
+	{
+		if (this.isNew)
+		{
+			return;
+		}
+
+		this.getGrid().getRows().getRows().forEach((current) => {
+			if (!Dom.hasClass(current.getNode(), 'main-grid-row-new'))
+			{
+				current.editCancel();
+				current.unselect();
+			}
+		});
+
+		this.emitEditedRowsEvent();
+	}
+
 	enableEdit()
 	{
 		this.getGrid().getRows().selectAll();
-		this.getGrid().editSelected();
+		this.getGrid().getRows().editSelected();
 	}
 
 	prepareNewNodes()
@@ -245,7 +330,17 @@ class VariationGrid
 			this.markNodeAsNew(newNode)
 			this.addSkuListCreationItem(newNode);
 			this.modifyCustomSkuProperties(newNode);
+			this.disableCheckbox(row);
 		});
+	}
+
+	disableCheckbox(row)
+	{
+		const checkbox = row.getCheckbox();
+		if (Type.isDomNode(checkbox))
+		{
+			checkbox.setAttribute('disabled', 'disabled');
+		}
 	}
 
 	markNodeAsNew(node)
@@ -326,14 +421,7 @@ class VariationGrid
 
 		if (changed)
 		{
-			if (this.getGrid().getRows().isSelected())
-			{
-				EventEmitter.emit('Grid::thereEditedRows', []);
-			}
-			else
-			{
-				EventEmitter.emit('Grid::noEditedRows', []);
-			}
+			this.emitEditedRowsEvent();
 
 			this.getGrid().adjustRows();
 			this.getGrid().updateCounterSelected();
@@ -429,11 +517,7 @@ class VariationGrid
 		const grid = this.getGrid();
 		const newRow = grid.prependRowEditor();
 
-		const checkbox = newRow.getCheckbox();
-		if (Type.isDomNode(checkbox))
-		{
-			checkbox.setAttribute('disabled', 'disabled');
-		}
+		this.disableCheckbox(newRow);
 
 		const newNode = newRow.getNode();
 		grid.getRows().reset();
@@ -446,6 +530,7 @@ class VariationGrid
 			this.markNodeAsNew(newNode);
 			this.modifyCustomSkuProperties(newNode);
 			this.addSkuListCreationItem(newNode);
+			this.setDeleteButton(newNode);
 			newRow.makeCountable();
 		}
 
@@ -459,11 +544,61 @@ class VariationGrid
 		grid.adjustRows();
 		grid.updateCounterDisplayed();
 		grid.updateCounterSelected();
+		this.updateCounterTotal();
+	}
+
+	updateCounterTotal()
+	{
+		const grid = this.getGrid();
+		const counterTotalTextContainer = grid.getCounterTotal().querySelector('.main-grid-panel-content-text');
+		counterTotalTextContainer.textContent = grid.getRows().getCountDisplayed();
+	}
+
+	setDeleteButton(row)
+	{
+		const actionCellContentContainer = row.querySelector('.main-grid-cell-action .main-grid-cell-content');
+		const rowId = row?.dataset?.id;
+
+		if (rowId)
+		{
+			const deleteButton = Tag.render`
+				<span 
+					class="main-grid-delete-button" 
+					onclick="${this.removeNewRowFromGrid.bind(this, rowId)}"
+				></span>
+			`;
+
+			Dom.append(deleteButton, actionCellContentContainer);
+		}
+	}
+
+	removeNewRowFromGrid(rowId)
+	{
+		if (!Type.isStringFilled(rowId))
+		{
+			return;
+		}
+
+		const gridRow = this.getGrid().getRows().getById(rowId);
+		if (gridRow)
+		{
+			Dom.remove(gridRow.getNode());
+			this.getGrid().getRows().reset();
+			this.getGrid().updateCounterDisplayed();
+			this.getGrid().updateCounterSelected();
+			this.updateCounterTotal();
+
+			this.emitEditedRowsEvent();
+		}
 	}
 
 	removeRowFromGrid(skuId)
 	{
-		this.getGrid().removeRow(skuId);
+		const data = {
+			'id': skuId,
+			'action': 'deleteRow'
+		}
+		this.getGrid().reloadTable('POST', data);
 	}
 
 	getGridEditData()

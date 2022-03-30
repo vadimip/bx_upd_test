@@ -12,6 +12,8 @@ use Bitrix\Main\Config;
 use Bitrix\Main\Localization;
 use Bitrix\Main\Loader;
 use Bitrix\Socialnetwork\ComponentHelper;
+use Bitrix\Socialnetwork\Helper\Mention;
+use Bitrix\Socialnetwork\Helper\Path;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
@@ -84,11 +86,11 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 		}
 	}
 
-	public function onPrepareComponentParams($arParams)
+	public function onPrepareComponentParams($arParams): array
 	{
 		$arParams["RECIPIENT_ID"] = (isset($arParams["RECIPIENT_ID"]) ? intval($arParams["RECIPIENT_ID"]) : 0);
 		$arParams["COMMENT_ID"] = (isset($arParams["COMMENT_ID"]) ? intval($arParams["COMMENT_ID"]) : 0);
-		$arParams["LOG_ENTRY_ID"] = (isset($arParams["LOG_ENTRY_ID"]) ? intval($arParams["LOG_ENTRY_ID"]) : 0);
+		$arParams["LOG_ENTRY_ID"] = (int)($arParams["LOG_ENTRY_ID"] ?? 0);
 		$arParams["AVATAR_SIZE"] = (
 			isset($arParams["AVATAR_SIZE"])
 			&& intval($arParams["AVATAR_SIZE"]) > 0
@@ -114,7 +116,7 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 				: CComponentEngine::MakePathFromTemplate(
 					'/pub/log_entry.php?log_id=#log_id#',
 					array(
-						"log_id"=> intval($arParams["LOG_ENTRY_ID"])
+						"log_id"=> $arParams["LOG_ENTRY_ID"]
 					)
 				)
 		);
@@ -140,13 +142,13 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 			else
 			{
 				$siteId = \Bitrix\Socialnetwork\Util::getSiteIdByLogId($this->logEntryId);
-				$res = \CSite::GetByID($siteId);
+				$res = CSite::GetByID($siteId);
 				$arResult["SITE"] = $sitesCache[$this->logEntryId] = $res->fetch();
 			}
 
 			$arResult["PATH_TO_USER"] = Config\Option::get("main", "TOOLTIP_PATH_TO_USER", false, $arResult["SITE"]["ID"]);
 			$arResult["PATH_TO_GROUP"] = Config\Option::get("socialnetwork", "workgroups_page", false, $arResult["SITE"]["ID"])."group/#group_id#/";
-			$arResult["PATH_TO_CONPANY_DEPARTMENT"] = Config\Option::get("main", "TOOLTIP_PATH_TO_CONPANY_DEPARTMENT", false, $arResult["SITE"]["ID"]);
+			$arResult["PATH_TO_CONPANY_DEPARTMENT"] = Path::get('department_path_template', $arResult['SITE']['ID']);
 
 			if (isset($logEntriesCache[$this->logEntryId]))
 			{
@@ -158,12 +160,12 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 					$this->logEntryId,
 					array(
 						"AVATAR_SIZE" => $this->arParams["AVATAR_SIZE"],
-						"NAME_TEMPLATE" => \CSite::getNameFormat(false, $arResult["SITE"]["ID"]),
+						"NAME_TEMPLATE" => CSite::getNameFormat(false, $arResult["SITE"]["ID"]),
 						"SHOW_LOGIN" => "Y",
-						"DATE_TIME_FORMAT" => \CSite::GetDateFormat("FULL", $arResult["SITE"]["ID"]),
+						"DATE_TIME_FORMAT" => CSite::GetDateFormat("FULL", $arResult["SITE"]["ID"]),
 						"PATH_TO_USER" => Config\Option::get("main", "TOOLTIP_PATH_TO_USER", false, $arResult["SITE"]["ID"]),
 						"PATH_TO_GROUP" => Config\Option::get("socialnetwork", "workgroups_page", false, $arResult["SITE"]["ID"])."group/#group_id#/",
-						"PATH_TO_CONPANY_DEPARTMENT" => Config\Option::get("main", "TOOLTIP_PATH_TO_CONPANY_DEPARTMENT", false, $arResult["SITE"]["ID"]),
+						"PATH_TO_CONPANY_DEPARTMENT" => Path::get('department_path_template', $arResult['SITE']['ID']),
 					),
 					false
 				);
@@ -198,12 +200,7 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 					$arResult["LOG_ENTRY"]["EVENT"]["MESSAGE"]
 				);
 
-				$arResult["LOG_ENTRY"]["EVENT"]["MESSAGE_FORMATTED"] = preg_replace(
-					"/\[USER\s*=\s*([^\]]*)\](.+?)\[\/USER\]/is".BX_UTF_PCRE_MODIFIER,
-					"\\2",
-					$arResult["LOG_ENTRY"]["EVENT"]["MESSAGE_FORMATTED"]
-				);
-
+				$arResult['LOG_ENTRY']['EVENT']['MESSAGE_FORMATTED'] = Mention::clear($arResult['LOG_ENTRY']['EVENT']['MESSAGE_FORMATTED']);
 				$arResult["LOG_ENTRY"]["EVENT"]["MESSAGE_FORMATTED"] = $this->parseText($arResult["LOG_ENTRY"]["EVENT"]["MESSAGE_FORMATTED"]);
 			}
 		}
@@ -277,12 +274,12 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 						unset($comment["UF"]["UF_SONET_COM_URL_PRV"]);
 					}
 
-					$commentFormatted = __SLEGetLogCommentRecord($comment, array(
+					$commentFormatted = \Bitrix\Socialnetwork\Component\LogEntry::getLogCommentRecord($comment, array(
 						"MAIL" => "Y",
 						"AVATAR_SIZE" => $this->arParams["AVATAR_SIZE_COMMENT"],
-						"NAME_TEMPLATE" => \CSite::getNameFormat(false, $arResult["SITE"]["ID"]),
+						"NAME_TEMPLATE" => CSite::getNameFormat(false, $arResult["SITE"]["ID"]),
 						"SHOW_LOGIN" => "Y",
-						"DATE_TIME_FORMAT" => \CSite::GetDateFormat("FULL", $arResult["SITE"]["ID"]),
+						"DATE_TIME_FORMAT" => CSite::GetDateFormat("FULL", $arResult["SITE"]["ID"]),
 						"PATH_TO_USER" => $arResult["PATH_TO_USER"],
 						"PATH_TO_GROUP" => $arResult["PATH_TO_GROUP"],
 						"PATH_TO_CONPANY_DEPARTMENT" => $arResult["PATH_TO_CONPANY_DEPARTMENT"],
@@ -317,12 +314,7 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 						$commentFormatted["EVENT"]["MESSAGE"]
 					);
 
-					$commentFormatted["EVENT"]["MESSAGE_FORMATTED"] = preg_replace(
-						"/\[USER\s*=\s*([^\]]*)\](.+?)\[\/USER\]/is".BX_UTF_PCRE_MODIFIER,
-						"\\2",
-						$commentFormatted["EVENT"]["MESSAGE_FORMATTED"]
-					);
-
+					$commentFormatted['EVENT']['MESSAGE_FORMATTED'] = Mention::clear($commentFormatted['EVENT']['MESSAGE_FORMATTED']);
 					$commentFormatted["EVENT"]["MESSAGE_FORMATTED"] = $this->parseText($commentFormatted["EVENT"]["MESSAGE_FORMATTED"]);
 
 					$arResult["COMMENTS"][$comment["ID"]] = $commentFormatted;
@@ -404,11 +396,11 @@ class CBitrixSocialnetworkLogEntryMailComponent extends CBitrixComponent
 		{
 			if (Loader::includeModule('forum'))
 			{
-				$parser = new \forumTextParser($arResult["SITE"]["LANGUAGE_ID"]);
+				$parser = new forumTextParser($arResult["SITE"]["LANGUAGE_ID"]);
 			}
 			else
 			{
-				$parser = new \logTextParser($arResult["SITE"]["LANGUAGE_ID"]);
+				$parser = new logTextParser($arResult["SITE"]["LANGUAGE_ID"]);
 			}
 		}
 

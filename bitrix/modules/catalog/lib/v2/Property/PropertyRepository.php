@@ -2,15 +2,16 @@
 
 namespace Bitrix\Catalog\v2\Property;
 
-use Bitrix\Catalog\v2\BaseCollection;
 use Bitrix\Catalog\v2\BaseEntity;
 use Bitrix\Catalog\v2\BaseIblockElementEntity;
 use Bitrix\Catalog\v2\PropertyValue\PropertyValueFactory;
 use Bitrix\Catalog\v2\Section\HasSectionCollection;
 use Bitrix\Iblock\PropertyEnumerationTable;
 use Bitrix\Iblock\PropertyTable;
+use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Main\Error;
 use Bitrix\Main\Result;
+use Bitrix\Main\Type\Collection;
 
 /**
  * Class PropertyRepository
@@ -92,7 +93,12 @@ class PropertyRepository implements PropertyRepositoryContract
 				{
 					if (is_numeric($id))
 					{
-						$props[$property->getId()][$id] = \CAllIBlock::makeFilePropArray($prop);
+						$props[$property->getId()][$id] = \CIBlock::makeFilePropArray(
+							$prop,
+							$prop['VALUE'] === '',
+							$prop['DESCRIPTION'],
+							['allow_file_id' => true]
+						);
 					}
 				}
 
@@ -103,7 +109,7 @@ class PropertyRepository implements PropertyRepositoryContract
 						continue;
 					}
 
-					$fieldsToDelete = \CAllIBlock::makeFilePropArray($removed->getFields(), true);
+					$fieldsToDelete = \CIBlock::makeFilePropArray($removed->getFields(), true);
 					$props[$property->getId()][$removed->getId()] = $fieldsToDelete;
 				}
 			}
@@ -124,11 +130,14 @@ class PropertyRepository implements PropertyRepositoryContract
 
 		if (!empty($props) && $result->isSuccess())
 		{
-			\CIBlockElement::setPropertyValues(
-				$parentEntity->getId(),
-				$parentEntity->getIblockId(),
-				$props
-			);
+			$element = new \CIBlockElement();
+			$res = $element->update($parentEntity->getId(), [
+				'PROPERTY_VALUES' => $props,
+			]);
+			if (!$res)
+			{
+				$result->addError(new Error($element->LAST_ERROR));
+			}
 		}
 
 		return $result;
@@ -139,7 +148,7 @@ class PropertyRepository implements PropertyRepositoryContract
 		return new Result();
 	}
 
-	public function getCollectionByParent(BaseIblockElementEntity $entity): BaseCollection
+	public function getCollectionByParent(BaseIblockElementEntity $entity): PropertyCollection
 	{
 		if ($entity->isNew())
 		{
@@ -215,31 +224,29 @@ class PropertyRepository implements PropertyRepositoryContract
 		return $result;
 	}
 
-	protected function createCollection(array $entityFields, BaseIblockElementEntity $parent): BaseCollection
+	protected function createCollection(array $entityFields, BaseIblockElementEntity $parent): PropertyCollection
 	{
-		$collection = $this->factory->createCollection($parent);
+		$propertySettings = [];
 
-		$propertySettings = null;
-		// ToDo if has no section collection - check parents? (in case when SKU)
 		if ($parent instanceof HasSectionCollection)
 		{
-			$linkedProperties = $this->getLinkedProperties($parent->getIblockId(), $parent);
-
-			if (!empty($linkedProperties))
+			$linkedPropertyIds = $this->getLinkedPropertyIds($parent->getIblockId(), $parent);
+			if (!empty($linkedPropertyIds))
 			{
 				$propertySettings = $this->getPropertiesSettingsByFilter([
-					'@ID' => array_keys($linkedProperties),
+					'@ID' => $linkedPropertyIds,
 				]);
 			}
 		}
-
-		if ($propertySettings === null)
+		else
 		{
+			// variation properties don't use any section links right now
 			$propertySettings = $this->getPropertiesSettingsByFilter([
 				'=IBLOCK_ID' => $parent->getIblockId(),
 			]);
 		}
 
+		$collection = $this->factory->createCollection();
 		$propertySettings = $this->loadEnumSettings($propertySettings);
 
 		foreach ($propertySettings as $settings)
@@ -247,12 +254,10 @@ class PropertyRepository implements PropertyRepositoryContract
 			$settings = $this->prepareSettings($settings);
 			$fields = $this->prepareField($entityFields[$settings['ID']] ?? [], $settings);
 
-			/** @var \Bitrix\Catalog\v2\Property\Property $property */
 			$property = $this->createEntity();
 			$property->setSettings($settings);
 
-			/** @var \Bitrix\Catalog\v2\PropertyValue\PropertyValueCollection $propertyValueCollection */
-			$propertyValueCollection = $this->propertyValueFactory->createCollection($property);
+			$propertyValueCollection = $this->propertyValueFactory->createCollection();
 			$propertyValueCollection->initValues($fields);
 
 			$property->setPropertyValueCollection($propertyValueCollection);
@@ -263,17 +268,55 @@ class PropertyRepository implements PropertyRepositoryContract
 		return $collection;
 	}
 
-	protected function getLinkedProperties(int $iblockId, HasSectionCollection $parent): array
+	protected function getLinkedPropertyIds(int $iblockId, HasSectionCollection $parent): array
 	{
-		$linkedProperties = \CIBlockSectionPropertyLink::getArray($iblockId, 0);
+		$linkedPropertyIds = [$this->loadPropertyIdsWithoutAnyLink($iblockId)];
+
+		if ($parent->getSectionCollection()->isEmpty())
+		{
+			$linkedPropertyIds[] = array_keys(\CIBlockSectionPropertyLink::getArray($iblockId));
+		}
 
 		/** @var \Bitrix\Catalog\v2\Section\Section $section */
 		foreach ($parent->getSectionCollection() as $section)
 		{
-			$linkedProperties += \CIBlockSectionPropertyLink::getArray($iblockId, $section->getValue());
+			$linkedPropertyIds[] = array_keys(\CIBlockSectionPropertyLink::getArray($iblockId, $section->getValue()));
 		}
 
-		return $linkedProperties;
+		if (!empty($linkedPropertyIds))
+		{
+			$linkedPropertyIds = array_merge(...$linkedPropertyIds);
+			Collection::normalizeArrayValuesByInt($linkedPropertyIds, false);
+			$linkedPropertyIds = array_unique($linkedPropertyIds);
+		}
+
+		return $linkedPropertyIds;
+	}
+
+	private function loadPropertyIdsWithoutAnyLink(int $iblockId): array
+	{
+		$propertyIds = PropertyTable::getList([
+			'select' => ['ID'],
+			'filter' => [
+				'=IBLOCK_ID' => $iblockId,
+				'==SECTION_LINK.SECTION_ID' => null,
+			],
+			'runtime' => [
+				new ReferenceField(
+					'SECTION_LINK',
+					'\Bitrix\Iblock\SectionPropertyTable',
+					[
+						'=this.ID' => 'ref.PROPERTY_ID',
+						'=this.IBLOCK_ID' => 'ref.IBLOCK_ID',
+					],
+					['join_type' => 'LEFT']
+				),
+			],
+		])
+			->fetchAll()
+		;
+
+		return array_column($propertyIds, 'ID');
 	}
 
 	private function getPropertiesSettingsByFilter(array $filter): array
@@ -298,7 +341,7 @@ class PropertyRepository implements PropertyRepositoryContract
 			{
 				$userType = \CIBlockProperty::GetUserType($settings['USER_TYPE']);
 
-				if (array_key_exists('ConvertFromDB', $userType))
+				if (isset($userType['ConvertFromDB']))
 				{
 					$field = call_user_func($userType['ConvertFromDB'], $settings, $field);
 				}
@@ -319,7 +362,7 @@ class PropertyRepository implements PropertyRepositoryContract
 		return $settings;
 	}
 
-	protected function createEntity(array $fields = []): BaseEntity
+	protected function createEntity(array $fields = []): Property
 	{
 		$entity = $this->factory->createEntity();
 

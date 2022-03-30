@@ -1,7 +1,10 @@
-<?if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)die();
+<?php
 
-use Bitrix\Main\Error;
-use Bitrix\Main\ErrorCollection;
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Loader;
 
@@ -13,7 +16,7 @@ if (!Loader::includeModule('socialnetwork'))
 
 final class SocialnetworkLogList extends \Bitrix\Socialnetwork\Component\LogList
 {
-	protected function setTitle()
+	protected function setTitle(array $options = []): void
 	{
 		global $APPLICATION;
 
@@ -22,6 +25,14 @@ final class SocialnetworkLogList extends \Bitrix\Socialnetwork\Component\LogList
 		if ($this->arParams['SET_TITLE'] === 'Y')
 		{
 			$APPLICATION->setTitle($title);
+
+			if (!empty($options['GROUP']))
+			{
+				$APPLICATION->setPageProperty('title', \Bitrix\Socialnetwork\ComponentHelper::getWorkgroupPageTitle([
+					'WORKGROUP_NAME' => $options['GROUP']['NAME'],
+					'TITLE' => $title
+				]));
+			}
 		}
 
 		if ($this->arParams['SET_NAV_CHAIN'] !== 'N')
@@ -32,7 +43,7 @@ final class SocialnetworkLogList extends \Bitrix\Socialnetwork\Component\LogList
 
 	public function executeComponent()
 	{
-		\CPageOption::setOptionString('main', 'nav_page_in_session', 'N');
+		CPageOption::setOptionString('main', 'nav_page_in_session', 'N');
 
 		$this->arResult = $this->prepareData();
 
@@ -47,10 +58,9 @@ final class SocialnetworkLogList extends \Bitrix\Socialnetwork\Component\LogList
 
 		$this->includeComponentTemplate();
 
-		$result = false;
 		if (
 			isset($this->arParams['TARGET'])
-			&& $this->arParams['TARGET'] == 'page'
+			&& $this->arParams['TARGET'] === 'page'
 		)
 		{
 			if (

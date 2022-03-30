@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /**
  * @var array $arParams
  * @var array $arResult
@@ -9,10 +15,7 @@
 use Bitrix\Main\Web\Json;
 
 $rights = "N";
-if (
-	\CSocNetUser::IsCurrentUserModuleAdmin()
-	|| $APPLICATION->GetGroupRight("blog") >= "W"
-)
+if ($arResult["Perm"] >= \Bitrix\Blog\Item\Permissions::FULL)
 {
 	$rights = "ALL";
 }
@@ -27,7 +30,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	"",
 	array(
 		"TEMPLATE_ID" => 'BLOG_COMMENT_BG_',
-		"RATING_TYPE_ID" => ($arParams["SHOW_RATING"] == "Y" ? "BLOG_COMMENT" : ""),
+		"RATING_TYPE_ID" => ($arParams["SHOW_RATING"] === "Y" ? "BLOG_COMMENT" : ""),
 		"ENTITY_XML_ID" => $arParams["ENTITY_XML_ID"],
 		"RECORDS" => $arResult["RECORDS"],
 		"NAV_STRING" => $arResult["NAV_STRING"],
@@ -48,7 +51,8 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 						: $arResult["newCount"]
 				)
 		),
-
+		"WARNING_CODE" => ($arResult["WARNING_CODE"] ?: ''),
+		"WARNING_MESSAGE" => ($arResult["WARNING_MESSAGE"] ?: ''),
 		"ERROR_MESSAGE" => ($arResult["ERROR_MESSAGE"] ?: $arResult["COMMENT_ERROR"]),
 		"OK_MESSAGE" => $arResult["MESSAGE"],
 		"RESULT" => ($arResult["ajax_comment"] ?: $_GET["commentId"]),
@@ -90,7 +94,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 			"URL" => $APPLICATION->GetCurPageParam("", array(
 					"sessid", "comment_post_id", "act", "post", "comment",
 					"decode", "ACTION", "ENTITY_TYPE_ID", "ENTITY_ID",
-					"empty_get_form", "empty_get_comments"))
+					"empty_get_comments"))
 		),
 		"AUTHOR_URL_PARAMS" => array(
 			"entityType" => 'LOG_ENTRY',
@@ -100,6 +104,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	),
 	$this->__component
 );
+
 if ($eventHandlerID > 0 )
 {
 	RemoveEventHandler('main', 'system.field.view.file', $eventHandlerID);
@@ -120,21 +125,22 @@ if ($arParams["bFromList"])
 		$arResult["OUTPUT_LIST"]["HTML"] .= ob_get_clean();
 	}
 }
-elseif ($arResult["CanUserComment"] == "Y")
+elseif ($arResult['CanUserComment'])
 {
 	ob_start();
 	include_once(__DIR__ . "/script.php");
 	$arResult["OUTPUT_LIST"]["HTML"] .= ob_get_clean();
 }
 
-if ($_REQUEST["empty_get_comments"] == "Y")
+if ($_REQUEST['empty_get_comments'] === 'Y')
 {
 	$APPLICATION->RestartBuffer();
-	while(ob_get_clean());
-	\CMain::finalActions(Json::encode([
-		"TEXT" => $arResult["OUTPUT_LIST"]["HTML"],
-		"POST_NUM_COMMENTS" => intval($arResult["Post"]["NUM_COMMENTS"]),
-		"POST_PERM" => $arResult["PostPerm"]
+	while(ob_get_clean()) {};
+	CMain::finalActions(Json::encode([
+		'TEXT' => $arResult['OUTPUT_LIST']['HTML'],
+		'POST_NUM_COMMENTS' => (int)$arResult['Post']['NUM_COMMENTS'],
+		'POST_PERM' => $arResult['PostPerm'],
+		'TS' => time(),
 	]));
 	die();
 }

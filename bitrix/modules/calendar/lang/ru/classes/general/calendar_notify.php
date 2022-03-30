@@ -26,11 +26,10 @@ $MESS["EC_MESS_VIEW_OWN_CALENDAR_OUT"] = "Посмотреть другие со
 $MESS["EC_MESS_INVITE_TITLE"] = "Приглашение на встречу \"#TITLE#\" от пользователя #OWNER_NAME#";
 $MESS["EC_MESS_INVITE_CHANGED_TITLE"] = "Изменение встречи \"#TITLE#\" с вашим участием";
 $MESS["EC_MESS_INVITE_CANCEL_TITLE"] = "Встреча \"#TITLE#\" отменена";
-$MESS["EC_MESS_INVITE_ACCEPTED"] = "Пользователь #GUEST_NAME# примет участие в организованной вами встрече \"#TITLE#\"";
-$MESS["EC_MESS_INVITE_ACCEPTED_SITE"] = "Я приму участие в организованной вами встрече \"[B]#TITLE#[/B]\"";
-$MESS["EC_MESS_INVITE_DECLINED"] = "Пользователь #GUEST_NAME# не примет участие в организованной вами встрече \"#TITLE#\"";
-$MESS["EC_MESS_INVITE_DECLINED_SITE"] = "Я не приму участие в организованной вами встрече \"[B]#TITLE#[/B]\"";
-
+$MESS["EC_MESS_INVITE_ACCEPTED_1"] = "Пользователь #GUEST_NAME# примет участие в организованной вами встрече \"#TITLE#\", #ACTIVE_FROM#";
+$MESS["EC_MESS_INVITE_ACCEPTED_SITE_1"] = "Я приму участие в организованной вами встрече \"#TITLE#\", #ACTIVE_FROM#";
+$MESS["EC_MESS_INVITE_DECLINED_1"] = "Пользователь #GUEST_NAME# не примет участие в организованной вами встрече \"#TITLE#\", #ACTIVE_FROM#";
+$MESS["EC_MESS_INVITE_DECLINED_SITE_1"] = "Я не приму участие в организованной вами встрече \"#TITLE#\", #ACTIVE_FROM#";
 $MESS["EC_NOTIFY_TITLE_CHANGED"] = "Изменено название встречи с вашим участием с \"#OLD_TITLE#\" на \"#NEW_TITLE#\", дата проведения встречи - #ACTIVE_FROM#";
 $MESS["EC_NOTIFY_DATE_FROM_CHANGED"] = "Изменено время проведения встречи \"#TITLE#\" с вашим участием с \"#OLD_DATE_FROM#\", на \"#NEW_DATE_FROM#\"";
 $MESS["EC_NOTIFY_DATE_TO_CHANGED"] = "Изменено время окончания встречи \"#TITLE#\" с вашим участием с \"#OLD_DATE_TO#\", на \"#NEW_DATE_TO#\"";
@@ -52,7 +51,6 @@ $MESS["EC_NOTIFY_FIELD_ATTENDEES"] = "состав участников";
 $MESS["EC_COMMENT_MESSAGE_ADD"] = 'Добавил(а) комментарий к событию "#EVENT_TITLE#": #COMMENT#';
 $MESS["EC_COMMENT_MESSAGE_ADD_F"] = 'Добавила комментарий к событию "#EVENT_TITLE#": #COMMENT#';
 $MESS["EC_COMMENT_MESSAGE_ADD_M"] = 'Добавил комментарий к событию "#EVENT_TITLE#": #COMMENT#';
-
 $MESS["EC_NOTIFY_FAIL_ICAL_REQUEST"] = "Не удалось отправить приглашение на событие \"#NAME#\"  пользователям #USERS_LIST#. Возможно неправильно указан адрес электронной почты или почтовый сервер получателя не отвечает. Проверьте правильность адреса получателя и повторите попытку позже";
 $MESS["EC_NOTIFY_FAIL_ICAL_REQUEST_OUT"] = "Не удалось отправить приглашение на событие \"#NAME#\"  пользователям #USERS_LIST#. Возможно неправильно указан адрес электронной почты или почтовый сервер получателя не отвечает. Проверьте правильность адреса получателя и повторите попытку позже";
 $MESS["EC_MESS_FAIL_ICAL_INVITE_TITLE_REQUEST"] = "Не удалось отправить приглашение на событие \"#NAME#\"";
@@ -62,4 +60,5 @@ $MESS["EC_MESS_FAIL_ICAL_INVITE_TITLE_EDIT"] = "Не удалось отправ
 $MESS["EC_NOTIFY_FAIL_ICAL_CANCEL"] = "Не удалось отправить информацию об отмене события \"#NAME#\" следующим пользователям #USERS_LIST#. Возможно вы не правильно указали адрес или почтовый сервер получателя не отвечает. Проверьте правильность написания адреса получателя и повторите попытку позже";
 $MESS["EC_NOTIFY_FAIL_ICAL_CANCEL_OUT"] = "Не удалось отправить информацию об отмене события \"#NAME#\" следующим пользователям #USERS_LIST#. Возможно вы не правильно указали адрес или почтовый сервер получателя не отвечает. Проверьте правильность написания адреса получателя и повторите попытку позже";
 $MESS["EC_MESS_FAIL_ICAL_INVITE_TITLE_CANCEL"] = "Не удалось отправить информацию об отмене события \"#NAME#\"";
+$MESS["EC_NOTIFY_DELETE_LOCATION"] = "Переговорная комната <b>\"#LOCATION#\"</b> была удалена и убрана из ваших событий";
 ?>

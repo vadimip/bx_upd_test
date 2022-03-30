@@ -337,6 +337,7 @@ class Config
 		this.getLoader().hide();
 		setTimeout(() => {
 			this.saveButton.setWaiting(false);
+			Dom.removeClass(this.saveButton.getContainer(), 'ui-btn-wait');
 			if(this.deleteButton)
 			{
 				this.deleteButton.setWaiting(false);
@@ -419,6 +420,11 @@ class Config
 			let index = 1;
 			const rows = Array.from(this.container.querySelectorAll('[data-role="main-user-field-enum-row"]'));
 			rows.forEach((row: Element) => {
+				const input = row.querySelector('[data-role="main-user-field-enum-value"]');
+				if (!input)
+				{
+					return;
+				}
 				let def = 'N';
 				if(selectedDefaultIndex === index)
 				{
@@ -427,7 +433,7 @@ class Config
 				sort += sortStep;
 				const id = Text.toInteger(row.dataset['id']);
 				list.push({
-					value: row.querySelector('[data-role="main-user-field-enum-value"]').value,
+					value: input.value,
 					def,
 					sort,
 					id,
@@ -471,14 +477,14 @@ class Config
 		}
 		this.startProgress();
 		const fieldData = this.prepareFieldData();
-		
+
 		let languageId = null;
 		const commonLabelInput = this.getInput('editFormLabel');
 		if(commonLabelInput && commonLabelInput.parentElement && commonLabelInput.parentElement.parentElement)
 		{
 			languageId = commonLabelInput.parentElement.parentElement.dataset['language'];
 		}
-		
+
 		const userField = new UserField(fieldData, {
 			languageId,
 			moduleId: this.moduleId,
@@ -565,7 +571,7 @@ class Config
 		const userTypeId = this.getSelectedUserTypeId();
 		if(userTypeId === 'enumeration')
 		{
-			listTab.style.display = 'block';
+			listTab.style.display = 'flex';
 		}
 		else
 		{
@@ -728,7 +734,12 @@ class Config
 			const rows = Array.from(this.container.querySelectorAll('[data-role="main-user-field-enum-row"]'));
 			rows.forEach((row: Element) => {
 				const id = Text.toInteger(row.dataset['id']);
-				const value = row.querySelector('[data-role="main-user-field-enum-value"]').value;
+				const input = row.querySelector('[data-role="main-user-field-enum-value"]');
+				if (!input)
+				{
+					return;
+				}
+				const value = input.value;
 				const selected = (
 					(id > 0 && id === selectedId)
 					|| (value === selectedValue)

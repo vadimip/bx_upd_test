@@ -88,8 +88,8 @@ if ($filter_lang <> '')
 
 
 if ($filter_lang <> '' && $filter_lang!="NOT_REF")
-	$arFilter["=LID"] = trim($filter_lang);	
-	
+	$arFilter["=LID"] = trim($filter_lang);
+
 if($saleModulePermissions < "W")
 {
 	if($filter_lang == '' && count($arAccessibleSites) > 0)
@@ -112,7 +112,7 @@ if($saleModulePermissions == "P")
 	$arSelectFields[] = 'COMPANY_ID';
 
 }
-	
+
 if ((int)($filter_id_from)>0)
 	$arFilter[">=ID"] = (int)($filter_id_from);
 if ((int)($filter_id_to)>0)
@@ -490,7 +490,7 @@ if (!empty($orderList) && is_array($orderList))
 		$fieldValue = "";
 		if(in_array("ACCOUNT_NUMBER", $arVisibleColumns))
 		{
-			$fieldValue = str_replace('##ID##', Loc::getMessage("SO_ORDER_ID_PREF").$arOrder["ACCOUNT_NUMBER"], $rowTmp);
+			$fieldValue = str_replace('##ID##', Loc::getMessage("SO_ORDER_ID_PREF").htmlspecialcharsbx($arOrder["ACCOUNT_NUMBER"]), $rowTmp);
 		}
 		$row->AddField("ACCOUNT_NUMBER", $fieldValue);
 
@@ -618,11 +618,11 @@ if (!empty($orderList) && is_array($orderList))
 				$fieldValue .= '<span id="status_order_'.$arOrder["ID"].'">'.$LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['NAME'].'</span>';
 				$colorRGB = array();
 				$colorRGB = sscanf($LOCAL_STATUS_CACHE[$arOrder["STATUS_ID"]]['COLOR'], "#%02x%02x%02x");
-				if (count($colorRGB))
+				if (is_array($colorRGB) && !empty($colorRGB))
 				{
 					$color = "background:rgba(".$colorRGB[0].",".$colorRGB[1].",".$colorRGB[2].",0.6);";
 					$fieldValue = '<div style=	"'.$color.'
-									margin: 0 0 0 -16px;
+									margin: -11px 0 -10px -16px;
 									padding: 11px 10px 10px 16px;
 									height: 100%;
 								">'.$fieldValue."</div>";
@@ -810,7 +810,7 @@ if (!empty($orderList) && is_array($orderList))
 
 		$row->AddField("BASKET_PRODUCT_XML_ID", $fieldProductXML);
 
-		
+
 		if(in_array("USER", $arVisibleColumns))
 			$fieldValue = GetFormatedUserName($arOrder["USER_ID"], false, false);
 
@@ -857,7 +857,7 @@ if($saleModulePermissions >= "W" || !empty($allowedStatusesDelete))
 		),
 	);
 }
-	
+
 $lAdmin->AddAdminContextMenu($aContext);
 $lAdmin->CheckListMode();
 

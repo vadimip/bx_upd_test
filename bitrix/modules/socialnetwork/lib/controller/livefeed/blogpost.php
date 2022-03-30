@@ -1,4 +1,5 @@
-<?
+<?php
+
 namespace Bitrix\Socialnetwork\Controller\Livefeed;
 
 use Bitrix\Main\Loader;
@@ -6,24 +7,25 @@ use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Blog\Item\Permissions;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Web\Json;
 use Bitrix\Socialnetwork\ComponentHelper;
+use Bitrix\Main\ArgumentException;
+use Bitrix\Socialnetwork\Controller\Base;
+use Bitrix\Socialnetwork\Item\Helper;
 
-class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
+class BlogPost extends Base
 {
-	public function getDataAction(array $params = [])
+	public function getDataAction(array $params = []): ?array
 	{
-		global $APPLICATION;
+		$postId = (int)($params['postId'] ?? 0);
+		$public = ($params['public'] ?? 'N');
+		$groupReadOnly = ($params['groupReadOnly'] ?? 'N');
+		$pathToPost = ($params['pathToPost'] ?? '');
+		$voteId = (int)($params['voteId'] ?? 0);
+		$checkModeration = ($params['checkModeration'] ?? 'N');
 
-		$postId = (isset($params['postId']) ? intval($params['postId']) : 0);
-		$public = (isset($params['public']) ? $params['public'] : 'N');
-		$mobile = (isset($params['mobile']) ? $params['mobile'] : 'N');
-		$groupReadOnly = (isset($params['groupReadOnly']) ? $params['groupReadOnly'] : 'N');
-		$pathToPost = (isset($params['pathToPost']) ? $params['pathToPost'] : '');
-		$voteId = (isset($params['voteId']) ? intval($params['voteId']) : 0);
-		$checkModeration = (isset($params['checkModeration']) ? $params['checkModeration'] : 'N');
-
-		$currentUserId = $this->getCurrentUser()->getId();
-		$currentModuleAdmin = \CSocNetUser::isCurrentUserModuleAdmin(SITE_ID, ($mobile != 'Y'));
+		$currentUserId = (int)$this->getCurrentUser()->getId();
+		$currentModuleAdmin = \CSocNetUser::isCurrentUserModuleAdmin(SITE_ID, false);
 
 		if ($postId <= 0)
 		{
@@ -48,8 +50,8 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 		$allowModerate = false;
 
 		if (
-			$postFields['PUBLISH_STATUS'] == BLOG_PUBLISH_STATUS_READY
-			&& $checkModeration == 'Y'
+			$postFields['PUBLISH_STATUS'] === BLOG_PUBLISH_STATUS_READY
+			&& $checkModeration === 'Y'
 		)
 		{
 			$postSocnetPermsList = \CBlogPost::getSocNetPerms($postId);
@@ -73,7 +75,7 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 				}
 			}
 			elseif(
-				$postFields["AUTHOR_ID"] == $currentUserId
+				(int)$postFields['AUTHOR_ID'] === $currentUserId
 				|| $currentModuleAdmin
 			)
 			{
@@ -95,7 +97,7 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 		{
 			$filter["SITE_ID"] = SITE_ID;
 		}
-		elseif ($public != 'Y')
+		elseif ($public !== 'Y')
 		{
 			$filter["SITE_ID"] = [ SITE_ID, false ];
 		}
@@ -111,43 +113,40 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 
 		if ($logEntry = $res->fetch())
 		{
-			$logId = intval($logEntry['ID']);
-			$logFavoritesUserId = intval($logEntry['FAVORITES_USER_ID']);
-			$logPinnedUserId = intval($logEntry['PINNED_USER_ID']);
+			$logId = (int)$logEntry['ID'];
+			$logFavoritesUserId = (int)$logEntry['FAVORITES_USER_ID'];
+			$logPinnedUserId = (int)$logEntry['PINNED_USER_ID'];
 		}
 
-		if($postFields["AUTHOR_ID"] == $currentUserId)
+		if ((int)$postFields["AUTHOR_ID"] === $currentUserId)
 		{
 			$perms = Permissions::FULL;
 		}
+		elseif (
+			$currentModuleAdmin
+			|| \CMain::getGroupRight('blog') >= 'W'
+		)
+		{
+			$perms = Permissions::FULL;
+		}
+		elseif (!$logId)
+		{
+			$perms = Permissions::DENY;
+		}
 		else
 		{
-			if (!$logId)
-			{
-				$perms = Permissions::DENY;
-			}
-			elseif (
-				$currentModuleAdmin
-				|| $APPLICATION->getGroupRight('blog') >= 'W'
-			)
-			{
-				$perms = Permissions::FULL;
-			}
-			else
-			{
-				$permsResult = $postItem->getSonetPerms([
-					'PUBLIC' => ($public == 'Y'),
-					'CHECK_FULL_PERMS' => true,
-					'LOG_ID' => $logId
-				]);
-				$perms = $permsResult['PERM'];
-				$groupReadOnly = (
-					$permsResult['PERM'] <= \Bitrix\Blog\Item\Permissions::READ
-					&& $permsResult['READ_BY_OSG']
-						? 'Y'
-						: 'N'
-				);
-			}
+			$permsResult = $postItem->getSonetPerms([
+				'PUBLIC' => ($public === 'Y'),
+				'CHECK_FULL_PERMS' => true,
+				'LOG_ID' => $logId
+			]);
+			$perms = $permsResult['PERM'];
+			$groupReadOnly = (
+				$permsResult['PERM'] <= \Bitrix\Blog\Item\Permissions::READ
+				&& $permsResult['READ_BY_OSG']
+					? 'Y'
+					: 'N'
+			);
 		}
 
 		$shareForbidden = ComponentHelper::getBlogPostLimitedViewStatus(array(
@@ -184,24 +183,26 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 			'logId' => $logId,
 			'logFavoritesUserId' => $logFavoritesUserId,
 			'logPinnedUserId' => $logPinnedUserId,
-			'authorId' => intval($postFields['AUTHOR_ID']),
+			'authorId' => (int)$postFields['AUTHOR_ID'],
 			'urlToPost' => $postUrl,
 			'urlToVoteExport' => $voteExportUrl,
-			'allowModerate' => ($allowModerate ? 'Y' : 'N')
+			'allowModerate' => ($allowModerate ? 'Y' : 'N'),
+			'backgroundCode' => $postFields['BACKGROUND_CODE']
 		];
 	}
 
 	public function shareAction(array $params = [])
 	{
-		$postId = (isset($params['postId']) ? intval($params['postId']) : 0);
-		$destCodesList = (isset($params['DEST_CODES']) ? $params['DEST_CODES'] : []);
-		$invitedUserName = (isset($params['INVITED_USER_NAME']) ? $params['INVITED_USER_NAME'] : []);
-		$invitedUserLastName = (isset($params['INVITED_USER_LAST_NAME']) ? $params['INVITED_USER_LAST_NAME'] : []);
-		$invitedUserCrmEntity = (isset($params['INVITED_USER_CRM_ENTITY']) ? $params['INVITED_USER_CRM_ENTITY'] : []);
-		$invitedUserCreateCrmContact = (isset($params['INVITED_USER_CREATE_CRM_CONTACT']) ? $params['INVITED_USER_CREATE_CRM_CONTACT'] : []);
-		$readOnly = (isset($params['readOnly']) && $params['readOnly'] == 'Y');
-		$pathToUser = (isset($params['pathToUser']) ? $params['pathToUser'] : '');
-		$pathToPost = (isset($params['pathToPost']) ? $params['pathToPost'] : '');
+		$postId = (int)($params['postId'] ?? 0);
+		$destCodesList = ($params['DEST_CODES'] ?? []);
+		$destData = ($params['DEST_DATA'] ?? []);
+		$invitedUserName = ($params['INVITED_USER_NAME'] ?? []);
+		$invitedUserLastName = ($params['INVITED_USER_LAST_NAME'] ?? []);
+		$invitedUserCrmEntity = ($params['INVITED_USER_CRM_ENTITY'] ?? []);
+		$invitedUserCreateCrmContact = ($params['INVITED_USER_CREATE_CRM_CONTACT'] ?? []);
+		$readOnly = (isset($params['readOnly']) && $params['readOnly'] === 'Y');
+		$pathToUser = ($params['pathToUser'] ?? '');
+		$pathToPost = ($params['pathToPost'] ?? '');
 		$currentUserId = $this->getCurrentUser()->getId();
 
 		$data = [
@@ -230,7 +231,7 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 			return null;
 		}
 
-		$currentUserPerm = \Bitrix\Socialnetwork\Item\Helper::getBlogPostPerm([
+		$currentUserPerm = Helper::getBlogPostPerm([
 			'USER_ID' => $currentUserId,
 			'POST_ID' => $postId
 		]);
@@ -249,14 +250,14 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 		{
 			foreach($val as $id => $values)
 			{
-				if($type != "U")
+				if($type !== 'U')
 				{
-					$perms2update[] = $type.$id;
+					$perms2update[] = $type . $id;
 				}
 				else
 				{
 					$perms2update[] = (
-						in_array('US'.$id, $values)
+						in_array('US' . $id, $values, true)
 							? 'UA'
 							: $type.$id
 					);
@@ -273,9 +274,25 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 			'SG' => [],
 			'DR' => []
 		];
+
+		if (!empty($destData))
+		{
+			try
+			{
+				$entitites = Json::decode($destData);
+				if (!empty($entitites))
+				{
+					$destCodesList = \Bitrix\Main\UI\EntitySelector\Converter::convertToFinderCodes($entitites);
+				}
+			}
+			catch(ArgumentException $e)
+			{
+			}
+		}
+
 		foreach($destCodesList as $destCode)
 		{
-			if ($destCode == 'UA')
+			if ($destCode === 'UA')
 			{
 				$sonetPermsListNew['UA'][] = 'UA';
 			}
@@ -312,15 +329,15 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 
 		foreach($sonetPermsListNew as $type => $val)
 		{
-			foreach($val as $id => $code)
+			foreach($val as $code)
 			{
 				if(in_array($type, [ 'U', 'SG', 'DR', 'CRMCONTACT' ]))
 				{
-					if(!in_array($code, $perms2update))
+					if (!in_array($code, $perms2update))
 					{
-						if ($type == 'SG')
+						if ($type === 'SG')
 						{
-							$sonetGroupId = intval(str_replace("SG", "", $code));
+							$sonetGroupId = (int)str_replace('SG', '', $code);
 
 							$canPublish = (
 								$currentAdmin
@@ -339,9 +356,9 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 						$newRightsList[] = $code;
 					}
 				}
-				elseif($type == 'UA')
+				elseif ($type === 'UA')
 				{
-					if(!in_array('UA', $perms2update))
+					if (!in_array('UA', $perms2update, true))
 					{
 						$perms2update[] = 'UA';
 						$newRightsList[] = 'UA';
@@ -385,18 +402,40 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 		}
 	}
 
-	public function addAction(array $params = [])
+	public function addAction(array $params = []): ?array
 	{
 		global $APPLICATION;
 
+		$warnings = [];
+
 		try
 		{
-			$postId = \Bitrix\Socialnetwork\Item\Helper::addBlogPost($params, $this->getScope());
+			$postId = Helper::addBlogPost($params, $this->getScope(), $resultFields);
 			if ($postId <= 0)
 			{
+				if (
+					is_array($resultFields)
+					&& !empty($resultFields['ERROR_MESSAGE_PUBLIC'])
+				)
+				{
+					$this->addError(new Error($resultFields['ERROR_MESSAGE_PUBLIC'], 0, [
+						'public' => 'Y'
+					]));
+					return null;
+				}
+
 				$e = $APPLICATION->getException();
 				throw new \Exception($e ? $e->getString() : 'Cannot add blog post');
 			}
+
+			if (
+				is_array($resultFields)
+				&& !empty($resultFields['WARNING_MESSAGE_PUBLIC'])
+			)
+			{
+				$warnings[] = $resultFields['WARNING_MESSAGE_PUBLIC'];
+			}
+
 		}
 		catch (\Exception $e)
 		{
@@ -405,20 +444,32 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 		}
 
 		return [
-			'id' => $postId
+			'id' => $postId,
+			'warnings' => $warnings
 		];
 	}
 
-	public function updateAction($id = 0, array $params = [])
+	public function updateAction($id = 0, array $params = []): ?array
 	{
 		global $APPLICATION;
 
 		try
 		{
 			$params['POST_ID'] = $id;
-			$postId = \Bitrix\Socialnetwork\Item\Helper::updateBlogPost($params, $this->getScope());
+			$postId = Helper::updateBlogPost($params, $this->getScope(), $resultFields);
 			if ($postId <= 0)
 			{
+				if (
+					is_array($resultFields)
+					&& !empty($resultFields['ERROR_MESSAGE_PUBLIC'])
+				)
+				{
+					$this->addError(new Error($resultFields['ERROR_MESSAGE_PUBLIC'], 0, [
+						'public' => 'Y'
+					]));
+					return null;
+				}
+
 				$e = $APPLICATION->getException();
 				throw new \Exception($e ? $e->getString() : 'Cannot update blog post');
 			}
@@ -433,5 +484,33 @@ class BlogPost extends \Bitrix\Socialnetwork\Controller\Base
 			'id' => $postId
 		];
 	}
+
+	public function getBlogPostMobileFullDataAction(array $params = []): ?array
+	{
+		if (!Loader::includeModule('mobile'))
+		{
+			$this->addError(new Error('Mobile module not installed', 'SONET_CONTROLLER_LIVEFEED_MOBILE_MODULE_NOT_INSTALLED'));
+			return null;
+		}
+		return \Bitrix\Mobile\Livefeed\Helper::getBlogPostFullData($params);
+	}
+
+	public function deleteAction($id = 0): ?bool
+	{
+		try
+		{
+			$result = Helper::deleteBlogPost([
+				'POST_ID' => (int)$id,
+			]);
+		}
+		catch (\Exception $e)
+		{
+			$this->addError(new Error($e->getMessage(), $e->getCode()));
+			return null;
+		}
+
+		return $result;
+	}
+
 }
 

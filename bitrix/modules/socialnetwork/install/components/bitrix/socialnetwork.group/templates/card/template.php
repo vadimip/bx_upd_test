@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -12,6 +18,7 @@ use Bitrix\Main\UI;
 UI\Extension::load([
 	'socialnetwork.common',
 	'ui.icons.b24',
+	'ui.info-helper',
 ]);
 
 if($arResult["FatalError"] <> '')
@@ -27,12 +34,13 @@ else
 
 	?><script>
 		BX.ready(function() {
-			SonetGroupCardSlider.getInstance().init({
-				groupId: <?=intval($arParams["GROUP_ID"])?>,
-				groupType: '<?=CUtil::JSEscape($arResult["groupTypeCode"])?>',
-				isProject: <?=($arResult['Group']['PROJECT'] == 'Y' ? 'true' : 'false')?>,
-				isOpened: <?=($arResult['Group']['OPENED'] == 'Y' ? 'true' : 'false')?>,
-				currentUserId: <?=($USER->isAuthorized() ? $USER->getid() : 0)?>,
+			(new BX.Socialnetwork.WorkgroupCard()).init({
+				groupId: <?= (int)$arParams['GROUP_ID'] ?>,
+				groupType: '<?= CUtil::JSEscape($arResult['groupTypeCode']) ?>',
+				isProject: <?= ($arResult['Group']['PROJECT'] === 'Y' ? 'true' : 'false') ?>,
+				isScrumProject: <?= ($arResult['isScrumProject'] ? 'true' : 'false') ?>,
+				isOpened: <?= ($arResult['Group']['OPENED'] === 'Y' ? 'true' : 'false') ?>,
+				currentUserId: <?= ($USER->isAuthorized() ? $USER->getid() : 0) ?>,
 				userRole: '<?=CUtil::JSUrlEscape($arResult["CurrentUserPerms"]["UserRole"])?>',
 				userIsMember: <?=($arResult["CurrentUserPerms"]["UserIsMember"] ? 'true' : 'false')?>,
 				userIsAutoMember: <?=(isset($arResult["CurrentUserPerms"]["UserIsAutoMember"]) && $arResult["CurrentUserPerms"]["UserIsAutoMember"] ? 'true' : 'false')?>,
@@ -46,6 +54,7 @@ else
 				containerNodeId: 'socialnetwork-group-card-box',
 				subscribeButtonNodeId: 'group_card_subscribe_button',
 				menuButtonNodeId: 'group_card_menu_button',
+				sliderMenuNodeId: '<?= CUtil::JSEscape((string)$arParams['SLIDER_MENU_CONTAINER_ID']) ?>',
 				styles: {
 					tags: {
 						box: 'socialnetwork-group-tag-box',
@@ -61,9 +70,10 @@ else
 					}
 				},
 				urls: {
-					groupsList: '<?=CUtil::JSUrlEscape($arParams["PATH_TO_GROUPS_LIST"])?>'
+					groupsList: '<?= CUtil::JSUrlEscape($arParams["PATH_TO_GROUPS_LIST"]) ?>'
 				},
-				editFeaturesAllowed: <?=(\Bitrix\Socialnetwork\Item\Workgroup::getEditFeaturesAvailability() ? 'true' : 'false')?>
+				editFeaturesAllowed: <?= (\Bitrix\Socialnetwork\Helper\Workgroup::getEditFeaturesAvailability() ? 'true' : 'false') ?>,
+				copyFeatureAllowed: <?=(\Bitrix\Socialnetwork\Helper\Workgroup::isGroupCopyFeatureEnabled() ? 'true' : 'false')?>,
 			})
 		});
 
@@ -74,12 +84,12 @@ else
 		});
 	</script><?
 
-	$this->SetViewTarget("sonet-slider-pagetitle", 1000);
+	$this->SetViewTarget(($arResult['IS_IFRAME'] ? 'pagetitle' : 'sonet-slider-pagetitle'), 1000);
+
 	$bodyClass = $APPLICATION->GetPageProperty("BodyClass");
 	$APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass." " : "")."pagetitle-menu-visible");
 	include("title_buttons.php");
 	$this->EndViewTarget();
-
 
 	?><div class="socialnetwork-group-content" id="socialnetwork-group-card-box">
 		<div class="socialnetwork-group-box">
@@ -103,15 +113,23 @@ else
 			?></div>
 		</div><?
 
-		if ($arResult['Group']['PROJECT'] == 'Y')
+		if ($arResult['Group']['PROJECT'] === 'Y')
 		{
 			?><div class="socialnetwork-group-box">
 				<div class="socialnetwork-group-left"><?=Loc::getMessage('SONET_C6_PROJECT_DATE_START')?></div>
-				<div class="socialnetwork-group-right"><?=FormatDateFromDB($arResult["Group"]["PROJECT_DATE_START"], $arParams["DATE_FORMAT"], true)?></div>
+				<div class="socialnetwork-group-right"><?=
+					!empty($arResult['Group']['PROJECT_DATE_START'])
+						? FormatDateFromDB($arResult['Group']['PROJECT_DATE_START'], $arParams['DATE_FORMAT'], true)
+						: ''
+				?></div>
 			</div>
 			<div class="socialnetwork-group-box">
 				<div class="socialnetwork-group-left"><?=Loc::getMessage('SONET_C6_PROJECT_DATE_FINISH')?></div>
-				<div class="socialnetwork-group-right"><?=FormatDateFromDB($arResult["Group"]["PROJECT_DATE_FINISH"], $arParams["DATE_FORMAT"], true)?></div>
+				<div class="socialnetwork-group-right"><?=
+					!empty($arResult['Group']['PROJECT_DATE_FINISH'])
+						? FormatDateFromDB($arResult['Group']['PROJECT_DATE_FINISH'], $arParams['DATE_FORMAT'], true)
+						: ''
+				?></div>
 			</div><?
 		}
 
@@ -135,7 +153,17 @@ else
 			</div>
 		</div>
 		<div class="socialnetwork-group-box">
-			<div class="socialnetwork-group-left"><?=Loc::getMessage($arResult['Group']['PROJECT'] == 'Y' ? 'SONET_C6_CARD_MOD_PROJECT' : 'SONET_C6_CARD_MOD')?> (<?=intval($arResult["Group"]["NUMBER_OF_MODERATORS"])?>)</div>
+			<div class="socialnetwork-group-left">
+				<?=
+					Loc::getMessage(
+						$arResult['Group']['PROJECT'] == 'Y'
+						? $arResult['isScrumProject']
+							? 'SONET_C6_CARD_MOD_SCRUM_PROJECT'
+							: 'SONET_C6_CARD_MOD_PROJECT'
+						: 'SONET_C6_CARD_MOD'
+					)
+				?> (<?=intval($arResult["Group"]["NUMBER_OF_MODERATORS"])?>)
+			</div>
 			<div class="socialnetwork-group-right">
 				<div class="socialnetwork-group-user-box"><?
 					$counter = 0;
@@ -247,4 +275,3 @@ else
 			title="<?=Loc::getMessage("SONET_C6_CARD_FAVORITES_".(!empty($arResult['FAVORITES']) ? "Y" : "N"))?>"></div><?
 	?></div><?
 }
-?>

@@ -1,5 +1,6 @@
 <?php
 $MESS["BLOG_C_HIDE"] = "Згорнути коментарі";
+$MESS["BLOG_C_LOADING"] = "Завантаження";
 $MESS["BLOG_C_REPLY"] = "Відповісти";
 $MESS["BLOG_C_VIEW"] = "Дивитися коментарі";
 $MESS["BPC_MES_COPYLINK"] = "Скопіювати посилання";
@@ -7,6 +8,7 @@ $MESS["BPC_MES_CREATETASK"] = "Створити завдання";
 $MESS["BPC_MES_DELETE"] = "Видалити";
 $MESS["BPC_MES_EDIT"] = "Редагувати";
 $MESS["BPC_MES_HIDE"] = "Приховати";
+$MESS["BPC_MES_RESULT"] = "Позначити як звіт про завдання";
 $MESS["BPC_MES_SHOW"] = "Показати";
 $MESS["BPC_MES_VOTE"] = "Кому подобається";
 $MESS["BPC_MES_VOTE1"] = "Мені подобається";

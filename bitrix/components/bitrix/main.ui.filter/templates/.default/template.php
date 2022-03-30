@@ -14,10 +14,12 @@ use Bitrix\Main\UI\Filter\NumberType;
 Extension::load([
 	"ui.buttons",
 	"ui.fonts.opensans",
+	"ui.layout-form",
 	"ui",
 	"dnd",
 	"loader",
-	"date"
+	"date",
+	"ui.icons.service",
 ]);
 
 global $USER;
@@ -58,6 +60,14 @@ $filterSearchClass = "main-ui-filter-theme-".mb_strtolower($arResult["THEME"]);
 if ($arResult["DISABLE_SEARCH"] || !$arParams["CONFIG"]["SEARCH"])
 {
 	$filterSearchClass .= " main-ui-filter-no-search";
+}
+
+if (
+	$arResult["THEME"] === \Bitrix\Main\UI\Filter\Theme::LIGHT
+	&& strlen($arResult["CURRENT_PRESET"]["FIND"]) > 0
+)
+{
+	$filterSearchClass .= " main-ui-filter-search--active";
 }
 
 if ($arResult["COMPACT_STATE"])
@@ -107,6 +117,11 @@ if ($arParams["VALUE_REQUIRED_MODE"] === true)
 if ($arResult["LIMITS_ENABLED"])
 {
 	$filterWrapperClass .= " main-ui-filter-field-limits-active main-ui-filter-field-limits-animate";
+}
+
+if ($arResult["ENABLE_ADDITIONAL_FILTERS"])
+{
+	$filterWrapperClass .= " main-ui-filter-with-additional-filters";
 }
 ?>
 
@@ -208,14 +223,16 @@ if ($arResult["LIMITS_ENABLED"])
 
 <?
     $frame->end();
+    $messages = CUtil::phpToJSObject(Loc::loadLanguageFile(__FILE__), false);
 ?>
 
 <script>
+	BX.Loc.setMessage(<?= $messages ?>);
 	BX.ready(function() {
 		BX.Main.filterManager.push(
 			'<?=\CUtil::jSEscape($arParams["FILTER_ID"])?>',
 			new BX.Main.Filter(
-				<?=CUtil::PhpToJSObject($arResult)?>,
+				<?=CUtil::PhpToJSObject($arResult, false, false, true)?>,
 				<?=CUtil::PhpToJSObject($arParams["CONFIG"])?>,
 				<?=CUtil::PhpToJSObject(Type::getList())?>,
 				<?=CUtil::PhpToJSObject(DateType::getList())?>,

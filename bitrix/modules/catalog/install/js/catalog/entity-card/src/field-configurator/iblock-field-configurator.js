@@ -10,6 +10,11 @@ export default class IblockFieldConfigurator extends BX.UI.EntityEditorFieldConf
 		self.initialize(id, settings);
 		return self;
 	}
+	constructor()
+	{
+		super();
+		this._enumItems = [];
+	}
 	layoutInternal()
 	{
 		this._wrapper.appendChild(this.getInputContainer());
@@ -41,21 +46,45 @@ export default class IblockFieldConfigurator extends BX.UI.EntityEditorFieldConf
 			this._isRequiredCheckBox = this.getIsRequiredCheckBox();
 		}
 
-		if (this._typeId !== "directory")
+		if (this.isAllowedMultipleCheckBox())
 		{
 			this._isMultipleCheckBox = this.getMultipleCheckBox();
 		}
 
+		this._isPublic = this.getIsPublicCheckBox();
+
 		//region Show Always
-		this._showAlwaysCheckBox = this.createOption(
-			{ caption: BX.message("UI_ENTITY_EDITOR_SHOW_ALWAYS"), helpUrl: "https://helpdesk.bitrix24.ru/open/7046149/", helpCode: "9627471" }
+		this._showAlwaysCheckBox = this.createOption({
+			caption: BX.message('UI_ENTITY_EDITOR_SHOW_ALWAYS'),
+			helpUrl: 'https://helpdesk.bitrix24.ru/open/7046149/',
+			helpCode: '9627471'
+		});
+		this._showAlwaysCheckBox.checked = (
+			isNew
+				? BX.prop.getBoolean(this._settings, 'showAlways', true)
+				: this._field.checkOptionFlag(BX.UI.EntityEditorControlOptions.showAlways)
 		);
-		this._showAlwaysCheckBox.checked = isNew
-			? BX.prop.getBoolean(this._settings, "showAlways", true)
-			: this._field.checkOptionFlag(BX.UI.EntityEditorControlOptions.showAlways);
+
+		if (!this.isAllowedShowAlwaysCheckBox())
+		{
+			Dom.style(this._showAlwaysCheckBox.closest('div.ui-ctl-checkbox'), 'display', 'none');
+		}
 		//endregion
 
 		return this._optionWrapper;
+	}
+
+	isAllowedMultipleCheckBox()
+	{
+		const isEnabledOfferTree = this?._field?.getSchemeElement()?._settings?.isEnabledOfferTree;
+		const isMultiple = this?._field?.getSchemeElement()?._settings?.multiple;
+
+		return !isEnabledOfferTree || isMultiple;
+	}
+
+	isAllowedShowAlwaysCheckBox()
+	{
+		return true;
 	}
 
 	getInputTitle()
@@ -276,6 +305,11 @@ export default class IblockFieldConfigurator extends BX.UI.EntityEditorFieldConf
 			}
 		}
 
+		if (this._isPublic)
+		{
+			params["isPublic"] = this._isPublic.checked;
+		}
+
 		return params;
 	}
 
@@ -287,6 +321,7 @@ export default class IblockFieldConfigurator extends BX.UI.EntityEditorFieldConf
 			|| this._field instanceof BX.UI.EntityEditorMultiNumber
 			|| this._field instanceof BX.UI.EntityEditorMultiList
 			|| this._field instanceof BX.UI.EntityEditorMultiDatetime
+			|| this._field instanceof BX.UI.EntityEditorMultiMoney
 			|| (this._field instanceof BX.UI.EntityEditorCustom && this._field.getSchemeElement()._settings.multiple)
 		)
 		{
@@ -392,6 +427,20 @@ export default class IblockFieldConfigurator extends BX.UI.EntityEditorFieldConf
 	{
 		const checkBox = this.createOption({caption: BX.message("UI_ENTITY_EDITOR_UF_ENABLE_TIME")});
 		checkBox.checked = this._field && this._field.isTimeEnabled();
+		return checkBox;
+	}
+
+	getIsPublicCheckBox()
+	{
+		const checkBox = this.createOption({caption: BX.message("CATALOG_ENTITY_EDITOR_IS_PUBLIC_PROPERTY")});
+		if (!this._field)
+		{
+			checkBox.checked = true;
+		}
+		else
+		{
+			checkBox.checked = this._field.getSchemeElement() && BX.prop.get(this._field.getSchemeElement().getData(), "isPublic", true);
+		}
 		return checkBox;
 	}
 }

@@ -2,10 +2,11 @@
 {
 	var paramsWebHook = [];
 	BX.namespace('BX.rest.integration');
-	if (BX.rest.integration.InitHint)
+	if (BX.rest.integration.edit)
 	{
 		return;
 	}
+	BX.rest.integration.edit = {};
 
 	// Hints processing
 	function InitHint()
@@ -62,7 +63,7 @@
 			}
 		};
 
-	BX.rest.integration.InitHint = InitHint;
+	BX.rest.integration.edit.InitHint = InitHint;
 
 	function InitHintItem(options)
 	{
@@ -138,7 +139,7 @@
 				return this.popup;
 			}
 		};
-	BX.rest.integration.InitHintItem = InitHintItem;
+	BX.rest.integration.edit.InitHintItem = InitHintItem;
 
 	function ParamFieldsControl(options)
 	{
@@ -241,7 +242,7 @@
 			}
 
 		};
-	BX.rest.integration.ParamFieldsControl = ParamFieldsControl;
+	BX.rest.integration.edit.ParamFieldsControl = ParamFieldsControl;
 
 	function ParamFieldsControlItem(options)
 	{
@@ -432,7 +433,7 @@
 							{
 								blur: function ()
 								{
-									BX.rest.integration.makeCurlString();
+									BX.rest.integration.edit.makeCurlString();
 								}.bind(this)
 							}
 					}
@@ -501,7 +502,7 @@
 					function ()
 					{
 						this.layout.container.parentNode.removeChild(this.layout.container);
-						BX.rest.integration.makeCurlString();
+						BX.rest.integration.edit.makeCurlString();
 					}.bind(this),
 					500
 				);
@@ -523,7 +524,7 @@
 			{
 				this.title = this.layout.titleInput.value;
 				this.layout.titleValue.innerText = this.layout.titleInput.value;
-				BX.rest.integration.makeCurlString();
+				BX.rest.integration.edit.makeCurlString();
 			},
 
 			returnTitle: function ()
@@ -602,7 +603,7 @@
 				return this.layout.container;
 			}
 		};
-	BX.rest.integration.ParamFieldsControlItem = ParamFieldsControlItem;
+	BX.rest.integration.edit.ParamFieldsControlItem = ParamFieldsControlItem;
 
 	function InitTabs()
 	{
@@ -630,7 +631,7 @@
 				}
 			}
 		};
-	BX.rest.integration.InitTabs = InitTabs;
+	BX.rest.integration.edit.InitTabs = InitTabs;
 
 	function InitTabsItem(options)
 	{
@@ -820,13 +821,13 @@
 			}
 		};
 
-	BX.rest.integration.InitTabsItem = InitTabsItem;
+	BX.rest.integration.edit.InitTabsItem = InitTabsItem;
 
 
 
-	BX.rest.integration.makeCurlString = function ()
+	BX.rest.integration.edit.makeCurlString = function ()
 	{
-		BX.rest.integration.setMethodLink();
+		BX.rest.integration.edit.setMethodLink();
 		var webhookUrl = BX('rest-integration-form').querySelector('#webhookURL');
 
 		if (typeof paramsWebHook === 'object' && webhookUrl !== null)
@@ -869,7 +870,7 @@
 
 	};
 
-	BX.rest.integration.setMethodLink = function ()
+	BX.rest.integration.edit.setMethodLink = function ()
 	{
 		BX('rest-integration-form').querySelectorAll('.integration-method-url').forEach(
 			function (item)
@@ -890,7 +891,7 @@
 			}
 		);
 	};
-	BX.rest.integration.inputApiOnlyChange = function()
+	BX.rest.integration.edit.inputApiOnlyChange = function()
 	{
 		var value = BX('rest-integration-form').querySelector('#rest-integration-form input[name="APPLICATION_ONLY_API"]');
 		if (value !== null)
@@ -928,18 +929,18 @@
 			}
 		}
 	};
-	BX.rest.integration.initParams = function ()
+	BX.rest.integration.edit.initParams = function ()
 	{
 		this.savedDo = false;
-		var tabs = new BX.rest.integration.InitTabs();
-		var hints = new BX.rest.integration.InitHint({
+		var tabs = new BX.rest.integration.edit.InitTabs();
+		var hints = new BX.rest.integration.edit.InitHint({
 			items: BX('rest-integration-form').querySelectorAll('[data-role="integration-hint"]')
 		});
-		BX.rest.integration.inputApiOnlyChange();
+		BX.rest.integration.edit.inputApiOnlyChange();
 		BX.bind(
 			BX('rest-integration-form'),
 			'submit',
-			BX.delegate(BX.rest.integration.actionSaveForm, this)
+			BX.delegate(BX.rest.integration.edit.actionSaveForm, this)
 		);
 
 		var btnDownloadList = BX('rest-integration-form').querySelectorAll('#rest-integration-form .integration-post-open');
@@ -950,7 +951,7 @@
 				BX.bind(
 					btnDownloadList[i],
 					'click',
-					BX.delegate(BX.rest.integration.openPostUri, this)
+					BX.delegate(BX.rest.integration.edit.openPostUri, this)
 				);
 			}
 		}
@@ -963,7 +964,7 @@
 				BX.bind(
 					btnDownloadList[j],
 					'click',
-					BX.delegate(BX.rest.integration.openUri, this)
+					BX.delegate(BX.rest.integration.edit.openUri, this)
 				);
 			}
 		}
@@ -971,7 +972,7 @@
 		BX.bind(
 			BX('rest-integration-form').querySelector('#rest-integration-form input[name="APPLICATION_ONLY_API"]'),
 			'change',
-			BX.delegate(BX.rest.integration.inputApiOnlyChange, this)
+			BX.delegate(BX.rest.integration.edit.inputApiOnlyChange, this)
 		);
 		BX('rest-integration-form').querySelectorAll('#rest-integration-form .integration-curl-uri-button').forEach(
 		function (value)
@@ -979,7 +980,17 @@
 				BX.bind(
 					value,
 					'click',
-					BX.rest.integration.actionCurlQuery
+					BX.rest.integration.edit.actionCurlQuery
+				);
+			}
+		);
+		BX('rest-integration-form').querySelectorAll('#rest-integration-form .integration-action-dropdown').forEach(
+			function (value)
+			{
+				BX.bind(
+					value,
+					'click',
+					BX.rest.integration.edit.actionDropdown
 				);
 			}
 		);
@@ -990,7 +1001,7 @@
 				BX.bind(
 					value,
 					'change',
-					BX.rest.integration.changeAppType
+					BX.rest.integration.edit.changeAppType
 				);
 			}
 		);
@@ -998,19 +1009,19 @@
 		BX.bind(
 			BX('rest-integration-form').querySelector('#rest-integration-form #integrationSaveBot'),
 			'click',
-			BX.delegate(BX.rest.integration.actionSaveBtnClick, this)
+			BX.delegate(BX.rest.integration.edit.actionSaveBtnClick, this)
 		);
 		BX.bind(
 			BX('rest-integration-form').querySelector('#rest-integration-form #integrationGenerateWebhook'),
 			'click',
-			BX.delegate(BX.rest.integration.actionSaveRegenBtnClick, this)
+			BX.delegate(BX.rest.integration.edit.actionSaveRegenBtnClick, this)
 		);
 
 		BX.bind(
 			BX('rest-integration-form').querySelector('#rest-integration-form input[name="APP_ZIP"]'),
 			'change',
 			BX.delegate(
-				BX.rest.integration.loadFileApplication,
+				BX.rest.integration.edit.loadFileApplication,
 				this
 			)
 		);
@@ -1047,18 +1058,18 @@
 									title: 'NEW_PARAM'
 								}
 							);
-							BX.rest.integration.makeCurlString();
+							BX.rest.integration.edit.makeCurlString();
 						}
 					);
 				}
 			}
-			BX.rest.integration.makeCurlString();
+			BX.rest.integration.edit.makeCurlString();
 		}
 		hints.init();
 		tabs.init();
 	};
 
-	BX.rest.integration.onCloseSlider = function(event)
+	BX.rest.integration.edit.onCloseSlider = function(event)
 	{
 		var slider = event.getSlider();
 
@@ -1128,7 +1139,7 @@
 		}
 	};
 
-	BX.rest.integration.loadFileApplication = function(event)
+	BX.rest.integration.edit.loadFileApplication = function(event)
 	{
 		if (event.target.files.length > 0 && event.target.files[0]['size'] > 0)
 		{
@@ -1146,7 +1157,7 @@
 		}
 	};
 
-	BX.rest.integration.changeAppType = function(event)
+	BX.rest.integration.edit.changeAppType = function(event)
 	{
 		var reqInputList, noReqInputList, clearInputList;
 		var type = event.target.value;
@@ -1216,7 +1227,50 @@
 		}
 	};
 
-	BX.rest.integration.actionCurlQuery = function ()
+	BX.rest.integration.edit.actionDropdown = function ()
+	{
+		var input;
+		var id = this.dataset.id;
+		var selector = this.dataset.selector;
+		var required = this.dataset.required;
+		var active = BX.hasClass(this, 'active') === true;
+
+		if (active)
+		{
+			BX.removeClass(this, 'active');
+		}
+		else
+		{
+			BX.addClass(this, 'active');
+		}
+
+		BX('rest-integration-form').querySelectorAll('#' + id + ' .' + selector).forEach(
+			function (value)
+			{
+				if (active)
+				{
+					input = BX.findChild(
+						value,
+						{
+							'tag' : 'input',
+						},
+						true
+					);
+
+					if (input.value === '' && BX.hasClass(input, required) === false)
+					{
+						BX.addClass(value, 'hidden');
+					}
+				}
+				else
+				{
+					BX.removeClass(value, 'hidden');
+				}
+			}
+		);
+	};
+
+	BX.rest.integration.edit.actionCurlQuery = function ()
 	{
 		if (restIntegrationEditComponent.hasOwnProperty('pathIframe') && restIntegrationEditComponent.pathIframe !== '')
 		{
@@ -1245,9 +1299,9 @@
 		}
 	};
 
-	BX.rest.integration.actionSaveBtnClick = function ()
+	BX.rest.integration.edit.actionSaveBtnClick = function ()
 	{
-		BX.rest.integration.savedDo = false;
+		BX.rest.integration.edit.savedDo = false;
 		BX('integration-save-mode').value = 'SAVE';
 		BX.submit(
 			BX('rest-integration-form'),
@@ -1255,7 +1309,7 @@
 			'Y',
 			function ()
 			{
-				if (!BX.rest.integration.savedDo)
+				if (!BX.rest.integration.edit.savedDo)
 				{
 					BX.removeClass(BX('ui-button-panel-save'), 'ui-btn-wait');
 				}
@@ -1263,7 +1317,7 @@
 		);
 	};
 
-	BX.rest.integration.actionSaveRegenBtnClick = function ()
+	BX.rest.integration.edit.actionSaveRegenBtnClick = function ()
 	{
 		BX.addClass(BX('integrationGenerateWebhook'), 'ui-btn-wait');
 		BX.UI.Dialogs.MessageBox.show(
@@ -1331,7 +1385,7 @@
 
 	};
 
-	BX.rest.integration.openPostUri = function(event)
+	BX.rest.integration.edit.openPostUri = function(event)
 	{
 		event.preventDefault();
 		var form = document.getElementById('rest-integration-form');
@@ -1345,7 +1399,7 @@
 		sessId.value = BX.bitrix_sessid();
 	};
 
-	BX.rest.integration.openUri = function(event)
+	BX.rest.integration.edit.openUri = function(event)
 	{
 		if (restIntegrationEditComponent.hasOwnProperty('integrationCode') && restIntegrationEditComponent.integrationCode !== '')
 		{
@@ -1366,7 +1420,7 @@
 		}
 	};
 
-	BX.rest.integration.actionSaveForm = function (event)
+	BX.rest.integration.edit.actionSaveForm = function (event)
 	{
 		event.preventDefault();
 		var appZipMode = BX('rest-integration-form').querySelector('#rest-integration-form #applicationType input[value="ZIP"]');
@@ -1384,7 +1438,7 @@
 			}
 		}
 
-		BX.rest.integration.savedDo = true;
+		BX.rest.integration.edit.savedDo = true;
 		BX.addClass(BX('ui-button-panel-save'), 'ui-btn-wait');
 		var errorDom = BX('rest-integration-form-error');
 		errorDom.style.display = 'none';
@@ -1425,39 +1479,50 @@
 					}
 					else
 					{
-						response.data.errors.forEach(
-							function (error)
+						if (!!response.data.helperCode && response.data.helperCode !== '')
+						{
+							top.BX.UI.InfoHelper.show(response.data.helperCode);
+						}
+						else
+						{
+							if (!!response.data.errors)
 							{
-								errorDom.style.display = 'block';
-								BX.ready(
-									function ()
+								response.data.errors.forEach(
+									function (error)
 									{
-										BX.append(
-											BX.create(
-												'div',
-												{
-													props:
+										errorDom.style.display = 'block';
+										BX.ready(
+											function ()
+											{
+												BX.append(
+													BX.create(
+														'div',
 														{
-															className: 'ui-alert ui-alert-danger'
-														},
-													children:
-														[
-															BX.create(
-																'span',
+															props:
 																{
-																	className: 'ui-alert-message',
-																	text: error
-																}
-															)
-														]
-												}
-											),
-											errorDom
+																	className: 'ui-alert ui-alert-danger'
+																},
+															children:
+																[
+																	BX.create(
+																		'span',
+																		{
+																			className: 'ui-alert-message',
+																			text: error
+																		}
+																	)
+																]
+														}
+													),
+													errorDom
+												);
+											}
 										);
 									}
 								);
 							}
-						);
+						}
+
 						BX.scrollToNode(
 							BX('pagetitle')
 						);
@@ -1479,6 +1544,6 @@
 BX.ready(
 	function ()
 	{
-		BX.rest.integration.initParams();
+		BX.rest.integration.edit.initParams();
 	}
 );

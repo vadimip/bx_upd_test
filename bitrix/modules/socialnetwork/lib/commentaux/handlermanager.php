@@ -1,4 +1,5 @@
 <?php
+
 namespace Bitrix\Socialnetwork\CommentAux;
 
 class HandlerManager
@@ -11,12 +12,14 @@ class HandlerManager
 		$this->buildHandlerList();
 	}
 
-	protected function buildHandlerList()
+	protected function buildHandlerList(): void
 	{
 		/** @var Share $shareClass */
 		$shareClass = Share::className();
 		/** @var CreateTask $createTaskClass */
 		$createTaskClass = CreateTask::className();
+		/** @var CreateEntity $createEntityClass */
+		$createEntityClass = CreateEntity::className();
 		/** @var FileVersion $fileVersionClass */
 		$fileVersionClass = FileVersion::className();
 		/** @var TaskInfo $taskInfoClass */
@@ -25,12 +28,14 @@ class HandlerManager
 		$this->handlerListByPostText = array(
 			$shareClass::getPostText() => $shareClass,
 			$createTaskClass::getPostText() => $createTaskClass,
+			$createEntityClass::getPostText() => $createEntityClass,
 			$fileVersionClass::getPostText() => $fileVersionClass,
 			$taskInfoClass::getPostText() => $taskInfoClass,
 		);
 		$this->handlerListByType = array(
 			$shareClass::getType() => $shareClass,
 			$createTaskClass::getType() => $createTaskClass,
+			$createEntityClass::getType() => $createEntityClass,
 			$fileVersionClass::getType() => $fileVersionClass,
 			$taskInfoClass::getType() => $taskInfoClass,
 		);

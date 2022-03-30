@@ -4,11 +4,9 @@ namespace Bitrix\Landing;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Main\Config\Option;
 use \Bitrix\Main\Application;
-use \Bitrix\Main\Entity;
 use \Bitrix\Main\Loader;
 use \Bitrix\Main\ModuleManager;
 use \Bitrix\Landing\Assets;
-use \Bitrix\Bitrix24\Feature;
 
 Loc::loadMessages(__FILE__);
 
@@ -232,11 +230,29 @@ class Manager
 	}
 
 	/**
+	 * Returns main site row by id.
+	 * @param string $siteId Main site id.
+	 * @return array|bool
+	 */
+	protected static function getMainSiteById(string $siteId)
+	{
+		static $sites = [];
+
+		if (!array_key_exists($siteId, $sites))
+		{
+			$sites[$siteId] = \Bitrix\Main\SiteTable::getById($siteId)->fetch();
+		}
+
+		return $sites[$siteId];
+	}
+
+	/**
 	 * Create system dir for publication sites.
 	 * @param string $basePath Publication physical dir.
+	 * @param string|null $siteId Main site id.
 	 * @return void
 	 */
-	protected static function createPublicationPath($basePath, $siteId = null)
+	protected static function createPublicationPath(string $basePath, string $siteId = null): void
 	{
 		static $paths = [];
 
@@ -260,7 +276,7 @@ class Manager
 			// gets current doc root or gets from the site
 			if ($siteId)
 			{
-				if ($smnSite = \Bitrix\Main\SiteTable::getById($siteId)->fetch())
+				if ($smnSite = self::getMainSiteById($siteId))
 				{
 					if ($smnSite['DOC_ROOT'])
 					{
@@ -331,10 +347,10 @@ class Manager
 
 	/**
 	 * Get main site local dir.
-	 * @param string $siteId Site LID.
+	 * @param string|null $siteId Main site LID.
 	 * @return string
 	 */
-	protected static function getSmnSiteDir($siteId)
+	protected static function getSmnSiteDir(?string $siteId): string
 	{
 		static $sites = [];
 
@@ -346,7 +362,7 @@ class Manager
 		if (!isset($sites[$siteId]))
 		{
 			$sites[$siteId] = '';
-			if ($smnSite = \Bitrix\Main\SiteTable::getById($siteId)->fetch())
+			if ($smnSite = self::getMainSiteById($siteId))
 			{
 				$sites[$siteId] = rtrim($smnSite['DIR'], '/');
 			}
@@ -741,7 +757,8 @@ class Manager
 				? 'create' : 'publication';
 			return Restriction\Manager::isAllowed(
 				'limit_sites_number',
-				$params
+				$params,
+				$feature
 			);
 		}
 		else if (
@@ -753,7 +770,8 @@ class Manager
 				? 'create' : 'publication';
 			return Restriction\Manager::isAllowed(
 				'limit_sites_number_page',
-				$params
+				$params,
+				$feature
 			);
 		}
 		elseif ($feature == self::FEATURE_ENABLE_ALL_HOOKS)
@@ -833,6 +851,24 @@ class Manager
 		}
 
 		return $zone;
+	}
+
+	/**
+	 * Returns language code by ISO 639-1.
+	 * @return string
+	 */
+	public static function getLangISO(): string
+	{
+		$transform = [
+			'br' => 'pt-BR',
+			'la' => 'es',
+			'sc' => 'zh-Hans',
+			'tc' => 'zh-Hant',
+			'vn' => 'vi',
+			'ua' => 'uk'
+		];
+
+		return $transform[LANGUAGE_ID] ?? LANGUAGE_ID;
 	}
 
 	/**
@@ -1184,34 +1220,76 @@ class Manager
 	{
 		self::clearCache();
 		self::setOption('html_disabled', 'Y');
+		self::setOption('reset_to_free_time', time());
+		Restriction\Site::manageFreeDomains(false, Restriction\Site::FREE_DOMAIN_GRACE_DAYS * 86400);
+	}
+
+	/**
+	 * In cloud version on change highest plans.
+	 * @param string $licenseType License Type.
+	 * @return void
+	 */
+	public static function onBitrix24LicenseChange(string $licenseType): void
+	{
+		self::setOption('reset_to_free_time', 0);
+		Restriction\Site::manageFreeDomains(true, 5);
 	}
 
 	/**
 	 * In cloud version clear cache when tariff change
 	 * @return void
 	 */
-	public static function clearCache()
+	public static function clearCache(): void
 	{
 		// for clear cache in cloud
+		if (!self::isB24())
+		{
+			return;
+		}
 		$res = Site::getList([
 			'select' => [
-				'ID'
+				'ID',
 			],
 			'filter' => [
-				'ACTIVE' => 'Y'
-			]
+				'ACTIVE' => 'Y',
+			],
 		]);
 		while ($row = $res->fetch())
 		{
 			Site::update($row['ID'], []);
 		}
-		self::setOption('html_disabled', 'Y');
+	}
+
+	/**
+	 * Clear cache in cloud only for one site by landing ID
+	 * @param int $lid
+	 */
+	public static function clearCacheForLanding(int $lid): void
+	{
+		if (!self::isB24())
+		{
+			return;
+		}
+		$res = Landing::getList([
+			'select' => [
+				'SITE_ID',
+			],
+			'filter' => [
+				'ACTIVE' => 'Y',
+				'DELETED' => 'N',
+				'ID' => $lid,
+			],
+		]);
+		if ($row = $res->fetch())
+		{
+			Site::update($row['SITE_ID'], []);
+		}
 	}
 
 	/**
 	 * Clear cache, if repository version and current is different.
-	 * @deprecated since 20.2.100
 	 * @return void
+	 * @deprecated since 20.2.100
 	 */
 	public static function checkRepositoryVersion()
 	{

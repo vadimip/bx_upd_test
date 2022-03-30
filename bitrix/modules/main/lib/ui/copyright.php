@@ -21,7 +21,8 @@ class Copyright
 	const LICENCE_BSD3 = "3-Clause BSD";
 	const LICENCE_APACHE2 = "Apache License, Version 2.0";
 	const LICENCE_W3C = "W3C License";
-	const LICENSE_GPLV2 = "General Public License, version 2";
+	const LICENCE_OFL = "SIL Open Font License, Version 1.1";
+	const LICENSE_LGPL2 = "GNU Lesser General Public License, Version 2.1";
 	const LICENCE_CUSTOM = "License";
 
 	protected
@@ -146,7 +147,8 @@ class Copyright
 			self::LICENCE_BSD3 => "https://opensource.org/licenses/BSD-3-Clause",
 			self::LICENCE_APACHE2 => "http://www.apache.org/licenses/LICENSE-2.0",
 			self::LICENCE_W3C => "https://www.w3.org/Consortium/Legal/2015/copyright-software-and-document",
-			self::LICENSE_GPLV2 => "https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt",
+			self::LICENCE_OFL => "https://scripts.sil.org/OFL",
+			self::LICENSE_LGPL2 => "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html",
 		];
 
 		if($this->licenceUrl === null && isset($urls[$this->licence]))
@@ -345,8 +347,12 @@ class Copyright
 			(new static("js-md5"))
 				->setProductUrl("https://github.com/emn178/js-md5")
 				->setCopyright("copyright Chen, Yi-Cyuan 2014-2017")
-				->setLicence(static::LICENCE_MIT)
-				->setLicenceUrl("https://github.com/emn178/js-md5/blob/master/LICENSE.txt"),
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("js-sha1"))
+				->setProductUrl("https://github.com/emn178/js-sha1")
+				->setCopyright("copyright Chen, Yi-Cyuan 2014-2017")
+				->setLicence(static::LICENCE_MIT),
 
 			(new static("IntersectionObserver"))
 				->setProductUrl("https://github.com/w3c/IntersectionObserver/")
@@ -412,12 +418,7 @@ Thanks!
 			(new static("Fonts \"PT Sans\", \"PT Serif\""))
 				->setProductUrl("http://www.paratype.com/public")
 				->setCopyright("Copyright (c) 2010, ParaType Ltd.")
-				->setLicence("SIL Open Font License, Version 1.1")
-				->setLicenceUrl("http://scripts.sil.org/OFL"),
-
-			(new static("Aurigma Image Uploader"))
-				->setCopyright("Copyright(c) Aurigma Inc. 2002-2009")
-				->setLicence(static::LICENCE_COMMERCIAL),
+				->setLicence(static::LICENCE_OFL),
 
 			(new static("Bootstrap v3.3"))
 				->setProductUrl("https://getbootstrap.com/")
@@ -471,6 +472,12 @@ THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMP
 				->setLicence(static::LICENCE_MIT)
 				->setLicenceUrl("https://github.com/container-interop/fig-standards/blob/master/LICENSE-MIT.md"),
 
+			(new static("PSR Log"))
+				->setProductUrl("https://github.com/php-fig/log/")
+				->setCopyright("Copyright (c) 2012 PHP Framework Interoperability Group")
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl("https://github.com/php-fig/log/blob/master/LICENSE"),
+
 			(new static("D3.js"))
 				->setProductUrl("https://d3js.org")
 				->setCopyright("Copyright 2020 Mike Bostock")
@@ -513,7 +520,7 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 
 			(new static("jQuery Easing v1.3"))
 				->setProductUrl("http://gsgd.co.uk/sandbox/jquery/easing/")
-				->setCopyright("Copyright © 2008 George McGinley Smith")
+				->setCopyright("Copyright (c) 2008 George McGinley Smith")
 				->setLicence(static::LICENCE_BSD3),
 
 			(new static("The Final Countdown for jQuery v2.2.0"))
@@ -531,8 +538,7 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 			(new static("FancyBox v3.2.5"))
 				->setProductUrl("http://fancyapps.com/fancybox/")
 				->setCopyright("Copyright 2017 fancyApps")
-				->setLicence("Licensed GPLv3 for open source use or fancyBox Commercial License for commercial use")
-				->setLicenceUrl("http://fancyapps.com/fancybox/#license"),
+				->setLicence(static::LICENCE_COMMERCIAL),
 
 			(new static("Simple Line Icons"))
 				->setProductUrl("https://simplelineicons.github.io/")
@@ -565,19 +571,39 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setProductUrl("https://kimmobrunfeldt.github.io/progressbar.js")
 				->setLicence(static::LICENCE_MIT),
 
-			(new static("Vue.js v2.6.10"))
-				->setCopyright("Copyright 2014-2019, Evan You")
+			(new static("Vue.js v2.6.14"))
+				->setCopyright("Copyright 2014-2021, Evan You")
 				->setProductUrl("https://vuejs.org")
 				->setLicence(static::LICENCE_MIT),
 
-			(new static("Vue-router v3.0.2"))
-				->setCopyright("Copyright 2018, Evan You")
+			(new static("Vue-router v3.5.1"))
+				->setCopyright("Copyright 2021, Evan You")
 				->setProductUrl("https://router.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
 
-			(new static("Vuex v3.0.1"))
-				->setCopyright("Copyright 2017, Evan You")
+			(new static("Vuex v3.6.2"))
+				->setCopyright("Copyright 2021, Evan You")
 				->setProductUrl("https://vuex.vuejs.org/")
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("Portal Vue v2.1.7"))
+				->setCopyright("Copyright 2019, Thorsten Lunborg")
+				->setProductUrl("https://portal-vue.linusb.org/")
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("Vue.js v3.0.5"))
+				->setCopyright("Copyright 2014-2021, Evan You")
+				->setProductUrl("https://v3.vuejs.org/")
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("Vue-router v4.0.3"))
+				->setCopyright("Copyright 2021, Eduardo San Martin Morote")
+				->setProductUrl("https://next.router.vuejs.org/")
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("Vuex v4.0.0"))
+				->setCopyright("Copyright 2021, Evan You")
+				->setProductUrl("https://next.vuex.vuejs.org/")
 				->setLicence(static::LICENCE_MIT),
 
 			(new static("Jssor Slider"))
@@ -624,6 +650,40 @@ In addition to the Google Terms of Service (http://www.google.com/accounts/TOS),
 				->setCopyright("Copyright (c) 2010-2019, Vladimir Agafonkin. Copyright (c) 2010-2011, CloudMade")
 				->setProductUrl('https://github.com/Leaflet/Leaflet')
 				->setLicence(static::LICENCE_BSD2),
+
+			(new static("Lodash"))
+				->setCopyright("Copyright OpenJS Foundation and other contributors <https://openjsf.org/>")
+				->setProductUrl('https://lodash.com/')
+				->setLicence(static::LICENCE_MIT),
+
+			(new static("SecLists"))
+				->setCopyright("Copyright (c) 2018 Daniel Miessler")
+				->setProductUrl('https://github.com/danielmiessler/SecLists')
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl('https://github.com/danielmiessler/SecLists/blob/master/LICENSE'),
+
+			(new static('Font Montserrat'))
+				->setCopyright('Copyright 2011 The Montserrat Project Authors')
+				->setProductUrl('https://fonts.google.com/specimen/Montserrat')
+				->setLicence(static::LICENCE_OFL),
+
+			(new static("Barcode"))
+				->setCopyright("Copyright (c) 2016-2018 Kreative Software")
+				->setProductUrl('https://github.com/kreativekorp/barcode')
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl('https://github.com/kreativekorp/barcode/blob/master/LICENSE'),
+
+			(new static("PHPMailer"))
+				->setCopyright("Copyright 2012 - 2020 Marcus Bointon, 2010 - 2012 Jim Jagielski, 2004 - 2009 Andy Prevost")
+				->setProductUrl('https://github.com/PHPMailer/PHPMailer')
+				->setLicence(static::LICENSE_LGPL2)
+				->setLicenceUrl('https://github.com/PHPMailer/PHPMailer/blob/master/LICENSE'),
+
+			(new static("html-to-image"))
+				->setCopyright("Copyright (c) 2017-2021 bubkoo")
+				->setProductUrl('https://github.com/bubkoo/html-to-image')
+				->setLicence(static::LICENCE_MIT)
+				->setLicenceUrl("https://github.com/bubkoo/html-to-image/blob/master/LICENSE"),
 		];
 	}
 }

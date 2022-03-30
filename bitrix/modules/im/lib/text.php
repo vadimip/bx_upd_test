@@ -1,8 +1,7 @@
 <?php
 namespace Bitrix\Im;
 
-use Bitrix\Main,
-	Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
@@ -18,25 +17,27 @@ class Text
 			$text = htmlspecialcharsbx($text);
 		}
 
-		$allowTags = array(
-			"HTML" => "N",
-			"USER" => "N",
-			"ANCHOR" => $params['LINK'] == 'N'? 'N': 'Y',
-			"BIU" => "Y",
-			"IMG" => "N",
-			"QUOTE" => "N",
-			"CODE" => "N",
-			"FONT" => "N",
-			"LIST" => "N",
-			"SMILES" => $params['SMILES'] == 'N'? 'N': 'Y',
-			"EMOJI" => "Y",
-			"NL2BR" => "Y",
-			"VIDEO" => "N",
-			"TABLE" => "N",
-			"CUT_ANCHOR" => "N",
-			"SHORT_ANCHOR" => "N",
-			"ALIGN" => "N"
-		);
+		$allowTags = [
+			'HTML' => 'N',
+			'USER' => 'N',
+			'ANCHOR' => $params['LINK'] === 'N' ? 'N' : 'Y',
+			'BIU' => 'Y',
+			'IMG' => 'N',
+			'QUOTE' => 'N',
+			'CODE' => 'N',
+			'FONT' => $params['FONT'] === 'Y' ? 'Y' : 'N',
+			'LIST' => 'N',
+			'SPOILER' => 'N',
+			'SMILES' => $params['SMILES'] === 'N' ? 'N' : 'Y',
+			'EMOJI' => 'Y',
+			'NL2BR' => 'Y',
+			'VIDEO' => 'N',
+			'TABLE' => 'N',
+			'CUT_ANCHOR' => 'N',
+			'SHORT_ANCHOR' => 'N',
+			'ALIGN' => 'N',
+			'TEXT_ANCHOR' => $params['TEXT_ANCHOR'] === 'N' ? 'N' : 'Y',
+		];
 
 		$parseId = md5($params['LINK'].$params['SMILES'].$params['LINK_LIMIT'].$params['TEXT_LIMIT']);
 		if (isset(self::$parsers[$parseId]))
@@ -50,6 +51,10 @@ class Text
 			$parser->maxAnchorLength = intval($params['LINK_LIMIT'])? $params['LINK_LIMIT']: 55;
 			$parser->maxStringLen = intval($params['TEXT_LIMIT']);
 			$parser->allow = $allowTags;
+			if ($params['LINK_TARGET_SELF'] === 'Y')
+			{
+				$parser->link_target = "_self";
+			}
 
 			self::$parsers[$parseId] = $parser;
 		}
@@ -131,10 +136,21 @@ class Text
 
 	public static function recoverReplacements($text)
 	{
+		if (empty(self::$replacements))
+		{
+			return $text;
+		}
+
 		foreach(self::$replacements as $code => $value)
 		{
 			$text = str_replace($code, $value, $text);
 		}
+
+		if (mb_strpos($text, '####REPLACEMENT_MARK_') !== false)
+		{
+			$text = self::recoverReplacements($text);
+		}
+
 		self::$replacements = Array();
 
 		return $text;

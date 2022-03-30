@@ -4,6 +4,7 @@ use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Mail;
 use Bitrix\Mail\Helper\LicenseManager;
+use Bitrix\Main\Config\Configuration;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
@@ -65,9 +66,27 @@ class CMailClientConfigComponent extends CBitrixComponent implements Main\Engine
 		));
 
 		$this->arParams['SERVICES'] = array();
+
+		$mailServicesOnlyForTheRuZone = [
+			'yandex',
+			'mail.ru',
+		];
+
+		$isRuZone = \Bitrix\Main\Loader::includeModule('bitrix24')
+			? in_array(\CBitrix24::getPortalZone(), ['ru', 'kz', 'by'])
+			: in_array(LANGUAGE_ID, ['ru', 'kz', 'by'])
+		;
+
+		$imapServiceStructure = [];
+
 		while ($service = $res->fetch())
 		{
-			$this->arParams['SERVICES'][$service['ID']] = array(
+			if(!$isRuZone && in_array($service['NAME'],$mailServicesOnlyForTheRuZone))
+			{
+				continue;
+			}
+
+			$serviceFinal = [
 				'id'         => $service['ID'],
 				'type'       => $service['SERVICE_TYPE'],
 				'name'       => $service['NAME'],
@@ -79,7 +98,14 @@ class CMailClientConfigComponent extends CBitrixComponent implements Main\Engine
 				'token'      => $service['TOKEN'],
 				'flags'      => $service['FLAGS'],
 				'sort'       => $service['SORT']
-			);
+			];
+
+			if($serviceFinal['name'] === 'other')
+			{
+				$imapServiceStructure = $serviceFinal;
+			}
+
+			$this->arParams['SERVICES'][] = $serviceFinal;
 		}
 
 		$this->includeComponentTemplate();
@@ -91,7 +117,9 @@ class CMailClientConfigComponent extends CBitrixComponent implements Main\Engine
 
 		$APPLICATION->setTitle(Loc::getMessage($new ? 'MAIL_CLIENT_CONFIG_TITLE' : 'MAIL_CLIENT_CONFIG_EDIT_TITLE'));
 
-		$this->arParams['IS_SMTP_AVAILABLE'] = \Bitrix\Main\Loader::includeModule('bitrix24');
+		$defaultMailConfiguration = Configuration::getValue("smtp");
+		$this->arParams['IS_SMTP_AVAILABLE'] = Main\ModuleManager::isModuleInstalled('bitrix24')
+			|| $defaultMailConfiguration['enabled'];
 
 		if ($new)
 		{
@@ -676,7 +704,7 @@ class CMailClientConfigComponent extends CBitrixComponent implements Main\Engine
 				}
 				else
 				{
-					$mailboxData['OPTIONS']['sync_from'] = strtotime(sprintf('-%u days', $maxAge));
+					$mailboxData['OPTIONS']['sync_from'] = strtotime('today UTC 00:00'.sprintf('-%u days', $maxAge+1));
 				}
 			}
 		}

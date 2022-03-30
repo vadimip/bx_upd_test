@@ -1,10 +1,12 @@
 <?php
 $MESS["BLOG_C_BUTTON_MORE"] = "Mehr";
 $MESS["BLOG_C_HIDE"] = "Kommentare ausblenden";
+$MESS["BLOG_C_LOADING"] = "Wird geladen&hellip;";
 $MESS["BLOG_C_REPLY"] = "Antworten";
 $MESS["BLOG_C_VIEW"] = "Frühere Kommentare anzeigen";
 $MESS["BLOG_C_VIEW1"] = "Mehr Kommentare";
 $MESS["BLOG_C_VIEW2"] = "Vorherige Kommentare";
+$MESS["BPC_MES_CREATE_SUBTASK"] = "Teilaufgabe erstellen";
 $MESS["BPC_MES_CREATE_TASK"] = "Aufgabe erstellen";
 $MESS["BPC_MES_DELETE"] = "Löschen";
 $MESS["BPC_MES_DELETE_POST_CONFIRM"] = "Möchten Sie den Kommentar wirklich löschen?";

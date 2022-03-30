@@ -15,13 +15,13 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/wiz
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/install/wizard/utils.php"); //Wizard utils
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/update_client.php");
 require_once("tools/modulechecker.php");
-require_once("tools/persontypepreparer.php");
 require_once("tools/crmpackage.php");
 require_once("tools/sitepatcher.php");
 require_once("tools/agentchecker.php");
 require_once("tools/b24connectoruninstaller.php");
 require_once("tools/pushchecker.php");
 require_once("tools/bitrixvmchecker.php");
+require_once("tools/defaultsitechecker.php");
 
 /**
  * Class SaleCrmSiteMaster
@@ -143,9 +143,6 @@ class SaleCrmSiteMaster extends \CBitrixComponent
 		return [
 			"Bitrix\Sale\CrmSiteMaster\Steps\B24ConnectorStep" => [
 				"SORT" => 320
-			],
-			"Bitrix\Sale\CrmSiteMaster\Steps\PersonTypeStep" => [
-				"SORT" => 330
 			],
 			"Bitrix\Sale\CrmSiteMaster\Steps\ActivationKeyStep" => [
 				"SORT" => 340
@@ -525,9 +522,9 @@ class SaleCrmSiteMaster extends \CBitrixComponent
 			}
 		}
 
+		$this->checkDefaultSite();
 		$this->checkBitrixVm();
 		$this->checkAgents();
-		$this->checkPersonType();
 		$this->checkB24Connection();
 		$this->checkPushServer();
 
@@ -717,20 +714,15 @@ class SaleCrmSiteMaster extends \CBitrixComponent
 		return $siteUrl.$pathToOderList;
 	}
 
-	/**
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	private function checkPersonType()
+	private function checkDefaultSite()
 	{
-		$personTypePreparer = new Tools\PersonTypePreparer();
+		$defaultSiteChecker = new Tools\DefaultSiteChecker();
 
-		$personTypeList = $personTypePreparer->getPersonTypeList();
-
-		if ($personTypeList["NOT_MATCH"])
+		$checkSiteResult = $defaultSiteChecker->checkSite();
+		if (!$checkSiteResult->isSuccess())
 		{
-			$this->addWizardStep("Bitrix\Sale\CrmSiteMaster\Steps\PersonTypeStep", 330);
+			$this->addWizardVar("default_site_error", $checkSiteResult->getErrorCollection()->current()->getMessage());
+			$this->addWizardStep("Bitrix\Sale\CrmSiteMaster\Steps\DefaultSiteStep", 305);
 		}
 	}
 

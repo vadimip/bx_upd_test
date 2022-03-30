@@ -9,9 +9,11 @@ use Bitrix\Main\Engine\Response\DataType\Page;
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\PageNavigation;
+use Bitrix\Sale\EntityProperty;
 use Bitrix\Sale\Internals\Input\File;
 use Bitrix\Sale\Internals\Input\Manager;
 use Bitrix\Sale\Internals\OrderPropsValueTable;
+use Bitrix\Sale\Registry;
 use Bitrix\Sale\Rest\Entity\RelationType;
 use Bitrix\Sale\Result;
 
@@ -145,7 +147,10 @@ class Property extends Controller
 		$select = empty($select)? ['*']:$select;
 		$order = empty($order)? ['ID'=>'ASC']:$order;
 
-		$items = \Bitrix\Sale\Property::getList(
+		/** @var EntityProperty $propertyClassName */
+		$propertyClassName = $this->getPropertyClassName();
+
+		$items = $propertyClassName::getList(
 			[
 				'select'=>$select,
 				'filter'=>$filter,
@@ -155,17 +160,35 @@ class Property extends Controller
 			]
 		)->fetchAll();
 
-		return new Page('PROPERTIES', $items, function() use ($filter)
+		return new Page('PROPERTIES', $items, function() use ($filter, $propertyClassName)
 		{
 			return count(
-				\Bitrix\Sale\Property::getList(['filter'=>$filter])->fetchAll()
+				$propertyClassName::getList(['filter'=>$filter])->fetchAll()
 			);
 		});
+	}
+
+	/**
+	 * @return string
+	 */
+	protected function getPropertyClassName(): string
+	{
+		return \Bitrix\Sale\Property::class;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function getEntityType(): string
+	{
+		return Registry::ENTITY_ORDER;
 	}
 
 	public function addAction($fields)
 	{
 		$fields = self::prepareFields($fields);
+
+		$fields = array_merge($fields, $fields['SETTINGS']);
 
 		$r = $this->checkFileds($fields);
 
@@ -288,6 +311,10 @@ class Property extends Controller
 			elseif ($type === 'LOCATION')
 			{
 				$fields += $this->getLocationSettings();
+			}
+			elseif ($type === 'ADDRESS')
+			{
+				$fields += $this->getAddressSettings();
 			}
 
 			foreach ($fields as $code=>&$v)
@@ -634,6 +661,22 @@ class Property extends Controller
 		];
 	}
 
+	protected function getAddressSettings()
+	{
+		return array(
+			'IS_ADDRESS_FROM' => [
+				'TYPE' => 'Y/N',
+				'LABEL' => 'IS_ADDRESS_FROM',
+				'DESCRIPTION' => 'IS_ADDRESS_FROM'
+			],
+			'IS_ADDRESS_TO' => [
+				'TYPE' => 'Y/N',
+				'LABEL' => 'IS_ADDRESS_TO',
+				'DESCRIPTION' => 'IS_ADDRESS_TO'
+			],
+		);
+	}
+
 	protected function getVariantSettings()
 	{
 		return [
@@ -716,6 +759,10 @@ class Property extends Controller
 				unset($propertySettings['INPUT_FIELD_LOCATION']);
 			}
 		}
+		elseif ($this->property['TYPE'] === 'ADDRESS')
+		{
+			$propertySettings += $this->getAddressSettings();
+		}
 	}
 
 	protected function initializePropertySettings()
@@ -793,38 +840,18 @@ class Property extends Controller
 
 	protected function validateRelations()
 	{
-		$hasRelations = false;
 		$relationsSettings = $this->getRelationSettings();
 
 		foreach ($relationsSettings as $name => $input)
 		{
 			if (($value = $this->property['RELATIONS'][$name]) && $value != array(''))
 			{
-				$hasRelations = true;
 				if ($error = Manager::getError($input, $value))
 					$errors [] = $input['LABEL'].': '.implode(', ', $error);
 			}
 			else
 			{
 				$relations[$name] = array();
-			}
-		}
-
-		if ($hasRelations)
-		{
-			if ($this->property['IS_LOCATION4TAX'] === 'Y')
-			{
-				$this->errors[] = Loc::getMessage('ERROR_LOCATION4TAX_RELATION_NOT_ALLOWED');
-			}
-
-			if ($this->property['IS_EMAIL'] === 'Y')
-			{
-				$this->errors[] = Loc::getMessage('ERROR_EMAIL_RELATION_NOT_ALLOWED');
-			}
-
-			if ($this->property['IS_PROFILE_NAME'] === 'Y')
-			{
-				$this->errors[] = Loc::getMessage('ERROR_PROFILE_NAME_RELATION_NOT_ALLOWED');
 			}
 		}
 	}
@@ -1054,6 +1081,8 @@ class Property extends Controller
 		}
 
 		$propertiesToSave['ENTITY_REGISTRY_TYPE'] = \Bitrix\Sale\Registry::REGISTRY_TYPE_ORDER;
+		$propertiesToSave['ENTITY_TYPE'] = $this->getEntityType();
+		//
 		$addResult = \Bitrix\Sale\Internals\OrderPropsTable::add($propertiesToSave);
 		if ($addResult->isSuccess())
 		{

@@ -3,27 +3,22 @@
 namespace Sale\Handlers\Delivery\YandexTaxi;
 
 use Bitrix\Main\Config\Option;
-use Bitrix\Main\Loader;
-use Bitrix\Main\ModuleManager;
-use Bitrix\Main\SystemException;
 use Sale\Handlers\Delivery\YandexTaxi\Api\Api;
 use Sale\Handlers\Delivery\YandexTaxi\Api\ApiResult\Journal\EventBuilder;
 use Sale\Handlers\Delivery\YandexTaxi\Api\ClaimReader\ClaimReader;
 use Sale\Handlers\Delivery\YandexTaxi\Api\Transport\Client;
 use Sale\Handlers\Delivery\YandexTaxi\Api\Transport\OauthTokenProvider;
+use Sale\Handlers\Delivery\YandexTaxi\Api\Tariffs\Repository;
 use Sale\Handlers\Delivery\YandexTaxi\ClaimBuilder\ClaimBuilder;
 use Sale\Handlers\Delivery\YandexTaxi\Common\Logger;
+use Sale\Handlers\Delivery\YandexTaxi\Common\ReferralSourceBuilder;
 use Sale\Handlers\Delivery\YandexTaxi\Common\RegionCoordinatesMapper;
 use Sale\Handlers\Delivery\YandexTaxi\Common\RegionFinder;
-use Sale\Handlers\Delivery\YandexTaxi\Common\ShipmentDataExtractor;
-use Sale\Handlers\Delivery\YandexTaxi\Common\StatusMapper;
-use Sale\Handlers\Delivery\YandexTaxi\ContextDependent\IListenerRegisterer;
+use Sale\Handlers\Delivery\YandexTaxi\Common\TariffNameBuilder;
 use Sale\Handlers\Delivery\YandexTaxi\EventJournal\JournalProcessor;
 use Sale\Handlers\Delivery\YandexTaxi\EventJournal\EventProcessor;
 use Sale\Handlers\Delivery\YandexTaxi\EventJournal\EventReader;
-use Sale\Handlers\Delivery\YandexTaxi\ContextDependent\Crm;
-use Sale\Handlers\Delivery\YandexTaxi\Installator\Installator;
-use Sale\Handlers\Delivery\YandexTaxi\ContextDependent\Sale;
+use Sale\Handlers\Delivery\YandexTaxi\Installer\Installer;
 
 /**
  * Class ServiceLocator
@@ -62,47 +57,29 @@ final class ServiceContainer
 	/** @var RateCalculator */
 	private static $rateCalculator;
 
-	/** @var Installator */
-	private static $installator;
+	/** @var TariffsChecker */
+	private static $tariffsChecker;
+
+	/** @var Installer */
+	private static $installer;
 
 	/** @var ClaimBuilder */
 	private static $claimBuilder;
-
-	/** @var Crm\ListenerRegisterer */
-	private static $crmListenerRegisterer;
-
-	/** @var Crm\ClaimCreatedListener */
-	private static $crmClaimCreatedListener;
-
-	/** @var Crm\ClaimCancelledListener */
-	private static $crmClaimCancelledListener;
-
-	/** @var Crm\ClaimUpdatesListener */
-	private static $crmClaimUpdatesListener;
-
-	/** @var Crm\ContactToRequiredListener */
-	private static $crmContactToRequiredListener;
-
-	/** @var Crm\ActivityManager */
-	private static $crmActivityManager;
-
-	/** @var StatusMapper */
-	private static $statusMapper;
-
-	/** @var Sale\ListenerRegisterer */
-	private static $saleListenerRegisterer;
-
-	/** @var ShipmentDataExtractor */
-	private static $shipmentDataExtractor;
-
-	/** @var Crm\BindingsMaker */
-	private static $crmBindingsMaker;
 
 	/** @var RegionFinder */
 	private static $regionFinder;
 
 	/** @var RegionCoordinatesMapper */
 	private static $regionCoordinatesMapper;
+
+	/** @var Repository */
+	private static $tariffsRepository;
+
+	/** @var ReferralSourceBuilder */
+	private static $referralSourceBuilder;
+
+	/** @var TariffNameBuilder */
+	private static $tariffNameBuilder;
 
 	/**
 	 * @return Logger
@@ -152,12 +129,16 @@ final class ServiceContainer
 		{
 			static::$transport = new Client(
 				static::getOauthTokenProvider(),
-				static::getLogger()
+				static::getLogger(),
+				static::getReferralSourceBuilder()
 			);
 
 			if (
 				(int)Option::get('sale', 'delivery_service_yandex_taxi_sandbox', 0) == 1
-				|| defined('BITRIX_SALE_HANDLERS_YANDEX_TAXI_TEST_ENVIRONMENT') && BITRIX_SALE_HANDLERS_YANDEX_TAXI_TEST_ENVIRONMENT === true
+				|| (
+					defined('BITRIX_SALE_HANDLERS_YANDEX_TAXI_TEST_ENVIRONMENT')
+					&& BITRIX_SALE_HANDLERS_YANDEX_TAXI_TEST_ENVIRONMENT === true
+				)
 			)
 			{
 				static::$transport->setIsTestEnvironment(true);
@@ -249,7 +230,8 @@ final class ServiceContainer
 		{
 			static::$rateCalculator = new RateCalculator(
 				static::getApi(),
-				static::getClaimBuilder()
+				static::getClaimBuilder(),
+				static::getTariffsChecker()
 			);
 		}
 
@@ -257,16 +239,32 @@ final class ServiceContainer
 	}
 
 	/**
-	 * @return Installator
+	 * @return TariffsChecker
 	 */
-	public static function getInstallator(): Installator
+	public static function getTariffsChecker(): TariffsChecker
 	{
-		if (is_null(static::$installator))
+		if (is_null(static::$tariffsChecker))
 		{
-			static::$installator = new Installator();
+			static::$tariffsChecker = new TariffsChecker(static::getApi());
 		}
 
-		return static::$installator;
+		return static::$tariffsChecker;
+	}
+
+	/**
+	 * @return Installer
+	 */
+	public static function getInstaller(): Installer
+	{
+		if (is_null(static::$installer))
+		{
+			static::$installer = new Installer(
+				static::getTariffsRepository(),
+				static::getTariffNameBuilder()
+			);
+		}
+
+		return static::$installer;
 	}
 
 	/**
@@ -276,185 +274,13 @@ final class ServiceContainer
 	{
 		if (is_null(static::$claimBuilder))
 		{
-			static::$claimBuilder = new ClaimBuilder(static::getShipmentDataExtractor());
+			static::$claimBuilder = new ClaimBuilder(
+				static::getTariffsRepository(),
+				static::getReferralSourceBuilder()
+			);
 		}
 
 		return static::$claimBuilder;
-	}
-
-	/**
-	 * @return IListenerRegisterer
-	 * @throws SystemException
-	 * @throws \Bitrix\Main\ArgumentNullException
-	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
-	 * @throws \Bitrix\Main\LoaderException
-	 */
-	public static function getListenerRegisterer(): IListenerRegisterer
-	{
-		if (ModuleManager::isModuleInstalled('crm')
-			&& Option::get('sale', '~IS_SALE_CRM_SITE_MASTER_FINISH', 'N') != 'Y')
-		{
-			if (!Loader::includeModule('crm'))
-			{
-				throw new SystemException('crm module is required');
-			}
-
-			return static::getCrmListenerRegisterer();
-		}
-
-		return static::getSaleListenerRegisterer();
-	}
-
-	/**
-	 * @return IListenerRegisterer
-	 */
-	private static function getCrmListenerRegisterer(): IListenerRegisterer
-	{
-		if (is_null(static::$crmListenerRegisterer))
-		{
-			static::$crmListenerRegisterer = new Crm\ListenerRegisterer(
-				static::getCrmClaimCreatedListener(),
-				static::getCrmClaimCancelledListener(),
-				static::getCrmClaimUpdatesListener(),
-				static::getCrmContactToRequiredListener()
-			);
-		}
-
-		return static::$crmListenerRegisterer;
-	}
-
-	/**
-	 * @return Crm\ClaimCreatedListener
-	 */
-	private static function getCrmClaimCreatedListener(): Crm\ClaimCreatedListener
-	{
-		if (is_null(static::$crmClaimCreatedListener))
-		{
-			static::$crmClaimCreatedListener = new Crm\ClaimCreatedListener(
-				static::getCrmClaimActivityManager(),
-				static::getShipmentDataExtractor(),
-				static::getRateCalculator(),
-				static::getCrmBindingsMaker()
-			);
-		}
-
-		return static::$crmClaimCreatedListener;
-	}
-
-	/**
-	 * @return Crm\ClaimCancelledListener
-	 */
-	private static function getCrmClaimCancelledListener(): Crm\ClaimCancelledListener
-	{
-		if (is_null(static::$crmClaimCancelledListener))
-		{
-			static::$crmClaimCancelledListener = new Crm\ClaimCancelledListener(
-				static::getCrmClaimActivityManager(),
-				static::getShipmentDataExtractor(),
-				static::getCrmBindingsMaker()
-			);
-		}
-
-		return static::$crmClaimCancelledListener;
-	}
-
-	/**
-	 * @return Crm\ClaimUpdatesListener
-	 */
-	private static function getCrmClaimUpdatesListener(): Crm\ClaimUpdatesListener
-	{
-		if (is_null(static::$crmClaimUpdatesListener))
-		{
-			static::$crmClaimUpdatesListener = new Crm\ClaimUpdatesListener(
-				static::getCrmClaimActivityManager(),
-				static::getStatusMapper(),
-				static::getApi(),
-				static::getShipmentDataExtractor(),
-				static::getCrmBindingsMaker()
-			);
-		}
-
-		return static::$crmClaimUpdatesListener;
-	}
-
-	/**
-	 * @return Crm\ContactToRequiredListener
-	 */
-	private static function getCrmContactToRequiredListener(): Crm\ContactToRequiredListener
-	{
-		if (is_null(static::$crmContactToRequiredListener))
-		{
-			static::$crmContactToRequiredListener = new Crm\ContactToRequiredListener();
-		}
-
-		return static::$crmContactToRequiredListener;
-	}
-
-	/**
-	 * @return Crm\ActivityManager
-	 */
-	private static function getCrmClaimActivityManager(): Crm\ActivityManager
-	{
-		if (is_null(static::$crmActivityManager))
-		{
-			static::$crmActivityManager = new Crm\ActivityManager(
-				static::getCrmBindingsMaker()
-			);
-		}
-
-		return static::$crmActivityManager;
-	}
-
-	/**
-	 * @return StatusMapper
-	 */
-	public static function getStatusMapper(): StatusMapper
-	{
-		if (is_null(static::$statusMapper))
-		{
-			static::$statusMapper = new StatusMapper();
-		}
-
-		return static::$statusMapper;
-	}
-
-	/**
-	 * @return IListenerRegisterer
-	 */
-	private static function getSaleListenerRegisterer(): IListenerRegisterer
-	{
-		if (is_null(static::$saleListenerRegisterer))
-		{
-			static::$saleListenerRegisterer = new Sale\ListenerRegisterer();
-		}
-
-		return static::$saleListenerRegisterer;
-	}
-
-	/**
-	 * @return ShipmentDataExtractor
-	 */
-	public static function getShipmentDataExtractor(): ShipmentDataExtractor
-	{
-		if (is_null(static::$shipmentDataExtractor))
-		{
-			static::$shipmentDataExtractor = new ShipmentDataExtractor();
-		}
-
-		return static::$shipmentDataExtractor;
-	}
-
-	/**
-	 * @return Crm\BindingsMaker
-	 */
-	public static function getCrmBindingsMaker(): Crm\BindingsMaker
-	{
-		if (is_null(static::$crmBindingsMaker))
-		{
-			static::$crmBindingsMaker = new Crm\BindingsMaker();
-		}
-
-		return static::$crmBindingsMaker;
 	}
 
 	/**
@@ -481,5 +307,48 @@ final class ServiceContainer
 		}
 
 		return static::$regionCoordinatesMapper;
+	}
+
+	/**
+	 * @return Repository
+	 */
+	public static function getTariffsRepository(): Repository
+	{
+		if (is_null(static::$tariffsRepository))
+		{
+			static::$tariffsRepository = new Repository();
+		}
+
+		return static::$tariffsRepository;
+	}
+
+	/**
+	 * @return ReferralSourceBuilder
+	 */
+	public static function getReferralSourceBuilder(): ReferralSourceBuilder
+	{
+		if (is_null(static::$referralSourceBuilder))
+		{
+			static::$referralSourceBuilder = new ReferralSourceBuilder(
+				static::getRegionFinder()
+			);
+		}
+
+		return static::$referralSourceBuilder;
+	}
+
+	/**
+	 * @return TariffNameBuilder
+	 */
+	public static function getTariffNameBuilder(): TariffNameBuilder
+	{
+		if (is_null(static::$tariffNameBuilder))
+		{
+			static::$tariffNameBuilder = new TariffNameBuilder(
+				static::getRegionFinder()
+			);
+		}
+
+		return static::$tariffNameBuilder;
 	}
 }

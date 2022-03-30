@@ -1,4 +1,5 @@
-<?
+<?php
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/socialnetwork/classes/general/log_comments.php");
 
 use Bitrix\Socialnetwork\Item\LogIndex;
@@ -12,7 +13,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 	/***************************************/
 	/********  DATA MODIFICATION  **********/
 	/***************************************/
-	function Add($arFields, $bSetSource = false, $bSendEvent = true, $bSetLogUpDate = true)
+	public static function Add($arFields, $bSetSource = false, $bSendEvent = true, $bSetLogUpDate = true)
 	{
 		global $DB, $APPLICATION, $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
@@ -32,7 +33,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		$arFields1 = Util::getEqualityFields($arFields);
 
 		if (
-			$bSetSource 
+			$bSetSource
 			&& $arFields["EVENT_ID"] <> '')
 		{
 			$arCommentEvent = CSocNetLogTools::FindLogCommentEventByID($arFields["EVENT_ID"]);
@@ -89,7 +90,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 					$arFields["URL"] = $arSource["URL"];
 
 				if (
-					isset($arSource["UF"]) 
+					isset($arSource["UF"])
 					&& isset($arSource["UF"]["FILE"])
 				)
 				{
@@ -100,7 +101,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 				}
 
 				if (
-					isset($arSource["UF"]) 
+					isset($arSource["UF"])
 					&& isset($arSource["UF"]["DOC"])
 				)
 				{
@@ -145,10 +146,10 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		}
 
 		if (
-			!$bSetSource 
+			!$bSetSource
 			|| (
-				is_array($arSource) 
-				&& array_key_exists("SOURCE_ID", $arFields) 
+				is_array($arSource)
+				&& array_key_exists("SOURCE_ID", $arFields)
 				&& intval($arFields["SOURCE_ID"]) > 0
 			)
 		)
@@ -212,7 +213,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 								array(
 									"USER_ID" => $arLog["USER_ID"],
 									"CODE" => "L".$arFields["LOG_ID"]
-								), 
+								),
 								array("TYPE")
 							);
 
@@ -350,7 +351,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			$arSource = CSocNetLogComments::SetSource($arFields, "UPDATE");
 
 			if (
-				isset($arSource["NO_SOURCE"]) 
+				isset($arSource["NO_SOURCE"])
 				&& $arSource["NO_SOURCE"] == "Y"
 			)
 			{
@@ -372,7 +373,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 			else
 			{
 				if (
-					isset($arSource["MESSAGE"]) 
+					isset($arSource["MESSAGE"])
 					&& $arSource["MESSAGE"] <> ''
 				)
 				{
@@ -380,7 +381,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 				}
 
 				if (
-					isset($arSource["TEXT_MESSAGE"]) 
+					isset($arSource["TEXT_MESSAGE"])
 					&& $arSource["TEXT_MESSAGE"] <> ''
 				)
 				{
@@ -388,7 +389,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 				}
 
 				if (
-					isset($arSource["UF"]) 
+					isset($arSource["UF"])
 					&& isset($arSource["UF"]["FILE"])
 				)
 				{
@@ -401,7 +402,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 				}
 
 				if (
-					isset($arSource["UF"]) 
+					isset($arSource["UF"])
 					&& isset($arSource["UF"]["DOC"])
 				)
 				{
@@ -805,7 +806,7 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		if ($arSqls["ORDERBY"] <> '')
 			$strSql .= "ORDER BY ".$arSqls["ORDERBY"]." ";
 
-		if (is_array($arNavStartParams) && intval($arNavStartParams["nTopCount"]) <= 0)
+		if (is_array($arNavStartParams) && (int)$arNavStartParams["nTopCount"] <= 0)
 		{
 			$strSql_tmp =
 				"SELECT COUNT('x') as CNT ".
@@ -883,11 +884,10 @@ class CSocNetLogComments extends CAllSocNetLogComments
 		return $dbRes;
 	}
 
-	function OnBlogDelete($blog_id)
+	public static function OnBlogDelete($blog_id)
 	{
 		global $DB;
 
 		return $DB->Query("DELETE SLC FROM b_sonet_log_comment SLC INNER JOIN b_blog_comment BC ON SLC.SOURCE_ID = BC.ID AND BC.BLOG_ID = ".intval($blog_id)." WHERE SLC.EVENT_ID = 'blog_comment_micro' OR SLC.EVENT_ID = 'blog_comment'", true);
 	}
 }
-?>

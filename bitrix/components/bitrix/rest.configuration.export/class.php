@@ -27,9 +27,17 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 
 	protected function checkRequiredParams()
 	{
-		if(!\CRestUtil::isAdmin())
+		$access = Manifest::checkAccess(Manifest::ACCESS_TYPE_EXPORT, $this->arParams['MANIFEST_CODE']);
+		if ($access['result'] !== true)
 		{
-			$this->errors->setError(new Error(Loc::getMessage('REST_CONFIGURATION_EXPORT_ACCESS_DENIED')));
+			$this->errors->setError(
+				new Error(
+					$access['message'] !== ''
+						? htmlspecialcharsbx($access['message'])
+						: Loc::getMessage('REST_CONFIGURATION_EXPORT_ACCESS_DENIED')
+				)
+			);
+
 			return false;
 		}
 
@@ -122,6 +130,7 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 
 			$setting = new Setting($context);
 			$setting->deleteFull();
+			$setting->set(Setting::MANIFEST_CODE, $this->arParams['MANIFEST_CODE']);
 
 			$structure = new Structure($context);
 			if($structure->getFolder())
@@ -160,6 +169,7 @@ class CRestConfigurationExportComponent extends CBitrixComponent implements Cont
 						'TYPE' => 'EXPORT',
 						'CONTEXT' => $this->getContextPostFix(),
 						'CONTEXT_USER' => $context,
+						'USER_ID' => $setting->get(Setting::SETTING_USER_ID) ?? 0,
 						'MANIFEST_CODE' => $manifest['CODE'],
 						'IMPORT_MANIFEST' => [],//TODO: delete this after fix crm
 						'MANIFEST' => $manifest,

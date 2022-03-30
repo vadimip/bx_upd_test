@@ -29,11 +29,6 @@ else
 	define("LANGUAGE_ID", "en");
 }
 
-if(Loader::includeModule("compression"))
-{
-	CCompress::disable2048Spaces();
-}
-
 if (!Loader::includeModule("socialnetwork"))
 {
 	echo CUtil::phpToJsObject(Array('ERROR' => 'SONET_MODULE_NOT_INSTALLED'));
@@ -63,7 +58,9 @@ else
 
 if (check_bitrix_sessid())
 {
-	$currentUserPerms = CSocNetUserToGroup::initUserPerms($USER->GetId(), $group, CSocNetUser::isCurrentUserModuleAdmin());
+	$currentUserPerms = \Bitrix\Socialnetwork\Helper\Workgroup::getPermissions([
+		'groupId' => $groupId,
+	]);
 
 	if (!$currentUserPerms["UserCanViewGroup"])
 	{

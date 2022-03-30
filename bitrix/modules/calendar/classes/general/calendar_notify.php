@@ -12,7 +12,11 @@ class CCalendarNotify
 	public static function Send($params)
 	{
 		if (!Loader::includeModule("im"))
+		{
 			return false;
+		}
+
+		$culture = \Bitrix\Main\Context::getCurrent()->getCulture();
 
 		$params['rrule'] = CCalendarEvent::GetRRULEDescription($params['fields'], false, false);
 		$params["eventId"] = intval($params["eventId"]);
@@ -22,13 +26,19 @@ class CCalendarNotify
 		if (!$fromUser || !$toUser || ($toUser == $fromUser && !in_array($mode, ['status_accept', 'status_decline', 'fail_ical_invite'])))
 			return false;
 
+		$fromTimestamp = CCalendar::Timestamp($params["from"]);
 		if ($params['fields']['DT_SKIP_TIME'] == 'Y')
 		{
-			$params["from"] = CCalendar::Date(CCalendar::Timestamp($params["from"]), false);
+			$params["from"] = CCalendar::Date($fromTimestamp, false);
+			$params["from_formatted"] = FormatDate($culture->getFullDateFormat(), $fromTimestamp);
+
 		}
 		else
 		{
-			$params["from"] = CCalendar::Date(CCalendar::Timestamp($params["from"]), true, true, true);
+			$params["from"] = CCalendar::Date($fromTimestamp, true, true, true);
+			$params["from_formatted"] = FormatDate($culture->getFullDateFormat(), $fromTimestamp)
+				.' '
+				.FormatDate($culture->getShortTimeFormat(), $fromTimestamp);
 		}
 
 		$notifyFields = array(
@@ -48,7 +58,7 @@ class CCalendarNotify
 		}
 
 		$userOrm = \Bitrix\Main\UserTable::getList([
-			'filter' => ['=ID' => $toUser, 'ACTIVE' => 'Y'],
+			'filter' => ['=ID' => $toUser, '=ACTIVE' => 'Y'],
 			'select' => ['ID']
 		]);
 		if (!$userOrm->fetch())
@@ -98,6 +108,9 @@ class CCalendarNotify
 				break;
 			case 'fail_ical_invite':
 				$notifyFields = self::NotifyFailIcalInvite($notifyFields, $params);
+				break;
+			case 'delete_location':
+				$notifyFields = self::DeleteLocation($notifyFields, $params);
 				break;
 		}
 
@@ -164,14 +177,14 @@ class CCalendarNotify
 			$fields['MESSAGE'] = Loc::getMessage('EC_MESS_INVITE_SITE',
 				array(
 					'#TITLE#' => $params["name"],
-					'#ACTIVE_FROM#' => $params["from"]
+					'#ACTIVE_FROM#' => $params["from_formatted"]
 				)
 			);
 
 			$fields['MESSAGE_OUT'] = Loc::getMessage('EC_MESS_INVITE', array(
 				'#OWNER_NAME#' => CCalendar::GetUserName($params['userId']),
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			));
 		}
 
@@ -222,19 +235,19 @@ class CCalendarNotify
 			{
 				case 'NAME':
 					$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_TITLE_CHANGED',
-						array(
+						[
 							'#OLD_TITLE#' => $change['oldValue'],
 							'#NEW_TITLE#' => "[url=".$params["pathToEvent"]."]".$change['newValue']."[/url]",
-							'#ACTIVE_FROM#' => $params["from"]
-						)
+							'#ACTIVE_FROM#' => $params["from_formatted"]
+						]
 					);
 
 					$fields['MESSAGE_OUT'] = Loc::getMessage('EC_NOTIFY_TITLE_CHANGED',
-						array(
+						[
 							'#OLD_TITLE#' => $change['oldValue'],
 							'#NEW_TITLE#' => $change['newValue'],
-							'#ACTIVE_FROM#' => $params["from"]
-						)
+							'#ACTIVE_FROM#' => $params["from_formatted"]
+						]
 					);
 					break;
 
@@ -301,7 +314,7 @@ class CCalendarNotify
 						array(
 							'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
 							'#ACTIVE_FROM#' => $params["from"],
-							'#NEW_VALUE#' => $change['newValue']
+							'#NEW_VALUE#' => \CCalendar::GetTextLocation($change['newValue'])
 						)
 					);
 
@@ -309,7 +322,7 @@ class CCalendarNotify
 						array(
 							'#TITLE#' => $params["name"],
 							'#ACTIVE_FROM#' => $params["from"],
-							'#NEW_VALUE#' => $change['newValue']
+							'#NEW_VALUE#' => \CCalendar::GetTextLocation($change['newValue'])
 						)
 					);
 					break;
@@ -317,14 +330,14 @@ class CCalendarNotify
 					$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_ATTENDEES_CHANGED',
 						array(
 							'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 
 					$fields['MESSAGE_OUT'] = Loc::getMessage('EC_NOTIFY_ATTENDEES_CHANGED',
 						array(
 							'#TITLE#' => $params["name"],
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 					break;
@@ -332,14 +345,14 @@ class CCalendarNotify
 					$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_DESCRIPTION_CHANGED',
 						array(
 							'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 
 					$fields['MESSAGE_OUT'] = Loc::getMessage('EC_NOTIFY_DESCRIPTION_CHANGED',
 						array(
 							'#TITLE#' => $params["name"],
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 					break;
@@ -361,13 +374,13 @@ class CCalendarNotify
 					$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_IMPORTANCE_CHANGED',
 						array(
 							'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 					$fields['MESSAGE_OUT'] = Loc::getMessage('EC_NOTIFY_IMPORTANCE_CHANGED',
 						array(
 							'#TITLE#' => $params["name"],
-							'#ACTIVE_FROM#' => $params["from"]
+							'#ACTIVE_FROM#' => $params["from_formatted"]
 						)
 					);
 					break;
@@ -386,7 +399,7 @@ class CCalendarNotify
 			$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_ENTRY_CHANGED',
 				[
 					'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-					'#ACTIVE_FROM#' => $params["from"],
+					'#ACTIVE_FROM#' => $params["from_formatted"],
 					'#CHANGED_FIELDS_LIST#' => $changedFieldsListMessage
 				]
 			);
@@ -394,7 +407,7 @@ class CCalendarNotify
 			$fields['MESSAGE_OUT'] = Loc::getMessage('EC_NOTIFY_ENTRY_CHANGED',
 				[
 					'#TITLE#' => $params["name"],
-					'#ACTIVE_FROM#' => $params["from"],
+					'#ACTIVE_FROM#' => $params["from_formatted"],
 					'#CHANGED_FIELDS_LIST#' => $changedFieldsListMessage
 				]
 			);
@@ -416,13 +429,13 @@ class CCalendarNotify
 
 		$fields['MESSAGE'] = Loc::getMessage('EC_MESS_INVITE_CANCEL_SITE', array(
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE_OUT'] = Loc::getMessage('EC_MESS_INVITE_CANCEL', array(
 				'#OWNER_NAME#' => CCalendar::GetUserName($params['userId']),
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE'] .= "\n\n".Loc::getMessage('EC_MESS_VIEW_OWN_CALENDAR', ['#LINK#' => $params["pathToCalendar"]]);
@@ -439,13 +452,13 @@ class CCalendarNotify
 
 		$fields['MESSAGE'] = Loc::getMessage('EC_MESS_REC_THIS_CANCEL_SITE', array(
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE_OUT'] = Loc::getMessage('EC_MESS_REC_THIS_CANCEL', array(
 				'#OWNER_NAME#' => CCalendar::GetUserName($params['userId']),
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE'] .= "\n\n".Loc::getMessage('EC_MESS_VIEW_OWN_CALENDAR', ['#LINK#' => $params["pathToCalendar"]]);
@@ -462,13 +475,13 @@ class CCalendarNotify
 
 		$fields['MESSAGE'] = Loc::getMessage('EC_MESS_REC_ALL_CANCEL_SITE', array(
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE_OUT'] = Loc::getMessage('EC_MESS_REC_ALL_CANCEL', array(
 				'#OWNER_NAME#' => CCalendar::GetUserName($params['userId']),
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 		$fields['MESSAGE'] .= "\n\n".Loc::getMessage('EC_MESS_VIEW_OWN_CALENDAR', ['#LINK#' => $params["pathToCalendar"]]);
@@ -481,35 +494,32 @@ class CCalendarNotify
 	public static function MeetingStatus($fields = [], $params)
 	{
 		$fields['NOTIFY_EVENT'] = "info";
-		$fields['FROM_USER_ID'] = intval($params["guestId"]);
-		$fields['TO_USER_ID'] = intval($params["userId"]);
+		$fields['FROM_USER_ID'] = (int)$params["guestId"];
+		$fields['TO_USER_ID'] = (int)$params["userId"];
 		$fields['NOTIFY_TAG'] = "CALENDAR|INVITE|".$params['eventId']."|".$params['mode'];
 		$fields['NOTIFY_SUB_TAG'] = "CALENDAR|INVITE|".$params['eventId'];
 
-		$fields['MESSAGE'] = Loc::getMessage($params['mode'] == 'accept' ? 'EC_MESS_INVITE_ACCEPTED_SITE' : 'EC_MESS_INVITE_DECLINED_SITE',
-			array(
+		$fields['MESSAGE'] = Loc::getMessage(
+			$params['mode'] === 'accept'
+				? 'EC_MESS_INVITE_ACCEPTED_SITE_1'
+				: 'EC_MESS_INVITE_DECLINED_SITE_1',
+			[
 				'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-				'#ACTIVE_FROM#' => $params["from"]
-			)
+				'#ACTIVE_FROM#' => $params["from_formatted"]
+			]
 		);
 
-		$fields['MESSAGE_OUT'] = Loc::getMessage($params['mode']=='accept' ? 'EC_MESS_INVITE_ACCEPTED' : 'EC_MESS_INVITE_DECLINED',
-			array(
+		$fields['MESSAGE_OUT'] = Loc::getMessage(
+			$params['mode'] ==='accept'
+				? 'EC_MESS_INVITE_ACCEPTED_1'
+				: 'EC_MESS_INVITE_DECLINED_1',
+			[
 				'#GUEST_NAME#' => CCalendar::GetUserName($params['guestId']),
 				'#TITLE#' => $params["name"],
-				'#ACTIVE_FROM#' => $params["from"]
-			)
+				'#ACTIVE_FROM#' => $params["from_formatted"]
+			]
 		);
 
-		if ($params["comment"] != "")
-		{
-			$fields['MESSAGE'] .= "\n\n".Loc::getMessage('EC_MESS_INVITE_ACC_COMMENT', array(
-					'#COMMENT#' => $params["comment"]
-				));
-			$fields['MESSAGE_OUT'] .= "\n\n".Loc::getMessage('EC_MESS_INVITE_ACC_COMMENT', array(
-					'#COMMENT#' => $params["comment"]
-				));
-		}
 		$fields['MESSAGE_OUT'] .= "\n\n".Loc::getMessage('EC_MESS_INVITE_DETAILS', ['#LINK#' => $params["pathToEvent"]]);
 
 		return $fields;
@@ -525,14 +535,14 @@ class CCalendarNotify
 		$fields['MESSAGE'] = Loc::getMessage($params['mode'] =='status_accept' ? 'EC_MESS_STATUS_NOTIFY_Y_SITE' : 'EC_MESS_STATUS_NOTIFY_N_SITE',
 			array(
 				'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 
 		$fields['MESSAGE_OUT'] = Loc::getMessage($params['mode'] == 'status_accept' ? 'EC_MESS_STATUS_NOTIFY_Y' : 'EC_MESS_STATUS_NOTIFY_N',
 			array(
 				'#TITLE#' => "[url=".$params["pathToEvent"]."]".$params["name"]."[/url]",
-				'#ACTIVE_FROM#' => $params["from"]
+				'#ACTIVE_FROM#' => $params["from_formatted"]
 			)
 		);
 
@@ -576,7 +586,7 @@ class CCalendarNotify
 			{
 				if ($arLog['PARAMS'] != "")
 				{
-					$arLog['PARAMS'] = unserialize($arLog['PARAMS']);
+					$arLog['PARAMS'] = unserialize($arLog['PARAMS'], ['allowed_classes' => false]);
 					if (!is_array($arLog['PARAMS']))
 						$arLog['PARAMS'] = [];
 				}
@@ -640,6 +650,7 @@ class CCalendarNotify
 					}
 				}
 
+				$commentCropped = truncateText(CTextParser::clearAllTags($params['MESSAGE']), 120);
 				foreach($attendees as $attendee)
 				{
 					if (in_array($attendee["USER_ID"], $excludeUserIdList))
@@ -661,7 +672,7 @@ class CCalendarNotify
 							],
 							[
 								$url <> '' ? "<a href=\"".$url."\" class=\"bx-notifier-item-action\">".$event["NAME"]."</a>" : $event["NAME"],
-								$params['MESSAGE']
+								$commentCropped
 							],
 							$strMsgAddComment
 						);
@@ -672,7 +683,7 @@ class CCalendarNotify
 								],
 								[
 									$event["NAME"],
-									$params['MESSAGE']
+									$commentCropped
 								],
 								$strMsgAddComment
 							).($url <> ''? " (".$url.")" : "");
@@ -766,6 +777,23 @@ class CCalendarNotify
 		}
 
 
+
+		return $fields;
+	}
+
+	public static function DeleteLocation($fields = [], $params)
+	{
+		$fields['NOTIFY_EVENT'] = "delete_location";
+		$fields['FROM_USER_ID'] = (int)$params["userId"];
+		$fields['TO_USER_ID'] = (int)$params["guestId"];
+		$fields['NOTIFY_TAG'] = "CALENDAR|LOCATION|".$params['locationId']."|".intval($params["userId"]);
+		$fields['NOTIFY_SUB_TAG'] = "CALENDAR|LOCATION|".$params['locationId'];
+
+		$fields['MESSAGE'] = Loc::getMessage('EC_NOTIFY_DELETE_LOCATION',
+			[
+				'#LOCATION#' => $params["location"]
+			]
+		);
 
 		return $fields;
 	}

@@ -77,6 +77,21 @@ export class BaseForm extends EventEmitter
 		{
 			Dom.append(this.getHeaderCheckbox(), this.header);
 		}
+
+		if (this.options.hidden === true)
+		{
+			this.hide();
+		}
+	}
+
+	show()
+	{
+		Dom.attr(this.getLayout(), 'hidden', null);
+	}
+
+	hide()
+	{
+		Dom.attr(this.getLayout(), 'hidden', true);
 	}
 
 	static createLayout(): HTMLDivElement
@@ -211,6 +226,16 @@ export class BaseForm extends EventEmitter
 	{
 		this.removeCard(oldCard);
 		this.addCard(newCard);
+	}
+
+	replaceField(oldField, newField)
+	{
+		if (Type.isObject(oldField) && Type.isObject(newField))
+		{
+			Dom.replace(oldField.getNode(), newField.getNode());
+			this.fields.remove(oldField);
+			this.fields.add(newField);
+		}
 	}
 
 	isCheckboxChecked(): boolean

@@ -19,6 +19,8 @@
 	var TYPE_PAGE = "landing";
 	var TYPE_BLOCK = "block";
 	var TYPE_SYSTEM = "system";
+	var TYPE_CRM_FORM = "crmFormPopup";
+	var TYPE_CRM_PHONE = "crmPhone";
 
 	var SidebarButton = BX.Landing.UI.Button.SidebarButton;
 
@@ -125,10 +127,20 @@
 				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_LANDINGS_TITLE"));
 				this.showSites(options);
 			}
-			else
+			else if (view === TYPE_BLOCK)
 			{
 				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_BLOCKS_TITLE"));
 				this.showBlocks(options);
+			}
+			else if (view === TYPE_CRM_FORM)
+			{
+				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_CRM_FORMS_TITLE"));
+				this.showForms(options);
+			}
+			else if (view === TYPE_CRM_PHONE)
+			{
+				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_CRM_PHONES_TITLE"));
+				this.showPhones(options);
 			}
 
 			return new Promise(function(resolve) {
@@ -325,6 +337,79 @@
 				}.bind(this));
 		},
 
+		showForms: function()
+		{
+			void style(this.layout, {
+				width: "500px"
+			});
+
+			BX.Landing.Backend
+				.getInstance()
+				.action('Form::getList')
+				.then(function(result) {
+					result.forEach(function(form) {
+						var cardParams = {
+							title: form.NAME,
+							className: 'landing-ui-card-form-preview',
+							onClick: this.onFormChange.bind(this, form)
+						};
+						if(form.IS_CALLBACK_FORM === 'Y')
+						{
+							cardParams.className += ' landing-ui-card-form-preview--callback';
+							// cardParams.title = BX.message();
+							// cardParams.attrs = {
+							// 	title: 'callback form'
+							// };
+						}
+						this.appendCard(new BX.Landing.UI.Card.BaseCard(cardParams));
+					}.bind(this));
+
+					this.loader.hide();
+				}.bind(this));
+		},
+
+		onFormChange: function(form)
+		{
+			this.hide();
+			this.promiseResolve({
+				id: form.ID,
+				type: 'crmFormPopup',
+				name: form.NAME
+			});
+		},
+
+		showPhones: function()
+		{
+			void style(this.layout, {
+				width: "500px"
+			});
+
+			BX.Landing.Env
+				.getInstance()
+				.getOptions()
+				.references
+				.forEach(function(item) {
+				this.appendCard(
+					new BX.Landing.UI.Card.BaseCard({
+						title: item.text,
+						className: 'landing-ui-card-form-preview',
+						onClick: this.onPhoneChange.bind(this, item)
+					})
+				);
+			}.bind(this));
+
+			this.loader.hide();
+		},
+
+		onPhoneChange: function(phone)
+		{
+			this.hide();
+			this.promiseResolve({
+				id: phone.value,
+				type: 'crmPhone',
+				name: phone.text
+			});
+		},
 
 		createLandingSidebarButton: function(landing, active)
 		{
@@ -377,7 +462,6 @@
 			editorUrl = editorUrl.replace("#landing_edit#", landing.ID);
 
 			return addQueryParams(editorUrl, {
-				forceLoad: true,
 				landing_mode: "edit"
 			});
 		},
@@ -398,7 +482,9 @@
 									wrapper.classList.add("landing-ui-block-selectable-overlay");
 									wrapper.addEventListener("click", function(event) {
 										event.preventDefault();
-										this.onBlockClick(parseInt(wrapper.id.replace("block", "")), event);
+										var mainNode = wrapper.closest('[data-landing]');
+										var landingId = BX.Dom.attr(mainNode, 'data-landing');
+										this.onBlockClick(parseInt(wrapper.id.replace("block", "")), event, landingId);
 									}.bind(this));
 								}, this);
 							resolve(this.previewFrame);
@@ -484,13 +570,14 @@
 		 * Handle block click event
 		 * @param {Number|String} id
 		 * @param event
+		 * @param {number} landingId
 		 */
-		onBlockClick: function(id, event)
+		onBlockClick: function(id, event, landingId)
 		{
 			if (event.isTrusted)
 			{
 				void BX.Landing.Backend.getInstance()
-					.getBlocks({landingId: this.currentSelectedLanding.ID})
+					.getBlocks({landingId: landingId})
 					.then(function(blocks) {
 						var currentBlock = blocks.find(function(block) {
 							return block.id === id;

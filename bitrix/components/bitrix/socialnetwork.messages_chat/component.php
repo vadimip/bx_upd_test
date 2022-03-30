@@ -94,8 +94,10 @@ else
 			{
 				$arResult["Group"] = $arGroup;
 
-				$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetID(), $arResult["Group"], CSocNetUser::IsCurrentUserModuleAdmin());
-				
+				$arResult["CurrentUserPerms"] = \Bitrix\Socialnetwork\Helper\Workgroup::getPermissions([
+					'groupId' => $arGroup['ID'],
+				]);
+
 				if (!$arResult["CurrentUserPerms"] || !$arResult["CurrentUserPerms"]["UserCanViewGroup"] || !$arResult["CurrentUserPerms"]["UserCanSpamGroup"])
 					$arResult["FatalError"] = GetMessage("SONET_CHAT_GROUP_ACESS");
 				else
@@ -291,7 +293,7 @@ else
 				$arResult["UsersInStructure"] = array();
 				$arFilter = array('ACTIVE' => 'Y');
 				$obUser = new CUser();
-				$dbUsers = $obUser->GetList(($sort_by = 'last_name'), ($sort_dir = 'asc'), $arFilter, array('SELECT' => array('UF_*')));
+				$dbUsers = $obUser->GetList('last_name', 'asc', $arFilter, array('SELECT' => array('UF_*')));
 				while ($arUser = $dbUsers->GetNext())
 				{
 					if($arResult["UserSelf"]["ID"] == $arUser["ID"])

@@ -11,6 +11,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Landing\Config;
 use \Bitrix\Landing\Hook;
 use \Bitrix\Landing\Manager;
+use \Bitrix\Landing\Rights;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Landing\Assets;
 use \Bitrix\Main\UI\Extension;
@@ -21,6 +22,9 @@ $this->setFrameMode(true);
 $landing = $arResult['LANDING'];/** @var \Bitrix\Landing\Landing $landing */
 $b24Installed = \Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24');
 $formEditor = $arResult['SPECIAL_TYPE'] == \Bitrix\Landing\Site\Type::PSEUDO_SCOPE_CODE_FORMS;
+$masterFrame = $component->request('master') == 'Y' && Rights::hasAccessForSite(
+	$landing->getSiteId(), Rights::ACCESS_TYPES['edit']
+);
 
 Manager::setPageTitle(
 	Loc::getMessage('LANDING_TPL_TITLE')
@@ -40,6 +44,7 @@ if (
 )
 {
 	$extensions[] = 'landing.wiki.public';
+	$extensions[] = 'ui.viewer';
 }
 if ($b24Installed)
 {
@@ -70,6 +75,16 @@ if ($component->request('IFRAME'))
 		})();
 	</script>
 	<?
+}
+
+// shop master frame
+if ($masterFrame)
+{
+	\Bitrix\Landing\Manager::setPageView(
+		'BodyTag',
+		'style="pointer-events: none; user-select: none;"'
+	);
+	echo '<style>.b24-widget-button-wrapper, .catalog-cart-block {display: none;}</style>';
 }
 
 // edit menu
@@ -138,6 +153,29 @@ if ($arResult['SEARCH_RESULT_QUERY'])
 	}
 }
 
+if ($component->request('ts'))
+{
+	?>
+	<script>
+		BX.ready(function() {
+			void new BX.Landing.Pub.TimeStamp();
+		});
+	</script>
+	<?
+}
+
+
+if ($arParams['TYPE'] === 'KNOWLEDGE' || $arParams['TYPE'] === 'GROUP')
+{
+	?>
+	<script>
+		BX.ready(function() {
+			void new BX.Landing.Pub.DiskFile();
+		});
+	</script>
+	<?
+}
+
 // landing view
 $landing->view([
 	'check_permissions' => false
@@ -193,12 +231,13 @@ $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL)
 <?endif;?>
 
 <?ob_start(); ?>
-<?if (!$formEditor && (!$enableHook || isset($hooksSite['COPYRIGHT']) && $hooksSite['COPYRIGHT']->enabled())):?>
+<?if (!$masterFrame && !$formEditor && (!$enableHook || isset($hooksSite['COPYRIGHT']) && $hooksSite['COPYRIGHT']->enabled())):?>
 <div class="bitrix-footer">
 	<?if (Manager::isB24()):?>
 		<span class="bitrix-footer-text">
 			<?
 			$zone = Manager::getZone();
+			$westCopy = !in_array($zone, ['ru', 'kz', 'by', 'ua']);
 			$fullCopy = in_array($zone, array('ru', 'by'))
 						? Loc::getMessage('LANDING_TPL_COPY_FULL')
 						: Loc::getMessage('LANDING_TPL_COPY_FULL2');
@@ -206,8 +245,14 @@ $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL)
 						$this->getFolder() . '/images/' .
 						(in_array($zone, array('ru', 'ua', 'en')) ? $zone : 'en') .
 						'.svg?1" alt="' . Loc::getMessage('LANDING_TPL_COPY_NAME') . '">';
+			$rel = $westCopy ? ' rel="nofollow"' : '';
 			if ($fullCopy)
 			{
+				if ($westCopy)
+				{
+					$fullCopy = preg_replace('#<linkcreate>[^<]+</linkcreate>#is', '', $fullCopy);
+					$fullCopy = trim($fullCopy, ' .');
+				}
 				echo str_replace(
 					[
 						'#LOGO#',
@@ -218,9 +263,9 @@ $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL)
 					],
 					[
 						$logo,
-						'<a target="_blank" href="' . $this->getComponent()->getRefLink('bitrix24_logo') . '">', '</a>',
-						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('websites') . '">', '</a>',
-						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('crm') . '">', '</a>',
+						'<a' . $rel . ' target="_blank" href="' . $this->getComponent()->getRefLink('bitrix24_logo', true, $westCopy) . '">', '</a>',
+						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('websites', true, $westCopy) . '">', '</a>',
+						'<a' . $rel . ' class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('crm', true, $westCopy) . '">', '</a>',
 						'<a class="bitrix-footer-link" target="_blank" href="' . $this->getComponent()->getRefLink('create', false) . '">', '</a>'
 					],
 					$fullCopy
@@ -235,7 +280,7 @@ $assets->addAsset('landing_critical_grid', Assets\Location::LOCATION_BEFORE_ALL)
 			}
 			?>
 		</span>
-		<?if (!$fullCopy):?>
+		<?if (!$fullCopy && !$westCopy):?>
 		<a class="bitrix-footer-link" target="_blank" href="<?= $this->getComponent()->getRefLink('create', false);?>">
 			<?= Loc::getMessage('LANDING_TPL_COPY_LINK');?>
 		</a>

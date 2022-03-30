@@ -137,15 +137,15 @@ export class Content extends BasePanel
 			Dom.addClass(this.layout, 'landing-ui-panel-content-with-subtitle');
 		}
 
+		if (this.data.showFromRight === true)
+		{
+			this.setLayoutClass('landing-ui-panel-show-from-right');
+		}
+
 		this.init();
 
 		Event.bind(window.top, 'keydown', this.onKeyDown.bind(this));
-
-		BX.Landing.PageObject.getInstance()
-			.view()
-			.then((frame) => {
-				void (!!frame && Event.bind(frame.contentWindow, 'keydown', this.onKeyDown.bind(this)));
-			}, console.warn);
+		BX.Landing.PageObject.getEditorWindow();
 
 		if (this.data.scrollAnimation)
 		{

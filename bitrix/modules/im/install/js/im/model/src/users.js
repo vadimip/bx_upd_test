@@ -112,6 +112,27 @@ export class UsersModel extends VuexBuilderModel
 			getBlank: state => params =>
 			{
 				return this.getElementState(params);
+			},
+			getList: state => (userList) => {
+				const result = [];
+
+				if (!Array.isArray(userList))
+				{
+					return null;
+				}
+
+				userList.forEach(id => {
+					if (state.collection[id])
+					{
+						result.push(state.collection[id]);
+					}
+					else
+					{
+						result.push(this.getElementState({id}));
+					}
+				});
+
+				return result;
 			}
 		}
 	}
@@ -187,7 +208,7 @@ export class UsersModel extends VuexBuilderModel
 				{
 					this.initCollection(state, {id: element.id});
 
-					state.collection[element.id] = element;
+					state.collection[element.id] = Object.assign(state.collection[element.id], element);
 
 					let status = Utils.user.getOnlineStatus(element);
 					if (status.isOnline)
@@ -396,38 +417,6 @@ export class UsersModel extends VuexBuilderModel
 		{
 			fields.name = Utils.text.htmlspecialcharsback(fields.name.toString());
 			result.name = fields.name;
-
-			if (
-				typeof fields.firstName === "undefined"
-				|| typeof fields.firstName !== "undefined" && !fields.firstName
-			)
-			{
-				let elementsOfName = fields.name.split(' ');
-				if (elementsOfName.length > 1)
-				{
-					delete elementsOfName[elementsOfName.length-1];
-					fields.firstName = elementsOfName.join(' ').trim();
-				}
-				else
-				{
-					fields.firstName = result.name;
-				}
-			}
-
-			if (
-				typeof fields.lastName === "undefined"
-				|| typeof fields.lastName !== "undefined" && !fields.lastName)
-			{
-				let elementsOfName = fields.name.split(' ');
-				if (elementsOfName.length > 1)
-				{
-					fields.lastName = elementsOfName[elementsOfName.length-1];
-				}
-				else
-				{
-					fields.lastName = '';
-				}
-			}
 		}
 
 		if (typeof fields.firstName === "string" || typeof fields.firstName === "number")

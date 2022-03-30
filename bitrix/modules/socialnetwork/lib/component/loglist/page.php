@@ -1,4 +1,5 @@
 <?php
+
 namespace Bitrix\Socialnetwork\Component\LogList;
 
 use Bitrix\Socialnetwork\LogPageTable;
@@ -33,7 +34,7 @@ class Page
 		}
 		else
 		{
-			$this->request = Util::getRequest();;
+			$this->request = Util::getRequest();
 		}
 	}
 
@@ -51,16 +52,16 @@ class Page
 		return $this->processorInstance;
 	}
 
-	public function setNeedSetLogPage($value = false)
+	public function setNeedSetLogPage($value = false): void
 	{
 		$this->needSetLogPage = $value;
 	}
-	public function getNeedSetLogPage()
+	public function getNeedSetLogPage(): bool
 	{
 		return $this->needSetLogPage;
 	}
 
-	public function setDateLastPageStart($value = null)
+	public function setDateLastPageStart($value = null): void
 	{
 		$this->dateLastPageStart = $value;
 	}
@@ -69,7 +70,7 @@ class Page
 		return $this->dateLastPageStart;
 	}
 
-	public function setLastPageData($value = null)
+	public function setLastPageData($value = null): void
 	{
 		$this->lastPageData = $value;
 	}
@@ -78,25 +79,25 @@ class Page
 		return $this->lastPageData;
 	}
 
-	public function setPrevPageLogIdList($value = [])
+	public function setPrevPageLogIdList($value = []): void
 	{
 		$this->prevPageLogIdList = $value;
 	}
-	public function getPrevPageLogIdList()
+	public function getPrevPageLogIdList(): array
 	{
 		return $this->prevPageLogIdList;
 	}
 
-	public function setDateFirstPageTimestamp($value = 0)
+	public function setDateFirstPageTimestamp($value = 0): void
 	{
 		$this->dateFirstPageTS = $value;
 	}
-	public function getDateFirstPageTimestamp()
+	public function getDateFirstPageTimestamp(): int
 	{
 		return $this->dateFirstPageTS;
 	}
 
-	public function preparePrevPageLogId()
+	public function preparePrevPageLogId(): void
 	{
 		$request = $this->getRequest();
 		$params = $this->getComponent()->arParams;
@@ -122,19 +123,19 @@ class Page
 					unset($prevPageLogIdList[$key]);
 				}
 			}
-			$prevPageLogIdList = array_unique($prevPageLogIdList);
+			$prevPageLogIdList = array_map(static function($logId) { return (int)$logId; }, array_unique($prevPageLogIdList));
 			$this->setPrevPageLogIdList($prevPageLogIdList);
 		}
 	}
 
-	public function getLogPageData(&$result)
+	public function getLogPageData(&$result): void
 	{
 		$params = $this->getComponent()->arParams;
 		$processorInstance = $this->getProcessorInstance();
 
 		$this->setNeedSetLogPage(false);
 
-		if ($params['SET_LOG_PAGE_CACHE'] == 'Y')
+		if ($params['SET_LOG_PAGE_CACHE'] === 'Y')
 		{
 			$resPages = LogPageTable::getList([
 				'order' => [],
@@ -153,10 +154,10 @@ class Page
 				$this->setDateLastPageStart($pagesFields['PAGE_LAST_DATE']);
 				$this->setLastPageData([
 					'TRAFFIC_LAST_DATE_TS' => ($pagesFields['TRAFFIC_LAST_DATE'] ? $processorInstance->makeTimeStampFromDateTime($pagesFields['TRAFFIC_LAST_DATE'], 'FULL') : 0),
-					'TRAFFIC_AVG' => intval($pagesFields['TRAFFIC_AVG']),
-					'TRAFFIC_CNT' => intval($pagesFields['TRAFFIC_CNT'])
+					'TRAFFIC_AVG' => (int)$pagesFields['TRAFFIC_AVG'],
+					'TRAFFIC_CNT' => (int)$pagesFields['TRAFFIC_CNT']
 				]);
-				$processorInstance->setFilterKey('>=LOG_UPDATE', convertTimeStamp($processorInstance->makeTimeStampFromDateTime($pagesFields['PAGE_LAST_DATE'], 'FULL') - 60*60*24*4, 'FULL'));
+				$processorInstance->setFilterKey('>=LOG_UPDATE', convertTimeStamp($processorInstance->makeTimeStampFromDateTime($pagesFields['PAGE_LAST_DATE'], 'FULL') - 60*60*24*1, 'FULL'));
 			}
 			elseif(
 				$result['isExtranetSite']
@@ -169,7 +170,8 @@ class Page
 					],
 					'filter' => [
 						'USER_ID' => $result['currentUserId'],
-						'@ROLE' => UserToGroupTable::getRolesMember()
+						'@ROLE' => UserToGroupTable::getRolesMember(),
+						'!GROUP_DATE_CREATE' => false
 					],
 					'select' => [
 						'GROUP_DATE_CREATE' => 'GROUP.DATE_CREATE'
@@ -182,8 +184,8 @@ class Page
 			}
 			elseif (
 				(
-					$result['COUNTER_TYPE'] != '**'
-					|| $result['MY_GROUPS_ONLY'] != 'Y'
+					$result['COUNTER_TYPE'] !== '**'
+					|| $result['MY_GROUPS_ONLY'] !== 'Y'
 				)
 				&& $result['PAGE_NUMBER'] <= 1
 			)
@@ -211,7 +213,7 @@ class Page
 		}
 	}
 
-	public function setLogPageData(&$result)
+	public function setLogPageData(&$result): void
 	{
 		$params = $this->getComponent()->arParams;
 		$processorInstance = $this->getProcessorInstance();
@@ -229,7 +231,7 @@ class Page
 
 		if ($lastEventFields)
 		{
-			if ($params['USE_FOLLOW'] == 'N')
+			if ($params['USE_FOLLOW'] === 'N')
 			{
 				if (!empty($processorInstance->getOrderKey('LOG_DATE')))
 				{
@@ -250,7 +252,7 @@ class Page
 			}
 		}
 
-		if ($params['SET_LOG_PAGE_CACHE'] != 'N')
+		if ($params['SET_LOG_PAGE_CACHE'] !== 'N')
 		{
 			$result['dateLastPageTS'] = $result['LAST_ENTRY_DATE_TS'];
 		}
@@ -261,9 +263,9 @@ class Page
 		}
 
 		if (
-			Util::checkUserAuthorized()
-			&& $params['SET_LOG_PAGE_CACHE'] == 'Y'
+			$params['SET_LOG_PAGE_CACHE'] === 'Y'
 			&& $dateLastPage
+			&& Util::checkUserAuthorized()
 			&& (
 				!$this->getDateLastPageStart()
 				|| $this->getDateLastPageStart() != $dateLastPage
@@ -307,9 +309,9 @@ class Page
 			);
 
 			if (
-				$result['PAGE_NUMBER'] == 1
-				&& $params['USE_TASKS'] == 'Y'
-				&& $result['EXPERT_MODE'] != 'Y'
+				(int)$result['PAGE_NUMBER'] === 1
+				&& $params['USE_TASKS'] === 'Y'
+				&& $result['EXPERT_MODE'] !== 'Y'
 			)
 			{
 				$result['EXPERT_MODE_SET'] = LogViewTable::checkExpertModeAuto($result['currentUserId'], $processorInstance->getTasksCount(), $params['PAGE_SIZE']);
@@ -322,15 +324,15 @@ class Page
 		}
 	}
 
-	public function deleteLogPageData($result)
+	public function deleteLogPageData($result): void
 	{
 		$params = $this->getComponent()->arParams;
 
 		if (
-			count($result['arLogTmpID']) == 0
+			empty($result['arLogTmpID'])
+			&& $params['SET_LOG_PAGE_CACHE'] === 'Y'
 			&& $this->getDateLastPageStart() !== null
 			&& Util::checkUserAuthorized()
-			&& $params['SET_LOG_PAGE_CACHE'] == 'Y'
 		)
 		{
 			\CSocNetLogPages::deleteEx($result['currentUserId'], SITE_ID, $params['PAGE_SIZE'], $result['COUNTER_TYPE']);
@@ -339,4 +341,3 @@ class Page
 	}
 
 }
-?>

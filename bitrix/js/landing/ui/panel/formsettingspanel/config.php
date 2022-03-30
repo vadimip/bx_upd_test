@@ -13,6 +13,8 @@ return [
 		'landing.env',
 		'landing.ui.panel.stylepanel',
 		'ui.dialogs.messagebox',
+		'ui.alerts',
+		'helper',
 		'landing.ui.field.agreementslist',
 		'landing.ui.field.accordionfield',
 		'landing.ui.field.fieldslistfield',

@@ -1,5 +1,7 @@
 <?
 use Bitrix\Main\Loader;
+use Bitrix\Calendar\Util;
+use Bitrix\Main\UserTable;
 
 class CCalendarType
 {
@@ -62,7 +64,7 @@ class CCalendarType
 						{
 							$strXml = "";
 							foreach($val as $xmlId)
-								$strXml .= ",'".CDatabase::ForSql($xmlId)."'";
+								$strXml .= ",'".$DB->ForSql($xmlId)."'";
 							$arSqlSearch[] = "CT.XML_ID in (".trim($strXml, ", ").")";
 						}
 						else
@@ -194,7 +196,7 @@ class CCalendarType
 					$strUpdate = $DB->PrepareUpdate("b_calendar_type", $arFields);
 					$strSql =
 						"UPDATE b_calendar_type SET ".
-							$strUpdate.
+						$strUpdate.
 						" WHERE XML_ID='".$DB->ForSql($XML_ID)."'";
 					$DB->QueryBind($strSql, array('DESCRIPTION' => $arFields['DESCRIPTION']));
 				}
@@ -271,16 +273,31 @@ class CCalendarType
 	{
 		global $USER;
 		if ((!$USER || !is_object($USER)) || $USER->CanDoOperation('edit_php'))
+		{
 			return true;
+		}
 
-		if (!$userId)
+		if (!is_numeric($userId))
+		{
 			$userId = CCalendar::GetCurUserId();
+		}
 
-		if (($xmlId == 'group' || $xmlId == 'user' || CCalendar::IsBitrix24()) && CCalendar::IsSocNet() && CCalendar::IsSocnetAdmin())
+		if (
+			CCalendar::IsBitrix24()
+			&& Loader::includeModule('bitrix24')
+			&& \CBitrix24::isPortalAdmin($userId)
+		)
+		{
 			return true;
+		}
 
-		if (CCalendar::IsBitrix24() && Loader::includeModule('bitrix24') && \CBitrix24::isPortalAdmin($userId))
+		if (($xmlId === 'group' || $xmlId === 'user' || CCalendar::IsBitrix24())
+			&& CCalendar::IsSocNet()
+			&& CCalendar::IsSocnetAdmin()
+		)
+		{
 			return true;
+		}
 
 		return in_array($operation, self::GetOperations($xmlId, $userId));
 	}
@@ -289,7 +306,9 @@ class CCalendarType
 	{
 		global $USER;
 		if ($userId === false)
+		{
 			$userId = CCalendar::GetCurUserId();
+		}
 
 		$opCacheKey = $xmlId.'_'.$userId;
 
@@ -299,19 +318,26 @@ class CCalendarType
 		}
 		else
 		{
-			$arCodes = array();
+			$arCodes = [];
 			if ($userId)
 			{
-				$rCodes = CAccess::GetUserCodes($userId);
-				while($code = $rCodes->Fetch())
-					$arCodes[] = $code['ACCESS_CODE'];
+				$arCodes = Util::getUserAccessCodes($userId);
 			}
 
 			if(!in_array('G2', $arCodes))
+			{
 				$arCodes[] = 'G2';
+			}
 
-			if($userId && !in_array('AU', $arCodes) && $USER && $USER->GetId() == $userId)
+			if($userId && !in_array('AU', $arCodes) && $USER && (int)$USER->GetId() == $userId)
+			{
 				$arCodes[] = 'AU';
+			}
+
+			if($userId && !in_array('UA', $arCodes) && $USER && (int)$USER->GetId() == $userId)
+			{
+				$arCodes[] = 'UA';
+			}
 
 			$key = $xmlId.'|'.implode(',', $arCodes);
 			if(!is_array(self::$arOp[$key]))

@@ -1,4 +1,8 @@
-<?
+<?php
+
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Loader;
+
 IncludeModuleLangFile(__FILE__);
 
 class CAllSocNetUser
@@ -118,7 +122,7 @@ class CAllSocNetUser
 			return false;
 		}
 
-		$bIM = CModule::IncludeModule("im");
+		$bIM = Loader::includeModule('im');
 
 		$dbRelation = CSocNetUserToGroup::GetList(
 			array(), 
@@ -326,8 +330,8 @@ class CAllSocNetUser
 			$arFilter = array("ID_EQUAL_EXACT" => $userID);
 
 			$dbUsers = CUser::GetList(
-				($by = "LAST_NAME"),
-				($order = "asc"),
+				"LAST_NAME",
+				"asc",
 				$arFilter,
 				array(
 					"NAV_PARAMS" => false,
@@ -366,7 +370,7 @@ class CAllSocNetUser
 					"ACTIVE" => "Y",
 					"EMAIL" => $email,
 				);
-				$dbUsers = CUser::GetList(($by="id"), ($order="asc"), $arFilter);
+				$dbUsers = CUser::GetList("id", "asc", $arFilter);
 			}
 			else
 			{
@@ -468,7 +472,7 @@ class CAllSocNetUser
 			"WORK_MAILBOX" => GetMessage("SONET_UP1_WORK_MAILBOX"),
 		);
 
-		if (IsModuleInstalled("forum"))
+		if (ModuleManager::isModuleInstalled('forum'))
 		{
 			$arRes["FORUM_SHOW_NAME"] = GetMessage("SONET_UP1_FORUM_PREFIX").GetMessage("SONET_UP1_FORUM_SHOW_NAME");
 			$arRes["FORUM_DESCRIPTION"] = GetMessage("SONET_UP1_FORUM_PREFIX").GetMessage("SONET_UP1_FORUM_DESCRIPTION");
@@ -479,7 +483,7 @@ class CAllSocNetUser
 			$arRes["FORUM_SUBSC_GET_MY_MESSAGE"] = GetMessage("SONET_UP1_FORUM_PREFIX").GetMessage("SONET_UP1_FORUM_SUBSC_GET_MY_MESSAGE");
 		}
 
-		if (IsModuleInstalled("blog"))
+		if (ModuleManager::isModuleInstalled('blog'))
 		{
 			$arRes["BLOG_ALIAS"] = GetMessage("SONET_UP1_BLOG_PREFIX").GetMessage("SONET_UP1_BLOG_ALIAS");
 			$arRes["BLOG_DESCRIPTION"] = GetMessage("SONET_UP1_BLOG_PREFIX").GetMessage("SONET_UP1_BLOG_DESCRIPTION");
@@ -496,31 +500,31 @@ class CAllSocNetUser
 		return array_keys($arUserFields);
 	}
 
-	public static function CanProfileView($currentUserId, $arUser, $siteId = SITE_ID, $arContext = array())
+	public static function CanProfileView($currentUserId, $arUser, $siteId = SITE_ID, $arContext = [])
 	{
 		global $USER;
 
 		if (
 			!is_array($arUser)
-			&& intval($arUser) > 0
+			&& (int)$arUser > 0
 		)
 		{
-			$dbUser = CUser::GetByID(intval($arUser));
-			$arUser = $dbUser->Fetch();
+			$dbUser = \CUser::getById((int)$arUser);
+			$arUser = $dbUser->fetch();
 		}
 
 		if (
 			!is_array($arUser)
 			|| !isset($arUser["ID"])
-			|| intval($arUser["ID"]) <= 0
+			|| (int)$arUser["ID"] <= 0
 		)
 		{
 			return false;
 		}
 
 		if (
-			$currentUserId == $USER->GetId()
-			&& self::IsCurrentUserModuleAdmin()
+			(int)$currentUserId === (int)$USER->GetId()
+			&& self::isCurrentUserModuleAdmin()
 		)
 		{
 			return true;
@@ -534,10 +538,10 @@ class CAllSocNetUser
 		$bFound = false;
 		foreach(GetModuleEvents("socialnetwork", "OnGetProfileView", true) as $arEvent)
 		{
-			if (IsModuleInstalled($arEvent["TO_MODULE_ID"]))
+			if (ModuleManager::isModuleInstalled($arEvent['TO_MODULE_ID']))
 			{
 				$bFound = true;
-				if (ExecuteModuleEventEx($arEvent, Array($currentUserId, $arUser, $siteId, $arContext, false)) === true)
+				if (ExecuteModuleEventEx($arEvent, [ $currentUserId, $arUser, $siteId, $arContext, false ]) === true)
 				{
 					return true;
 				}
@@ -549,21 +553,49 @@ class CAllSocNetUser
 
 	public static function OnGetProfileView($currentUserId, $arUser, $siteId, $arContext)
 	{
-		if (!IsModuleInstalled('mail'))
+		if (!ModuleManager::isModuleInstalled('mail'))
+		{
+			return false;
+		}
+
+		$currentUserId = (int)$currentUserId;
+
+		if (
+			$currentUserId <= 0
+			|| !is_array($arUser)
+		)
 		{
 			return false;
 		}
 
 		if (
-			intval($currentUserId) <= 0
-			|| !isset($arContext)
-			|| !isset($arContext["ENTITY_TYPE"])
-			|| !in_array($arContext["ENTITY_TYPE"], array("LOG_ENTRY"))
-			|| !isset($arContext["ENTITY_ID"])
-			|| intval($arContext["ENTITY_ID"]) <= 0
-			|| !is_array($arUser)
-			|| !isset($arUser["ID"])
-			|| intval($arUser["ID"]) <= 0
+			isset($arUser['EXTERNAL_AUTH_ID'])
+			&& $arUser['EXTERNAL_AUTH_ID'] === 'email'
+			&& Loader::includeModule('intranet')
+		)
+		{
+			$res = \Bitrix\Intranet\UserTable::getList([
+				'filter' => [
+					'=ID' => $currentUserId,
+				],
+				'select' => [ 'USER_TYPE' ],
+			]);
+
+			if (
+				($currentUserFields = $res->fetch())
+				&& $currentUserFields['USER_TYPE'] === 'employee'
+			)
+			{
+				return true;
+			}
+		}
+
+		if (
+			!isset($arContext['ENTITY_TYPE'], $arContext['ENTITY_ID'], $arUser['ID'])
+			|| $currentUserId <= 0
+			|| (int)$arContext['ENTITY_ID'] <= 0
+			|| $arContext['ENTITY_TYPE'] !== 'LOG_ENTRY'
+			|| (int)$arUser['ID'] <= 0
 		)
 		{
 			return false;
@@ -571,18 +603,18 @@ class CAllSocNetUser
 
 		if (
 			(
-				isset($arUser["EXTERNAL_AUTH_ID"])
-				&& $arUser["EXTERNAL_AUTH_ID"] == 'email'
+				isset($arUser['EXTERNAL_AUTH_ID'])
+				&& $arUser['EXTERNAL_AUTH_ID'] === 'email'
 			) // -> email user
 			||
 			(
-				($rsCurrentUser = CUser::GetByID(intval($currentUserId)))
-				&& ($arCurrentUser = $rsCurrentUser->Fetch())
-				&& ($arCurrentUser["EXTERNAL_AUTH_ID"] == 'email')
+				($res = \CUser::getById($currentUserId))
+				&& ($currentUserFields = $res->fetch())
+				&& ($currentUserFields['EXTERNAL_AUTH_ID'] === 'email')
 			) // email user ->
 		)
 		{
-			return self::CheckContext($currentUserId, $arUser["ID"], $arContext);
+			return self::CheckContext($currentUserId, $arUser['ID'], $arContext);
 		}
 
 		return false;
@@ -611,7 +643,7 @@ class CAllSocNetUser
 			);
 
 			$arLogEntryUserId = $arSonetGroupId = $arDepartmentId = array();
-			$bIntranetInstalled = IsModuleInstalled('intranet');
+			$bIntranetInstalled = ModuleManager::IsModuleInstalled('intranet');
 
 			while ($arRes = $dbRes->Fetch())
 			{
@@ -675,7 +707,7 @@ class CAllSocNetUser
 
 					if (
 						!empty($arDepartmentId)
-						&& CModule::IncludeModule('intranet')
+						&& Loader::includeModule('intranet')
 					)
 					{
 						$arDepartmentUserId = array();
@@ -730,4 +762,3 @@ class CAllSocNetUser
 		return false;
 	}
 }
-?>

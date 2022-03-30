@@ -5,11 +5,13 @@ $MESS['MAIN_MAIL_CONFIRM_AJAX_ERROR'] = 'Ошибка при обработке 
 
 $MESS['MAIN_MAIL_CONFIRM_MENU'] = 'Добавить отправителя';
 $MESS['MAIN_MAIL_CONFIRM_TITLE'] = 'Добавление нового адреса';
+$MESS['MAIN_MAIL_CONFIRM_EDIT_TITLE'] = 'Редактирование адреса';
 $MESS['MAIN_MAIL_CONFIRM_GET_CODE'] = 'Получить код';
 $MESS['MAIN_MAIL_CONFIRM_SAVE'] = 'Сохранить';
 $MESS['MAIN_MAIL_CONFIRM_CANCEL'] = 'Отменить';
 $MESS['MAIN_MAIL_CONFIRM_BACK'] = 'Назад';
 $MESS['MAIN_MAIL_CONFIRM_DELETE'] = 'Удалить';
+$MESS['MAIN_MAIL_CONFIRM_EDIT'] = 'Редактировать';
 
 $MESS['MAIN_MAIL_CONFIRM_EMAIL_HINT'] = 'Введите имя и email в поля ниже. Вам будет отправлено письмо с кодом подтверждения.';
 $MESS['MAIN_MAIL_CONFIRM_EMAIL_HINT_SMTP'] = 'Введите имя и email в поля ниже. Подтвердите кодом из письма, отправленного на этот адрес, либо введите данные <a href="#" class="new-from-email-dialog-smtp-link">SMTP-сервера</a>.';
@@ -19,13 +21,15 @@ $MESS['MAIN_MAIL_CONFIRM_CODE_HINT'] = 'На указанный email отпра
 $MESS['MAIN_MAIL_CONFIRM_NAME'] = 'Имя';
 $MESS['MAIN_MAIL_CONFIRM_EMAIL'] = 'Email';
 $MESS['MAIN_MAIL_CONFIRM_PUBLIC'] = 'Доступен всем';
-$MESS['MAIN_MAIL_CONFIRM_PUBLIC_HINT'] = 'Добавленный адрес смогут выбрать все менеджеры, работающие в CRM';
+$MESS['MAIN_MAIL_CONFIRM_PUBLIC_HINT1'] = 'Добавленный адрес сможет выбрать любой сотрудник';
 $MESS['MAIN_MAIL_CONFIRM_CODE_PLACEHOLDER'] = 'Введите код подтверждения';
 
 $MESS['MAIN_MAIL_CONFIRM_SMTP_SERVER'] = 'Сервер';
 $MESS['MAIN_MAIL_CONFIRM_SMTP_PORT'] = 'Порт';
 $MESS['MAIN_MAIL_CONFIRM_SMTP_SSL'] = 'использовать защищенное соединение';
 $MESS['MAIN_MAIL_CONFIRM_SMTP_LOGIN'] = 'Логин';
+$MESS['MAIN_MAIL_CONFIRM_SMTP_LIMIT'] = 'Ограничение';
+$MESS['MAIN_MAIL_CONFIRM_SMTP_USE_LIMIT'] = 'ограничить отправку писем в день';
 $MESS['MAIN_MAIL_CONFIRM_SMTP_PASSWORD'] = 'Пароль';
 
 $MESS['MAIN_MAIL_CONFIRM_EMPTY_EMAIL'] = 'Введите email';

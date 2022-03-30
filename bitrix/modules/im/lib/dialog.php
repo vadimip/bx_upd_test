@@ -24,11 +24,11 @@ class Dialog
 
 	public static function getChatId($dialogId, $userId = null)
 	{
-		if (\Bitrix\Im\Common::isChatId($dialogId))
+		if (preg_match('/^chat[0-9]{1,}$/i', $dialogId))
 		{
 			$chatId = (int)mb_substr($dialogId, 4);
 		}
-		else
+		else if (preg_match('/^\d{1,}$/i', $dialogId))
 		{
 			$dialogId = intval($dialogId);
 			if (!$dialogId)
@@ -48,6 +48,18 @@ class Dialog
 				return false;
 			}
 		}
+		else if (preg_match('/^crm[0-9]{1,}$/i', $dialogId))
+		{
+			$chatId = \CIMChat::GetCrmChatId(mb_substr($dialogId, 4));
+		}
+		else if (preg_match('/^sg[0-9]{1,}$/i', $dialogId))
+		{
+			$chatId = \CIMChat::GetSonetGroupChatId(mb_substr($dialogId, 2));
+		}
+		else
+		{
+			$chatId = 0;
+		}
 
 		return $chatId;
 	}
@@ -62,7 +74,7 @@ class Dialog
 
 		if (\Bitrix\Im\Common::isChatId($dialogId))
 		{
-			$chatId = intval(mb_substr($dialogId, 4));
+			$chatId = \Bitrix\Im\Dialog::getChatId($dialogId, $userId);
 
 			$sql =
 				'SELECT C.ID CHAT_ID, R.ID RID,
@@ -131,29 +143,67 @@ class Dialog
 				return false;
 			}
 		}
+		else if ($dialogId == $userId)
+		{
+			return true;
+		}
+		else if (
+			\Bitrix\Im\User::getInstance($userId)->isBot()
+			&& \Bitrix\Im\User::getInstance($dialogId)->isExtranet()
+		)
+		{
+			return true;
+		}
 		else
 		{
 			if (\Bitrix\Main\ModuleManager::isModuleInstalled('intranet'))
 			{
 				if (
+					!\Bitrix\Im\User::getInstance($userId)->isExtranet()
+					&& \Bitrix\Im\User::getInstance($dialogId)->isNetwork()
+				)
+				{
+					return true;
+				}
+				else if (
 					\Bitrix\Im\User::getInstance($userId)->isExtranet()
 					|| \Bitrix\Im\User::getInstance($dialogId)->isExtranet()
 				)
 				{
-					if (
-						!\Bitrix\Im\User::getInstance($userId)->isExtranet()
-						&& \Bitrix\Im\User::getInstance($dialogId)->isNetwork()
-					)
+					$inGroup = \Bitrix\Im\Integration\Socialnetwork\Extranet::isUserInGroup($dialogId, $userId);
+					if ($inGroup)
 					{
 						return true;
 					}
 
-					return \Bitrix\Im\Integration\Socialnetwork\Extranet::isUserInGroup($dialogId, $userId);
+					global $USER;
+					if (
+						\Bitrix\Im\User::getInstance($userId)->isExtranet()
+						&& \Bitrix\Im\User::getInstance($dialogId)->isBot()
+						&& $userId == $USER->GetID()
+					)
+					{
+						if ($USER->IsAdmin())
+						{
+							return true;
+						}
+						else if (\CModule::IncludeModule('bitrix24'))
+						{
+							if (\CBitrix24::IsPortalAdmin($userId))
+							{
+								return true;
+							}
+							else if (\Bitrix\Bitrix24\Integrator::isIntegrator($userId))
+							{
+								return true;
+							}
+						}
+					}
+
+					return false;
 				}
-				else
-				{
-					return true;
-				}
+
+				return true;
 			}
 			else
 			{
@@ -230,7 +280,7 @@ class Dialog
 				R.LAST_READ = NOW(),
 				R.STATUS = " . IM_STATUS_READ . ",
 				R.COUNTER = 0
-				WHERE R.MESSAGE_TYPE <> '" . IM_MESSAGE_OPEN_LINE . "'
+				WHERE R.MESSAGE_TYPE NOT IN ('" . IM_MESSAGE_OPEN_LINE . "', '" . IM_MESSAGE_SYSTEM . "')
 				AND R.COUNTER > 0
 				AND R.USER_ID = " . $userId
 		);
@@ -240,9 +290,6 @@ class Dialog
 			SET R.UNREAD = 'N'
 			WHERE R.UNREAD = 'Y'"
 		);
-
-		$notify = new \CIMNotify();
-		$notify->MarkNotifyRead(0, true);
 
 		if (\CModule::IncludeModule("pull"))
 		{

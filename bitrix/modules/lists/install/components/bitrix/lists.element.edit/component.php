@@ -86,6 +86,18 @@ elseif(
 	return;
 }
 
+$copy_id = intval($_REQUEST["copy_id"]);
+
+if (
+	$copy_id > 0
+	&& $lists_perm < CListPermissions::CAN_READ
+	&& !CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $copy_id, "element_read")
+)
+{
+	ShowError(GetMessage("CC_BLEE_ACCESS_DENIED"));
+	return;
+}
+
 $arParams["CAN_EDIT"] =	(
 	!$arResult["IS_SOCNET_GROUP_CLOSED"]
 	&& (
@@ -159,7 +171,11 @@ if ($ELEMENT_ID)
 else
 	$arResult["FORM_ID"] = "lists_element_add_".$arResult["IBLOCK_ID"];
 
-$bBizproc = CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && ($arIBlock["BIZPROC"] != "N");
+$bBizproc = (
+	CModule::IncludeModule("bizproc")
+	&& CLists::isBpFeatureEnabled($arParams["IBLOCK_TYPE_ID"])
+	&& ($arIBlock["BIZPROC"] != "N")
+);
 
 $arResult["~LISTS_URL"] = str_replace(
 	array("#group_id#"),
@@ -398,9 +414,17 @@ if(!empty($arResult["EXTERNAL_CONTEXT"]))
 	}
 }
 
-if (CLists::isEnabledLockFeature($arResult["IBLOCK_ID"]) && $arParams["CAN_EDIT"] && $ELEMENT_ID > 0)
+if (
+	CLists::isEnabledLockFeature($arResult["IBLOCK_ID"])
+	&& $arParams["CAN_EDIT"]
+	&& $ELEMENT_ID > 0
+)
 {
-	if (!CIBlockElement::WF_IsLocked($ELEMENT_ID, $lockedBy, $dateLock))
+	if (CIBlockElement::WF_IsLocked($ELEMENT_ID, $lockedBy, $dateLock))
+	{
+		$arParams["CAN_EDIT"] = false;
+	}
+	else
 	{
 		CIBlockElement::WF_Lock($ELEMENT_ID);
 	}
@@ -861,8 +885,10 @@ if(
 							$arErrorTmp
 						);
 
-						foreach ($arErrorsTmp as $e)
-							$strWarning .= $e["message"]."<br />";
+						foreach ($arErrorTmp as $e)
+						{
+							$strError .= $e["message"]."<br />";
+						}
 					}
 				}
 			}

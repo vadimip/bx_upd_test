@@ -1,10 +1,8 @@
-<?
+<?php
 $MESS["FL_FORUM_CHAIN"] = "Форум";
 $MESS["FL_FORUM_GROUP_CHAIN"] = "Обговорення";
 $MESS["FL_FORUM_USER_CHAIN"] = "Форум";
 $MESS["IBLOCK_DEFAULT_UF"] = "Галерея за умовчанням";
-$MESS["PHOTO_STEPPER_PROGRESS_ERROR"] = "Не вдалося скопіювати фотографії з ідентифікаторами:";
-$MESS["PHOTO_STEPPER_PROGRESS_TITLE"] = "Копіювання фотографій";
 $MESS["SONET_APP_IS_NOT_ACTIVE"] = "Застосунок не знайдено";
 $MESS["SONET_CONTENT_SEARCH_CHAIN"] = "Пошук";
 $MESS["SONET_CREATE_WEBDAV"] = "Створити бібліотеку";
@@ -35,4 +33,4 @@ $MESS["SONET_P_MODULE_IS_NOT_INSTALLED"] = "Модуль фотогалереї 
 $MESS["SONET_WD_MODULE_IS_NOT_INSTALLED"] = "Модуль бібліотеки документів не встановлений.";
 $MESS["SONET_WEBDAV_NOT_EXISTS"] = "Документів немає.";
 $MESS["SONET_WORKGROUPS_FEATURE_DISABLED"] = "Функціонал робочих груп вимкнений.";
-?>
+$MESS["SONET_GROUP_PAGES_TITLE_TEMPLATE"] = "#GROUP_NAME#: #PAGE_TITLE#";

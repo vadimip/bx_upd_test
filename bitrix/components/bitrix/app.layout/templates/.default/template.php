@@ -28,17 +28,13 @@ if($arParams['IS_SLIDER'])
 
 if($arResult['APP_STATUS']['PAYMENT_NOTIFY'] == 'Y')
 {
-	if($arResult['IS_ADMIN'])
-	{
-		$arResult['APP_STATUS']['MESSAGE_SUFFIX'] .= '_A';
-	}
 
 	if(isset($arResult['APP_STATUS']['MESSAGE_REPLACE']['#DAYS#']))
 	{
 		$arResult['APP_STATUS']['MESSAGE_REPLACE']['#DAYS#']++;
 	}
 ?>
-<div class="app-update-avail"><?=GetMessage('PAYMENT_MESSAGE'.$arResult['APP_STATUS']['MESSAGE_SUFFIX'], $arResult['APP_STATUS']['MESSAGE_REPLACE'])?></div>
+<div class="app-update-avail"><?=\Bitrix\Rest\AppTable::getStatusMessage($arResult['APP_STATUS']['MESSAGE_SUFFIX'], $arResult['APP_STATUS']['MESSAGE_REPLACE'])?></div>
 <?
 	if($arResult['APP_STATUS']['PAYMENT_ALLOW'] == 'N')
 	{
@@ -70,9 +66,16 @@ $url .= (mb_strpos($url, '?') === false ? '?' : '&');
 
 $frameStyle = array();
 
-if(is_array($arParams['PARAM']) && !empty($arParams['PARAM']))
+if(
+	!empty($arResult['PRESET_OPTIONS'])
+	|| (is_array($arParams['PARAM']) && !empty($arParams['PARAM']))
+)
 {
-	if(isset($arParams['PARAM']['FRAME_HEIGHT']))
+	if ((int)$arResult['PRESET_OPTIONS']['height'] > 0)
+	{
+		$frameStyle[] = 'height:' . (int)$arResult['PRESET_OPTIONS']['height'] . 'px';
+	}
+	elseif(isset($arParams['PARAM']['FRAME_HEIGHT']))
 	{
 		$frameStyle[] = 'height:' . $arParams['PARAM']['FRAME_HEIGHT'];
 	}

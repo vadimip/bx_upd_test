@@ -63,7 +63,7 @@ if($arResult["SERVER_NAME"] == '' && defined("SITE_SERVER_NAME"))
 
 if($arResult["SERVER_NAME"] == '' && defined("SITE_SERVER_NAME"))
 {
-	$rsSite = CSite::GetList(($b="sort"), ($o="asc"), array("LID" => SITE_ID));
+	$rsSite = CSite::GetList("sort", "asc", array("LID" => SITE_ID));
 	if($arSite = $rsSite->Fetch())
 		$arResult["SERVER_NAME"] = $arSite["SERVER_NAME"];
 }
@@ -74,8 +74,10 @@ if($arResult["SERVER_NAME"] == '')
 if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP)
 {
 	$arGroup = CSocNetGroup::GetByID($arParams["ENTITY_ID"]);
-	
-	$arCurrentUserPerms = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetID(), $arGroup, $bCurrentUserIsAdmin);
+
+	$arCurrentUserPerms = \Bitrix\Socialnetwork\Helper\Workgroup::getPermissions([
+		'groupId' => $arGroup['ID'],
+	]);
 
 	if (!$arCurrentUserPerms || !$arCurrentUserPerms["UserCanViewGroup"])
 	{

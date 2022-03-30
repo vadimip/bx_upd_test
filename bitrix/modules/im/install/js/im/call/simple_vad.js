@@ -7,6 +7,7 @@
 
 	var VOLUME_THRESHOLD = 0.1;
 	var INACTIVITY_TIME = 2000;
+	var AVERAGING_COEFFICIENT = 0.5; // from 0 to 1;
 
 	/**
 	 * Naive voice activity detection
@@ -18,7 +19,18 @@
 	 */
 	BX.SimpleVAD = function(config)
 	{
-		this.mediaStream = config.mediaStream;
+		if(!(config.mediaStream instanceof MediaStream))
+		{
+			throw new Error("config.mediaStream should be instance of MediaStream");
+		}
+
+		if (config.mediaStream.getAudioTracks().length === 0)
+		{
+			throw new Error("config.mediaStream should contain audio track");
+		}
+
+		this.mediaStream = new MediaStream();
+		this.mediaStream.addTrack(config.mediaStream.getAudioTracks()[0].clone());
 		this.audioContext = null;
 		this.mediaStreamNode = null;
 		this.analyserNode = null;
@@ -28,6 +40,8 @@
 
 		this.measureInterval = 0;
 		this.inactivityTimeout = 0;
+
+		this.currentVolume = 0;
 
 		this.callbacks = {
 			voiceStarted: BX.type.isFunction(config.onVoiceStarted) ? config.onVoiceStarted : BX.DoNothing,
@@ -47,11 +61,6 @@
 
 	BX.SimpleVAD.prototype.init = function()
 	{
-		if(!(this.mediaStream instanceof MediaStream))
-		{
-			return false;
-		}
-
 		this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 		this.analyserNode = this.audioContext.createAnalyser();
 		this.analyserNode.fftSize = 128;
@@ -65,9 +74,9 @@
 	BX.SimpleVAD.prototype.analyzeAudioStream = function()
 	{
 		this.analyserNode.getFloatTimeDomainData(this.audioTimeDomainData);
-		var volume = this.getAverageVolume(this.audioTimeDomainData);
+		this.updateCurrentVolume(this.audioTimeDomainData);
 
-		this.setVoiceState(volume >= VOLUME_THRESHOLD);
+		this.setVoiceState(this.currentVolume >= VOLUME_THRESHOLD);
 	};
 
 	BX.SimpleVAD.prototype.setVoiceState = function(voiceState)
@@ -100,7 +109,7 @@
 		this.callbacks.voiceStopped();
 	};
 
-	BX.SimpleVAD.prototype.getAverageVolume = function(audioTimeDomainData)
+	BX.SimpleVAD.prototype.updateCurrentVolume = function(audioTimeDomainData)
 	{
 		var sum = 0;
 
@@ -109,7 +118,8 @@
 			sum += audioTimeDomainData[i] * audioTimeDomainData[i];
 		}
 
-		return Math.sqrt(sum / audioTimeDomainData.length);
+		var rms = Math.sqrt(sum / audioTimeDomainData.length);
+		this.currentVolume = Math.max(rms, this.currentVolume * AVERAGING_COEFFICIENT);
 	};
 
 	BX.SimpleVAD.prototype.destroy = function()
@@ -129,11 +139,19 @@
 			this.audioContext.close();
 		}
 
+		if (this.mediaStream)
+		{
+			this.mediaStream.getTracks().forEach(function(track)
+			{
+				track.stop();
+			});
+			this.mediaStream = null;
+		}
+
 		clearInterval(this.measureInterval);
 
 		this.analyserNode = null;
 		this.mediaStreamNode = null;
-		this.mediaStream = null;
 		this.audioContext = null;
 
 		this.callbacks = {

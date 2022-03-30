@@ -1,15 +1,21 @@
 import {Entry} from "calendar.entry";
-import {CalendarSectionManager} from "calendar.calendarsection";
-import {Util} from "calendar.util";
+import {SectionManager} from "calendar.sectionmanager";
+import {Util} from 'calendar.util';
 import {Loc, Type, Event} from "main.core";
 import {EventEmitter} from 'main.core.events';
 import {ConfirmStatusDialog, ConfirmEditDialog, ReinviteUserDialog, ConfirmedEmailDialog, EmailLimitationDialog} from "calendar.controls";
 import {CompactEventForm} from "calendar.compacteventform";
+import "ui.notification";
+import { EventViewForm } from 'calendar.eventviewform';
+import { RoomsManager } from 'calendar.roomsmanager';
 
 
 export class EntryManager {
 	static newEntryName = '';
 	static userIndex = {};
+	static delayedActionList = [];
+	static DELETE_DELAY_TIMEOUT = 4000;
+	static slidersMap = new WeakMap();
 
 	static getNewEntry(options)
 	{
@@ -22,8 +28,16 @@ export class EntryManager {
 		newEntryData.NAME = EntryManager.getNewEntryName();
 		newEntryData.dateFrom = dateTime.from;
 		newEntryData.dateTo = dateTime.to;
-		newEntryData.SECT_ID = CalendarSectionManager.getNewEntrySectionId();
-		newEntryData.REMIND = [{type: 'min', count: 15}];
+		if(options.type === 'location')
+		{
+			newEntryData.SECT_ID = RoomsManager.getNewEntrySectionId(options.type, parseInt(options.ownerId));
+		}
+		else
+		{
+			newEntryData.SECT_ID = SectionManager.getNewEntrySectionId(options.type, parseInt(options.ownerId));
+
+		}
+		newEntryData.REMIND = EntryManager.getNewEntryReminders();
 
 		newEntryData.attendeesEntityList = [{entityId: 'user', id: userId}];
 		newEntryData.ATTENDEE_LIST = [{id: Util.getCurrentUserId(), status: "H"}];
@@ -50,6 +64,24 @@ export class EntryManager {
 	static getNewEntryTime(date, duration)
 	{
 		date = Util.getUsableDateTime(date);
+
+		const calendarContext = Util.getCalendarContext();
+		if (calendarContext)
+		{
+			const displayedViewRange = calendarContext.getDisplayedViewRange();
+			if (Type.isDate(displayedViewRange?.start))
+			{
+				const dateTime = date.getTime();
+				if (
+					dateTime < displayedViewRange.start.getTime()
+					|| dateTime > displayedViewRange.end.getTime()
+				)
+				{
+					date = Util.getUsableDateTime(displayedViewRange.start);
+				}
+			}
+		}
+
 		return {
 			from : date,
 			to : new Date(date.getTime() + (duration || 3600) * 1000)
@@ -90,7 +122,7 @@ export class EntryManager {
 			[{
 				title: Loc.getMessage('CALENDAR_EVENT_DO_VIEW'),
 				events: {
-					click: function(event, balloon, action) {
+					click: (event, balloon, action) => {
 
 						EntryManager.openViewSlider(entryId);
 						balloon.close();
@@ -98,6 +130,38 @@ export class EntryManager {
 				}
 			}]
 		)
+	}
+
+	static showDeleteEntryNotification(entry)
+	{
+		if (entry && entry instanceof Entry)
+		{
+			BX.UI.Notification.Center.notify({
+				id: 'calendar' + entry.getUniqueId(),
+				content: Loc.getMessage('CALENDAR_DELETE_EVENT_NOTIFICATION'),
+				actions: [{
+					title: Loc.getMessage('CALENDAR_EVENT_DO_CANCEL'),
+					events: {
+						click: (event, balloon, action) => {
+							entry.cancelDelete();
+							balloon.close();
+						}
+					}
+				}]
+			});
+		}
+	}
+
+	static closeDeleteNotificationBalloon(entry)
+	{
+		if (entry && entry instanceof Entry)
+		{
+			const balloon = BX.UI.Notification.Center.getBalloonById('calendar' + entry.getUniqueId());
+			if (balloon)
+			{
+				balloon.close();
+			}
+		}
 	}
 
 	static openEditSlider(options = {})
@@ -111,6 +175,10 @@ export class EntryManager {
 				{
 					entry: options.entry || null,
 					type: options.type,
+					isLocationCalendar: options.isLocationCalendar || false,
+					roomsManager: options.roomsManager || null,
+					locationAccess: options.locationAccess || false,
+					locationCapacity: options.locationCapacity || 0,
 					ownerId: options.ownerId,
 					userId: options.userId,
 					formDataValue: options.formDataValue || null
@@ -128,33 +196,47 @@ export class EntryManager {
 			{
 				new bx.Calendar.SliderLoader(eventId, {
 					entryDateFrom: options.from,
-					timezoneOffset: options.timezoneOffset
+					timezoneOffset: options.timezoneOffset,
+					calendarContext: options.calendarContext || null,
 				}).show();
 			}
 		}
 	}
 
-	static deleteEntry(entry)
+	static deleteEntry(entry, calendarContext = null)
 	{
 		if (entry instanceof Entry)
 		{
-			EventEmitter.subscribe('BX.Calendar.Entry:beforeDelete', ()=>{
-				if (Util.getBX().SidePanel.Instance)
+			const slider = Util.getBX().SidePanel.Instance.getTopSlider();
+			const beforeDeleteHandler = () => {
+				if (slider && slider.options.type === 'calendar:slider')
 				{
 					Util.getBX().SidePanel.Instance.close();
 				}
-			});
-			EventEmitter.subscribe('BX.Calendar.Entry:delete', (optins = {})=> {
+			};
+			EventEmitter.subscribe('BX.Calendar.Entry:beforeDelete', beforeDeleteHandler);
+
+			const deleteHandler = () => {
 				const calendar = Util.getCalendarContext();
+				if (!calendar && !calendarContext)
+				{
+					return Util.getBX().reload();
+				}
+
 				if (calendar)
 				{
 					calendar.reload();
 				}
-				else
+				else if (calendarContext)
 				{
-					Util.getBX().reload();
+					calendarContext.reload();
 				}
-			});
+				EventEmitter.unsubscribe('BX.Calendar.Entry:delete', deleteHandler);
+				EventEmitter.unsubscribe('BX.Calendar.Entry:beforeDelete', beforeDeleteHandler);
+			};
+
+			EventEmitter.subscribe('BX.Calendar.Entry:delete', deleteHandler);
+
 			entry.delete();
 		}
 	}
@@ -172,11 +254,7 @@ export class EntryManager {
 			{
 				if (entry.isRecursive())
 				{
-					this.showConfirmStatusDialog(entry);
-					return false;
-				}
-				else if (!confirm(Loc.getMessage('EC_DECLINE_MEETING_CONFIRM')))
-				{
+					this.showConfirmStatusDialog(entry, resolve);
 					return false;
 				}
 			}
@@ -187,7 +265,7 @@ export class EntryManager {
 					entryParentId: entry.parentId,
 					status: status,
 					recursionMode: params.recursionMode,
-					currentDateDrom: Util.formatDate(entry.from)
+					currentDateFrom: Util.formatDate(entry.from)
 				}
 			}).then(
 				(response) => {
@@ -198,7 +276,8 @@ export class EntryManager {
 								entry: entry,
 								status: status,
 								recursionMode: params.recursionMode,
-								currentDateDrom: entry.from
+								currentDateFrom: entry.from,
+								counters: response.data.counters
 							}
 						})
 					);
@@ -212,14 +291,14 @@ export class EntryManager {
 						entry: entry,
 						status: status,
 						recursionMode: params.recursionMode,
-						currentDateDrom: entry.from
+						currentDateFrom: entry.from
 					});
 				}
 			);
 		});
 	}
 
-	static showConfirmStatusDialog(entry)
+	static showConfirmStatusDialog(entry, resolvePromiseCallback = null)
 	{
 		if (!this.confirmDeclineDialog)
 		{
@@ -236,7 +315,12 @@ export class EntryManager {
 					entry,
 					'N',
 					{recursionMode: event.getData().recursionMode, confirmed: true}
-				);
+				).then(() => {
+					if (Type.isFunction(resolvePromiseCallback))
+					{
+						resolvePromiseCallback();
+					}
+				});
 			}
 		});
 	}
@@ -390,27 +474,169 @@ export class EntryManager {
 		EntryManager.userIndex = userIndex;
 	}
 
-
-	static openChatForEntry({entryId, entry})
+	handlePullChanges(params)
 	{
-		if (window.BXIM && entry && entry.data.MEETING && parseInt(entry.data.MEETING.CHAT_ID))
+		const compactForm = EntryManager.getCompactViewForm();
+		if (compactForm
+			&& compactForm.isShown())
 		{
-			BXIM.openMessenger('chat' + parseInt(entry.data.MEETING.CHAT_ID));
+			compactForm.handlePull(params);
 		}
-		else
+
+		BX.SidePanel.Instance.getOpenSliders().forEach(slider =>
 		{
-			BX.ajax.runAction('calendar.api.calendarajax.createEventChat', {
-				data: {
-					entryId: entryId
+			const data = EntryManager.slidersMap.get(slider);
+			if (
+				data
+				&& data.entry
+				&& data.entry.parentId === parseInt(params?.fields?.PARENT_ID)
+			)
+			{
+				if (params.command === 'delete_event'
+					&& data.entry.getType() === params?.fields?.CAL_TYPE
+				)
+				{
+					slider.close();
 				}
-			})
-			.then((response) => {
-					if (window.BXIM && response.data && response.data.chatId > 0)
-					{
-						BXIM.openMessenger('chat' + response.data.chatId);
+				else if (data.control instanceof EventViewForm)
+				{
+					data.control.reloadSlider(params);
+				}
+			}
+		});
+
+		if (params.command === 'set_meeting_status')
+		{
+			top.BX.Event.EventEmitter.emit('BX.Calendar:doReloadCounters');
+		}
+		else if (params.command === 'delete_event' || params.command === 'edit_event')
+		{
+			if (
+				!params.fields
+				||
+				(params?.fields?.IS_MEETING && params?.fields?.MEETING_STATUS === 'Q')
+			)
+			{
+				top.BX.Event.EventEmitter.emit('BX.Calendar:doReloadCounters');
+			}
+		}
+	}
+
+	static registerDeleteTimeout(params)
+	{
+		EntryManager.delayedActionList.push(params);
+	}
+
+	static unregisterDeleteTimeout({action, data})
+	{
+		EntryManager.delayedActionList = EntryManager.delayedActionList.filter((item) => {
+			return item.action !== action
+				|| item.data.entryId !== data.entryId
+				|| item.data.recursionMode !== data.recursionMode
+				|| item.data.excludeDate !== data.excludeDate;
+		});
+	}
+
+	static doDelayedActions()
+	{
+		let requestList = [];
+		return new Promise(resolve => {
+			if(!EntryManager.delayedActionList.length)
+			{
+				resolve();
+			}
+
+			EntryManager.delayedActionList.forEach(({action, data, params}) => {
+
+				const requestUid = parseInt(data.requestUid);
+				requestList.push(data.requestUid);
+
+				if (params.entry)
+				{
+					EntryManager.closeDeleteNotificationBalloon(params.entry);
+				}
+
+				BX.ajax.runAction(
+					`calendar.api.calendarajax.${action}`,
+					{data: data}
+				).then(
+					() => {
+						Type.isFunction(params.callback)
+						{
+							params.callback();
+						}
+
+						requestList = requestList.filter(uid => {return uid !== requestUid});
+						if (!requestList.length)
+						{
+							resolve();
+						}
+					},
+					() => {
+						requestList = requestList.filter(uid => {return uid !== requestUid});
+						if (!requestList.length)
+						{
+							resolve();
+						}
 					}
-				}
-			);
+				);
+
+				EntryManager.unregisterDeleteTimeout({action, data, params});
+			});
+
+
+
+
+		});
+
+	}
+
+	static getEntryUniqueId(entryData, entry)
+	{
+		let sid = entryData.PARENT_ID || entryData.ID;
+		if (entryData.RRULE)
+		{
+			sid += '|' + (entry ? Util.formatDate(entry.from) : Util.formatDate(BX.parseDate(entryData.DATE_FROM)));
 		}
+
+		if (entryData['~TYPE'] === 'tasks')
+		{
+			sid += '|' + 'task';
+		}
+		return sid;
+	}
+
+	static registerEntrySlider(entry, control)
+	{
+		const slider = Util.getBX().SidePanel.Instance.getTopSlider();
+		if (slider)
+		{
+			EntryManager.slidersMap.set(slider, {entry, control});
+		}
+	}
+
+	static getNewEntryReminders(type = 'withTime')
+	{
+		const userSettings = Util.getUserSettings();
+		if (Type.isObjectLike(userSettings.defaultReminders)
+			&& Type.isArray(userSettings.defaultReminders[type])
+			&& userSettings.defaultReminders[type].length)
+		{
+			return userSettings.defaultReminders[type];
+		}
+
+		return type === 'withTime'
+			? [{type: 'min', count: 15}]
+			: [{type: 'daybefore', before: 0, time: 480}];
+	}
+
+	static setNewEntryReminders(type = 'withTime', reminders)
+	{
+		const userSettings = Util.getUserSettings();
+		if (Type.isObjectLike(userSettings.defaultReminders))
+		{
+			userSettings.defaultReminders[type] = reminders;
+		}
+		Util.setUserSettings(userSettings);
 	}
 }

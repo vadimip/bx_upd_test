@@ -1,4 +1,4 @@
-<?
+<?php
 define("NOT_CHECK_PERMISSIONS", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
@@ -62,6 +62,7 @@ $arWorkflowParameters = isset($_POST['arWorkflowParameters']) && is_array($_POST
 $arWorkflowVariables = isset($_POST['arWorkflowVariables']) && is_array($_POST['arWorkflowVariables'])? $_POST['arWorkflowVariables']: array();
 $arWorkflowConstants = isset($_POST['arWorkflowConstants']) && is_array($_POST['arWorkflowConstants'])? $_POST['arWorkflowConstants']: array();
 $arGlobalConstants = \Bitrix\Bizproc\Workflow\Type\GlobalConst::getAll();
+$arGlobalVariables = \Bitrix\Bizproc\Workflow\Type\GlobalVar::getAll();
 
 $selectorMode = isset($_POST['selectorMode']) ? $_POST['selectorMode']: null;
 
@@ -234,6 +235,25 @@ function BPSHideShow(id)
 	</tr>
 	<tr>
 		<td>
+			<a href="javascript:void(0)" onclick="BPSHideShow('BPSId31')"><b><?= GetMessage('BP_SEL_GVAR') ?></b></a>
+		</td>
+	</tr>
+	<tr id="BPSId31" style="display: none">
+		<td>
+			<select id="BPSId31S" size="13" style="width: 100%" ondblclick="BPSVInsert(this.value)">
+				<?php foreach ($arGlobalVariables as $fieldId => $documentField):
+					if ($arFilter === false || in_array($documentFieldTypes[$documentField["Type"]]["BaseType"], $arFilter)):
+						if ($_POST['fieldType'] === 'text'):
+							$fieldId .= ' > printable';
+						endif ?>
+						<option value="{=GlobalVar:<?= htmlspecialcharsbx($fieldId) ?>}<?php if ($_POST['fieldType'] === 'user')echo ';'?>"><?= htmlspecialcharsbx($documentField['Name']) ?></option>
+					<?php endif;
+				endforeach ?>
+			</select>
+		</td>
+	</tr>
+	<tr>
+		<td>
 			<a href="javascript:void(0)" onclick="BPSHideShow('BPSId2')"><b><?echo GetMessage("BIZPROC_SEL_FIELDS_TAB")?></b></a>
 		</td>
 	</tr>
@@ -286,7 +306,7 @@ function _RecFindParams($act, $arFilter)
 			if(count($arResultTmp)>0)
 			{
 				$result[] = Array(
-					'ID' => $value["Name"], 
+					'ID' => $value["Name"],
 					'NAME'=>$value['Properties']['Title'],
 					'ITEMS' => $arResultTmp,
 				);
@@ -452,9 +472,15 @@ $renderSelect = function($arReturns, $open = true, $title = null) use ($arFilter
 				<option value="" style="background-color: #eeeeff"><?echo GetMessage("BIZPROC_SEL_USERS_TAB_USERS")?></option>
 				<?
 				global $DB;
-				$cnt = max(2000, count($arUsers));
+				$cnt = min(2000, count($arUsers));
 				$mcnt = 500;
 				$i = 0;
+				$externalTypes = ['replica', 'email', 'imconnector', 'bot'];
+				if (method_exists(\Bitrix\Main\UserTable::class, 'getExternalUserTypes'))
+				{
+					$externalTypes = \Bitrix\Main\UserTable::getExternalUserTypes();
+				}
+
 				while ($i < $cnt)
 				{
 					$str = "SELECT ID, LOGIN, NAME, LAST_NAME, SECOND_NAME, EMAIL FROM b_user WHERE ID IN (0";
@@ -462,7 +488,7 @@ $renderSelect = function($arReturns, $open = true, $title = null) use ($arFilter
 					for ($j = $i; $j < $cnt1; $j++)
 						$str .= ", ".intval($arUsers[$j]);
 					$i += $mcnt;
-					$str .= ") AND ACTIVE='Y' AND (EXTERNAL_AUTH_ID IS NULL OR EXTERNAL_AUTH_ID NOT IN ('replica', 'email', 'imconnector', 'bot')) ORDER BY LAST_NAME, EMAIL, ID";
+					$str .= ") AND ACTIVE='Y' AND (EXTERNAL_AUTH_ID IS NULL OR EXTERNAL_AUTH_ID NOT IN ('" . implode('\', \'', $externalTypes) . "')) ORDER BY LAST_NAME, EMAIL, ID";
 					$dbuser = $DB->Query($str);
 					while($user = $dbuser->fetch())
 					{
@@ -510,9 +536,13 @@ function BPSVInsert(v, isUser)
 	}
 	else
 	{
-		<?if ($selectorMode == 'employee'):?>
-		v = BX.util.trim(v.replace(';', ''));
-		<?endif;?>
+		var selectorMode = '<?= CUtil::JSEscape($selectorMode) ?>';
+
+		if (selectorMode === 'employee')
+		{
+			v = BX.util.trim(v.replace(';', ''));
+		}
+
 		var tdocument = top.document;
 		var toField = tdocument.getElementById('<?=AddSlashes(htmlspecialcharsbx($_POST["fieldName"]))?>');
 
@@ -526,7 +556,12 @@ function BPSVInsert(v, isUser)
 		}
 
 		toField.focus();
-		if(tdocument.selection && tdocument.selection.createRange)
+
+		if (selectorMode === 'replace')
+		{
+			toField.value = v;
+		}
+		else if(tdocument.selection && tdocument.selection.createRange)
 		{
 			var range = tdocument.selection.createRange();
 			if(range.text.length>0)

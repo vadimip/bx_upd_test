@@ -38,6 +38,8 @@ final class Manager
 	const HANDLER_INDEPENDENT_FALSE = false;
 
 	const EVENT_ON_GET_HANDLER_DESC = 'OnSaleGetHandlerDescription';
+	const EVENT_ON_PAYSYSTEM_UPDATE = 'OnSalePaySystemUpdate';
+
 	const CACHE_ID = "BITRIX_SALE_INNER_PS_ID";
 	const TTL = 31536000;
 	/**
@@ -84,7 +86,7 @@ final class Manager
 	 */
 	public static function getById($id)
 	{
-		if ($id <= 0)
+		if ((int)$id <= 0)
 			return false;
 
 		$params = array(
@@ -114,19 +116,34 @@ final class Manager
 	/**
 	 * @param $primary
 	 * @param array $data
-	 * @return \Bitrix\Main\Entity\UpdateResult
+	 * @return \Bitrix\Main\ORM\Data\UpdateResult
 	 * @throws \Exception
 	 */
-	public static function update($primary, array $data)
+	public static function update($primary, array $data): \Bitrix\Main\ORM\Data\UpdateResult
 	{
-		return PaySystemActionTable::update($primary, $data);
+		$oldFields = PaySystemActionTable::getByPrimary($primary)->fetch();
+		$updateResult = PaySystemActionTable::update($primary, $data);
+		if ($updateResult->isSuccess())
+		{
+			$oldFields = array_intersect_key($oldFields, $data);
+			$eventParams = [
+				'PAY_SYSTEM_ID' => $primary,
+				'OLD_FIELDS' => $oldFields,
+				'NEW_FIELDS' => $data,
+			];
+			$event = new Event('sale', self::EVENT_ON_PAYSYSTEM_UPDATE, $eventParams);
+			$event->send();
+		}
+
+		return $updateResult;
 	}
 
 	/**
 	 * @param array $data
-	 * @return \Bitrix\Main\Entity\AddResult
+	 * @return \Bitrix\Main\ORM\Data\AddResult
+	 * @throws \Exception
 	 */
-	public static function add(array $data)
+	public static function add(array $data): \Bitrix\Main\ORM\Data\AddResult
 	{
 		return PaySystemActionTable::add($data);
 	}
@@ -288,6 +305,38 @@ final class Manager
 		$data = $dbRes->fetch();
 
 		return $data['IS_CASH'];
+	}
+
+	/**
+	 * @param Order $order
+	 * @param float|null $sum
+	 * @param int $mode
+	 * @return array
+	 * @throws ArgumentException
+	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
+	 * @throws \Bitrix\Main\NotImplementedException
+	 * @throws \Bitrix\Main\NotSupportedException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function getListWithRestrictionsByOrder(Order $order, float $sum = null, int $mode = Restrictions\Manager::MODE_CLIENT): array
+	{
+		/** @var Order $orderClone */
+		$orderClone = $order->createClone();
+
+		$orderPrice = $orderClone->getPrice();
+		$paymentSum = $orderPrice;
+		if ($sum && $sum >= 0 && $sum <= $orderPrice)
+		{
+			$paymentSum = $sum;
+		}
+
+		$paymentCollection = $orderClone->getPaymentCollection();
+		$payment = $paymentCollection->createItem();
+		$payment->setFields([
+			'SUM' => $paymentSum,
+		]);
+
+		return self::getListWithRestrictions($payment, $mode);
 	}
 
 	/**
@@ -614,7 +663,7 @@ final class Manager
 	 */
 	public static function getObjectById($id)
 	{
-		if ($id <= 0)
+		if ((int)$id <= 0)
 			return null;
 
 		$data = Manager::getById($id);
@@ -693,13 +742,14 @@ final class Manager
 			'CONNECT_SETTINGS_SKB' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_SKB'), 'SORT' => 100],
 			'CONNECT_SETTINGS_BEPAID' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_BEPAID'), 'SORT' => 100],
 			'CONNECT_SETTINGS_WOOPPAY' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_WOOPPAY'), 'SORT' => 100],
+			'CONNECT_SETTINGS_PLATON' => ['NAME' => Loc::getMessage('SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PLATON'), 'SORT' => 100],
 		];
 	}
 
 	/**
 	 * @param $primary
-	 * @return \Bitrix\Main\Entity\DeleteResult
-	 * @throws \Bitrix\Main\ArgumentException
+	 * @return \Bitrix\Main\Entity\DeleteResult|\Bitrix\Main\ORM\Data\DeleteResult
+	 * @throws ArgumentException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
 	 */
@@ -734,7 +784,22 @@ final class Manager
 
 		BusinessValue::delete(Service::PAY_SYSTEM_PREFIX.$primary);
 
-		return PaySystemActionTable::delete($primary);
+		$service = Manager::getObjectById($primary);
+
+		$deleteResult = PaySystemActionTable::delete($primary);
+		if ($deleteResult->isSuccess())
+		{
+			if ($service && $service->isSupportPrintCheck())
+			{
+				$onDeletePaySystemResult = Cashbox\EventHandler::onDeletePaySystem($service);
+				if (!$onDeletePaySystemResult->isSuccess())
+				{
+					$deleteResult->addErrors($onDeletePaySystemResult->getErrors());
+				}
+			}
+		}
+
+		return $deleteResult;
 	}
 
 	/**
@@ -853,8 +918,20 @@ final class Manager
 	 */
 	public static function isRestHandler($handler)
 	{
-		$dbRes = PaySystemRestHandlersTable::getList(array('filter' => array('CODE' => $handler)));
-		return (bool)$dbRes->fetch();
+		static $result = [];
+
+		if (isset($result[$handler]))
+		{
+			return $result[$handler];
+		}
+
+		$handlerData = PaySystemRestHandlersTable::getList([
+			'filter' => ['=CODE' => $handler],
+			'limit' => 1,
+		])->fetch();
+		$result[$handler] = (bool)$handlerData;
+
+		return $result[$handler] ?? false;
 	}
 
 	/**

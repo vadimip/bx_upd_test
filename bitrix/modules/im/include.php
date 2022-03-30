@@ -101,16 +101,10 @@ CModule::AddAutoloadClasses(
 		"CIMStatus" => "classes/general/im_status.php",
 		"CIMDisk" => "classes/general/im_disk.php",
 		"CIMShare" => "classes/general/im_share.php",
-		"\\Bitrix\\Im\\ChatTable" => "lib/model/chat.php",
-		"\\Bitrix\\Im\\MessageTable" => "lib/model/message.php",
-		"\\Bitrix\\Im\\MessageParamTable" => "lib/model/messageparam.php",
-		"\\Bitrix\\Im\\RecentTable" => "lib/model/recent.php",
-		"\\Bitrix\\Im\\RelationTable" => "lib/model/relation.php",
-		"\\Bitrix\\Im\\StatusTable" => "lib/model/status.php",
 	)
 );
 
-$jsCoreRel = array('resize_observer', 'im_common', 'im_phone_call_view', 'im.lib.localstorage', 'clipboard', 'sidepanel', 'loader', 'ui.notification', 'ui.alerts', 'ui.vue', 'ui.buttons', 'ui.switcher', 'ui.hint');
+$jsCoreRel = array('im_desktop_utils', 'resize_observer', 'im_common', 'im_phone_call_view', 'im.lib.localstorage', 'clipboard', 'sidepanel', 'loader', 'ui.notification', 'ui.alerts', 'ui.vue', 'ui.buttons', 'ui.switcher', 'ui.hint', 'im.application.notifications');
 $jsCoreRelMobile = array('im_common', 'uploader', 'mobile.pull.client');
 if (IsModuleInstalled('voximplant'))
 {
@@ -120,6 +114,10 @@ if (IsModuleInstalled('voximplant'))
 if (IsModuleInstalled('disk'))
 {
 	$jsCoreRel[] = 'file_dialog';
+}
+if (IsModuleInstalled('calendar'))
+{
+	$jsCoreRel[] = 'calendar.sliderloader';
 }
 if (IsModuleInstalled('pull'))
 {
@@ -154,6 +152,8 @@ $jsImCall = [
 	'/bitrix/js/im/call/voximplant_call.js',
 	'/bitrix/js/im/call/util.js',
 	'/bitrix/js/im/call/view.js',
+	'/bitrix/js/im/call/mic_muted_popup.js',
+	'/bitrix/js/im/call/web_screenshare_popup.js',
 	'/bitrix/js/im/call/notification.js',
 	'/bitrix/js/im/call/notification_conference.js',
 	'/bitrix/js/im/call/invite_popup.js',
@@ -201,6 +201,8 @@ CJSCore::RegisterExt('im_web', array(
 				'call_server_enabled' => \Bitrix\Im\Call\Call::isCallServerEnabled() ? 'Y' : 'N',
 				'call_server_max_users' => \Bitrix\Im\Call\Call::getMaxCallServerParticipants(),
 				'call_log_service' => \Bitrix\Im\Call\Call::getLogService(),
+				'call_collect_stats' => COption::GetOptionString('im', 'collect_call_stats', 'N'),
+				'jitsi_server' => COption::GetOptionString('im', 'jitsi_server'),
 			)
 		);
 	},
@@ -226,6 +228,8 @@ CJSCore::RegisterExt('im_page', array(
 				'call_server_enabled' => \Bitrix\Im\Call\Call::isCallServerEnabled() ? 'Y' : 'N',
 				'call_server_max_users' => \Bitrix\Im\Call\Call::getMaxCallServerParticipants(),
 				'call_log_service' => \Bitrix\Im\Call\Call::getLogService(),
+				'call_collect_stats' => COption::GetOptionString('im', 'collect_call_stats', 'N'),
+				'jitsi_server' => COption::GetOptionString('im', 'jitsi_server'),
 			)
 		);
 	},
@@ -254,7 +258,11 @@ CJSCore::RegisterExt('im_window', array(
 CJSCore::RegisterExt('im_desktop', array(
 	'js' => '/bitrix/js/im/desktop.js',
 	'lang' => '/bitrix/modules/im/js_desktop.php',
-	'rel' => array('im_page', 'socnetlogdest'),
+	'rel' => array('im_page', 'socnetlogdest', 'im.lib.logger'),
+));
+
+CJSCore::RegisterExt('im_desktop_utils', array(
+	'js' => '/bitrix/js/im/desktop_utils.js',
 ));
 
 CJSCore::RegisterExt('im_timecontrol', array(
@@ -286,6 +294,8 @@ CJSCore::RegisterExt('im_call', [
 				'call_server_enabled' => \Bitrix\Im\Call\Call::isCallServerEnabled() ? 'Y' : 'N',
 				'call_server_max_users' => \Bitrix\Main\Config\Option::get('im', 'call_server_max_users'),
 				'call_log_service' => \Bitrix\Im\Call\Call::getLogService(),
+				'call_collect_stats' => COption::GetOptionString('im', 'collect_call_stats', 'N'),
+				'jitsi_server' => COption::GetOptionString('im', 'jitsi_server'),
 			)
 		);
 	},

@@ -13,6 +13,22 @@ use Bitrix\Main\NotImplementedException;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class WorkgroupTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Workgroup_Query query()
+ * @method static EO_Workgroup_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Workgroup_Result getById($id)
+ * @method static EO_Workgroup_Result getList(array $parameters = array())
+ * @method static EO_Workgroup_Entity getEntity()
+ * @method static \Bitrix\Socialnetwork\EO_Workgroup createObject($setDefaultValues = true)
+ * @method static \Bitrix\Socialnetwork\EO_Workgroup_Collection createCollection()
+ * @method static \Bitrix\Socialnetwork\EO_Workgroup wakeUpObject($row)
+ * @method static \Bitrix\Socialnetwork\EO_Workgroup_Collection wakeUpCollection($rows)
+ */
 class WorkgroupTable extends Entity\DataManager
 {
 	const AUTO_MEMBERSHIP_YES = 'Y';
@@ -56,10 +72,14 @@ class WorkgroupTable extends Entity\DataManager
 				'reference' => array('=this.SUBJECT_ID' => 'ref.ID')
 			),
 			'NAME' => array(
-				'data_type' => 'string'
+				'data_type' => 'string',
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			),
 			'DESCRIPTION' => array(
-				'data_type' => 'text'
+				'data_type' => 'text',
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			),
 			'KEYWORDS' => array(
 				'data_type' => 'string'
@@ -88,6 +108,9 @@ class WorkgroupTable extends Entity\DataManager
 			'IMAGE_ID' => array(
 				'data_type' => 'integer',
 			),
+			'AVATAR_TYPE' => [
+				'data_type' => 'string',
+			],
 			'OWNER_ID' => array(
 				'data_type' => 'integer',
 			),
@@ -99,6 +122,9 @@ class WorkgroupTable extends Entity\DataManager
 				'data_type' => 'string'
 			),
 			'NUMBER_OF_MEMBERS' => array(
+				'data_type' => 'integer',
+			),
+			'NUMBER_OF_MODERATORS' => array(
 				'data_type' => 'integer',
 			),
 			'PROJECT' => array(
@@ -127,6 +153,10 @@ class WorkgroupTable extends Entity\DataManager
 			'SCRUM_SPRINT_DURATION' => array(
 				'data_type' => 'integer',
 			),
+			'SCRUM_TASK_RESPONSIBLE' => [
+				'data_type' => 'string',
+				'values' => ['A', 'M']
+			],
 		);
 
 		return $fieldsMap;

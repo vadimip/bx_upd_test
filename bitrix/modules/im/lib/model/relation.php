@@ -32,7 +32,20 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Im
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Relation_Query query()
+ * @method static EO_Relation_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Relation_Result getById($id)
+ * @method static EO_Relation_Result getList(array $parameters = array())
+ * @method static EO_Relation_Entity getEntity()
+ * @method static \Bitrix\Im\Model\EO_Relation createObject($setDefaultValues = true)
+ * @method static \Bitrix\Im\Model\EO_Relation_Collection createCollection()
+ * @method static \Bitrix\Im\Model\EO_Relation wakeUpObject($row)
+ * @method static \Bitrix\Im\Model\EO_Relation_Collection wakeUpCollection($rows)
+ */
 
 class RelationTable extends Entity\DataManager
 {
@@ -127,6 +140,10 @@ class RelationTable extends Entity\DataManager
 				'data_type' => 'integer',
 				'default_value' => 0,
 			),
+			'START_COUNTER' => array(
+				'data_type' => 'integer',
+				'default_value' => 0,
+			),
 			'CHAT' => array(
 				'data_type' => 'Bitrix\Im\Model\ChatTable',
 				'reference' => array('=this.CHAT_ID' => 'ref.ID'),
@@ -210,5 +227,3 @@ class RelationTable extends Entity\DataManager
 		return $connection->getAffectedRowsCount();
 	}
 }
-
-class_alias("Bitrix\\Im\\Model\\RelationTable", "Bitrix\\Im\\RelationTable", false);

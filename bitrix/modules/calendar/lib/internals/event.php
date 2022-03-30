@@ -7,6 +7,22 @@ use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Entity;
 
+/**
+ * Class EventTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Event_Query query()
+ * @method static EO_Event_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Event_Result getById($id)
+ * @method static EO_Event_Result getList(array $parameters = array())
+ * @method static EO_Event_Entity getEntity()
+ * @method static \Bitrix\Calendar\Internals\EO_Event createObject($setDefaultValues = true)
+ * @method static \Bitrix\Calendar\Internals\EO_Event_Collection createCollection()
+ * @method static \Bitrix\Calendar\Internals\EO_Event wakeUpObject($row)
+ * @method static \Bitrix\Calendar\Internals\EO_Event_Collection wakeUpCollection($rows)
+ */
 class EventTable extends Main\Entity\DataManager
 {
 	/**
@@ -186,6 +202,10 @@ class EventTable extends Main\Entity\DataManager
 			)),
 			new Entity\DatetimeField('ORIGINAL_DATE_FROM', array(
 				'title' => Loc::getMessage('SECTION_ENTITY_ORIGINAL_DATE_FROM_FIELD'),
+			)),
+			new Entity\StringField('SYNC_STATUS', array(
+				'validation' => array(__CLASS__, 'validateSyncStatus'),
+				'title' => Loc::getMessage('SECTION_ENTITY_SYNC_STATUS'),
 			)),
 		);
 	}
@@ -406,10 +426,25 @@ class EventTable extends Main\Entity\DataManager
 		);
 	}
 
-	public static function validateMeetingStatus()
+	/**
+	 * @return Entity\Validator\Length[]
+	 * @throws Main\ArgumentTypeException
+	 */
+	public static function validateMeetingStatus(): array
 	{
 		return [
 			new Main\Entity\Validator\Length(null, 1),
 		];
+	}
+
+	/**
+	 * @return Entity\Validator\Length[]
+	 * @throws Main\ArgumentTypeException
+	 */
+	public static function validateSyncStatus(): array
+	{
+		return array(
+			new Main\Entity\Validator\Length(null, 20),
+		);
 	}
 }

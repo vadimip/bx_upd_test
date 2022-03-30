@@ -5,6 +5,7 @@ use Bitrix\Intranet\Integration\Mail\EmailUser;
 use Bitrix\Intranet\Internals\InvitationTable;
 use Bitrix\Intranet\Invitation;
 use Bitrix\Intranet\UserAbsence;
+use Bitrix\Main\Application;
 use Bitrix\Main\Config\Option;
 use Bitrix\Main\Engine\Router;
 use Bitrix\Main\Engine\UrlManager;
@@ -28,17 +29,24 @@ use Bitrix\UI\EntitySelector\SearchQuery;
 
 class UserProvider extends BaseProvider
 {
-	private const EXTRANET_ROLES = [
+	protected const EXTRANET_ROLES = [
 		UserToGroupTable::ROLE_USER,
 		UserToGroupTable::ROLE_OWNER,
 		UserToGroupTable::ROLE_MODERATOR,
 		UserToGroupTable::ROLE_REQUEST
 	];
+	protected const MAX_USERS_IN_RECENT_TAB = 50;
+
+	protected const ENTITY_ID = 'user';
 
 	public function __construct(array $options = [])
 	{
 		parent::__construct();
+		$this->prepareOptions($options);
+	}
 
+	protected function prepareOptions(array $options = []): void
+	{
 		if (isset($options['nameTemplate']) && is_string($options['nameTemplate']))
 		{
 			preg_match_all(
@@ -112,6 +120,44 @@ class UserProvider extends BaseProvider
 		{
 			$this->options['inviteGuestLink'] = $options['inviteGuestLink'];
 		}
+
+		if (isset($options['userId']))
+		{
+			if (is_array($options['userId']))
+			{
+				$this->options['userId'] = $options['userId'];
+			}
+			elseif (is_string($options['userId']) || is_int($options['userId']))
+			{
+				$this->options['userId'] = (int)$options['userId'];
+			}
+		}
+		elseif (isset($options['!userId']))
+		{
+			if (is_array($options['!userId']))
+			{
+				$this->options['!userId'] = $options['!userId'];
+			}
+			elseif (is_string($options['!userId']) || is_int($options['!userId']))
+			{
+				$this->options['!userId'] = (int)$options['!userId'];
+			}
+		}
+
+		if (isset($options['selectFields']) && is_array($options['selectFields']))
+		{
+			$selectFields = [];
+			$allowedFields = static::getAllowedFields();
+			foreach ($options['selectFields'] as $field)
+			{
+				if (is_string($field) && array_key_exists($field, $allowedFields))
+				{
+					$selectFields[] = $field;
+				}
+			}
+
+			$this->options['selectFields'] = array_unique($selectFields);
+		}
 	}
 
 	public function isAvailable(): bool
@@ -147,18 +193,13 @@ class UserProvider extends BaseProvider
 
 	public function fillDialog(Dialog $dialog): void
 	{
-		$maxUsersInRecentTab = 50;
-
 		// Preload first 50 users ('doSearch' method has to have the same filter).
-		$preloadedUsers = $this->getUserCollection([
-			'order' => ['ID' => 'asc'],
-			'limit' => $maxUsersInRecentTab
-		]);
+		$preloadedUsers = $this->getPreloadedUsersCollection();
 
-		if ($preloadedUsers->count() < $maxUsersInRecentTab)
+		if ($preloadedUsers->count() < self::MAX_USERS_IN_RECENT_TAB)
 		{
 			// Turn off the user search
-			$entity = $dialog->getEntity('user');
+			$entity = $dialog->getEntity(static::ENTITY_ID);
 			if ($entity)
 			{
 				$entity->setDynamicSearch(false);
@@ -168,21 +209,21 @@ class UserProvider extends BaseProvider
 		$recentUsers = new EO_User_Collection();
 
 		// Recent Items
-		$recentItems = $dialog->getRecentItems()->getEntityItems('user');
+		$recentItems = $dialog->getRecentItems()->getEntityItems(static::ENTITY_ID);
 		$recentIds = array_map('intval', array_keys($recentItems));
 		$this->fillRecentUsers($recentUsers, $recentIds, $preloadedUsers);
 
 		// Global Recent Items
-		if ($recentUsers->count() < $maxUsersInRecentTab)
+		if ($recentUsers->count() < self::MAX_USERS_IN_RECENT_TAB)
 		{
-			$recentGlobalItems = $dialog->getGlobalRecentItems()->getEntityItems('user');
+			$recentGlobalItems = $dialog->getGlobalRecentItems()->getEntityItems(static::ENTITY_ID);
 			$recentGlobalIds = [];
 
 			if (!empty($recentGlobalItems))
 			{
 				$recentGlobalIds = array_map('intval', array_keys($recentGlobalItems));
 				$recentGlobalIds = array_values(array_diff($recentGlobalIds, $recentUsers->getIdList()));
-				$recentGlobalIds = array_slice($recentGlobalIds, 0, $maxUsersInRecentTab - $recentUsers->count());
+				$recentGlobalIds = array_slice($recentGlobalIds, 0, self::MAX_USERS_IN_RECENT_TAB - $recentUsers->count());
 			}
 
 			$this->fillRecentUsers($recentUsers, $recentGlobalIds, $preloadedUsers);
@@ -205,6 +246,7 @@ class UserProvider extends BaseProvider
 				$inviteEmployeeLink = UrlManager::getInstance()->create('getSliderContent', [
 					'c' => 'bitrix:intranet.invitation',
 					'mode' => Router::COMPONENT_MODE_AJAX,
+					'analyticsLabel[source]' => 'userProvider',
 				]);
 			}
 
@@ -219,12 +261,27 @@ class UserProvider extends BaseProvider
 
 			if ($inviteEmployeeLink || $inviteGuestLink)
 			{
-				$dialog->setFooter('BX.SocialNetwork.EntitySelector.Footer', [
-					'inviteEmployeeLink' => $inviteEmployeeLink,
-					'inviteGuestLink' => $inviteGuestLink
-				]);
+				$footerOptions = [];
+				if ($dialog->getFooter() === 'BX.SocialNetwork.EntitySelector.Footer')
+				{
+					// Footer could be set from ProjectProvider
+					$footerOptions = $dialog->getFooterOptions() ?? [];
+				}
+
+				$footerOptions['inviteEmployeeLink'] = $inviteEmployeeLink;
+				$footerOptions['inviteGuestLink'] = $inviteGuestLink;
+
+				$dialog->setFooter('BX.SocialNetwork.EntitySelector.Footer', $footerOptions);
 			}
 		}
+	}
+
+	protected function getPreloadedUsersCollection(): EO_User_Collection
+	{
+		return $this->getUserCollection([
+			'order' => ['ID' => 'asc'],
+			'limit' => self::MAX_USERS_IN_RECENT_TAB
+		]);
 	}
 
 	private function fillRecentUsers(
@@ -262,24 +319,31 @@ class UserProvider extends BaseProvider
 	{
 		$atom = '=_0-9a-z+~\'!\$&*^`|\\#%/?{}-';
 		$isEmailLike = (bool)preg_match('#^['.$atom.']+(\\.['.$atom.']+)*@#i', $searchQuery->getQuery());
+		$limit = 100;
 
 		if ($isEmailLike)
 		{
-			$dialog->addItems(
-				$this->getUserItems([
-					'searchByEmail' => $searchQuery->getQuery(),
-					'myEmailUsers' => false
-				])
-			);
+			$items = $this->getUserItems([
+				'searchByEmail' => $searchQuery->getQuery(),
+				'myEmailUsers' => false,
+				'limit' => $limit
+			]);
 		}
 		else
 		{
-			$dialog->addItems(
-				$this->getUserItems([
-					'searchQuery' => $searchQuery->getQuery(),
-				])
-			);
+			$items = $this->getUserItems([
+				'searchQuery' => $searchQuery->getQuery(),
+				'limit' => $limit
+			]);
 		}
+
+		$limitExceeded = $limit <= count($items);
+		if ($limitExceeded)
+		{
+			$searchQuery->setCacheable(false);
+		}
+
+		$dialog->addItems($items);
 	}
 
 	public function handleBeforeItemSave(Item $item): void
@@ -298,7 +362,7 @@ class UserProvider extends BaseProvider
 	{
 		$options = array_merge($this->getOptions(), $options);
 
-		return self::getUsers($options);
+		return static::getUsers($options);
 	}
 
 	public function getUserItems(array $options = []): array
@@ -313,66 +377,86 @@ class UserProvider extends BaseProvider
 
 	public static function isIntranetUser(int $userId = null): bool
 	{
-		if (!ModuleManager::isModuleInstalled('intranet'))
-		{
-			return false;
-		}
-
-		static $cache = [];
-
-		if (is_null($userId))
-		{
-			$userId = is_object($GLOBALS['USER']) ? $GLOBALS['USER']->getId() : 0;
-			if ($userId <= 0)
-			{
-				return false;
-			}
-		}
-
-		if (!isset($cache[$userId]))
-		{
-			$cache[$userId] = UserTable::getList([
-				'filter' => [
-					'=ID' => $userId,
-					'!UF_DEPARTMENT' => false,
-					'IS_REAL_USER' => true
-				],
-			])->fetchCollection()->count() === 1;
-		}
-
-		return $cache[$userId];
+		return self::hasUserRole($userId, 'intranet');
 	}
 
 	public static function isExtranetUser(int $userId = null): bool
 	{
-		if (!ModuleManager::isModuleInstalled('intranet'))
+		return self::hasUserRole($userId, 'extranet');
+	}
+
+	public static function getCurrentUserId(): int
+	{
+		return is_object($GLOBALS['USER']) ? (int)$GLOBALS['USER']->getId() : 0;
+	}
+
+	private static function hasUserRole(?int $userId, string $role): bool
+	{
+		static $roles = [
+			'intranet' => [],
+			'extranet' => []
+		];
+
+		if (!ModuleManager::isModuleInstalled('intranet') || !isset($roles[$role]))
 		{
 			return false;
 		}
 
-		static $cache = [];
-
 		if (is_null($userId))
 		{
-			$userId = is_object($GLOBALS['USER']) ? $GLOBALS['USER']->getId() : 0;
+			$userId = self::getCurrentUserId();
 			if ($userId <= 0)
 			{
 				return false;
 			}
 		}
 
-		if (!isset($cache[$userId]))
+		if (isset($roles[$role][$userId]))
 		{
-			$cache[$userId] = UserTable::getList([
-				'filter' => [
-					'=ID' => $userId,
-					'UF_DEPARTMENT' => false,
-					'IS_REAL_USER' => true
-				],
-			])->fetchCollection()->count() === 1;
+			return $roles[$role][$userId];
 		}
 
-		return $cache[$userId];
+		$cacheId = 'UserRole:'.$role;
+		$cachePath = '/external_user_info/'.substr(md5($userId),-2).'/'.$userId.'/';
+		$cache = Application::getInstance()->getCache();
+		$ttl = 2592000; // 1 month
+
+		if ($cache->initCache($ttl, $cacheId, $cachePath))
+		{
+			$roles[$role][$userId] = (bool)$cache->getVars();
+		}
+		else
+		{
+			$cache->startDataCache();
+
+			$taggedCache = Application::getInstance()->getTaggedCache();
+			$taggedCache->startTagCache($cachePath);
+			$taggedCache->registerTag('USER_NAME_'.$userId);
+			$taggedCache->endTagCache();
+
+			$filter = [
+				'=ID' => $userId,
+				'=IS_REAL_USER' => true
+			];
+
+			if ($role === 'intranet')
+			{
+				$filter['!UF_DEPARTMENT'] = false;
+			}
+			else if ($role === 'extranet')
+			{
+				$filter['UF_DEPARTMENT'] = false;
+			}
+
+			$roles[$role][$userId] =
+				UserTable::getList(['select' => ['ID'], 'filter' => $filter])
+					->fetchCollection()->count() === 1
+			;
+
+			$cache->endDataCache($roles[$role][$userId]);
+		}
+
+		return $roles[$role][$userId];
 	}
 
 	public static function isIntegrator(int $userId = null): bool
@@ -390,7 +474,7 @@ class UserProvider extends BaseProvider
 
 		if (is_null($userId))
 		{
-			$userId = is_object($GLOBALS['USER']) ? $GLOBALS['USER']->getId() : 0;
+			$userId = self::getCurrentUserId();
 			if ($userId <= 0)
 			{
 				return false;
@@ -400,14 +484,129 @@ class UserProvider extends BaseProvider
 		return isset($integrators[$userId]);
 	}
 
+	public static function getAllowedFields(): array
+	{
+		static $fields = null;
+
+		if ($fields !== null)
+		{
+			return $fields;
+		}
+
+		$fields = [
+			'lastName' => 'LAST_NAME',
+			'name' => 'NAME',
+			'secondName' => 'SECOND_NAME',
+			'login' => 'LOGIN',
+			'email' => 'EMAIL',
+			'title' => 'TITLE',
+			'position', 'WORK_POSITION',
+			'lastLogin' => 'LAST_LOGIN',
+			'dateRegister' => 'DATE_REGISTER',
+			'lastActivityDate' => 'LAST_ACTIVITY_DATE',
+			'online' => 'IS_ONLINE',
+			'profession' => 'PERSONAL_PROFESSION',
+			'www' => 'PERSONAL_WWW',
+			'birthday' => 'PERSONAL_BIRTHDAY',
+			'icq' => 'PERSONAL_ICQ',
+			'phone' => 'PERSONAL_PHONE',
+			'fax' => 'PERSONAL_FAX',
+			'mobile' => 'PERSONAL_MOBILE',
+			'pager' => 'PERSONAL_PAGER',
+			'street' => 'PERSONAL_STREET',
+			'city' => 'PERSONAL_CITY',
+			'state' => 'PERSONAL_STATE',
+			'zip' => 'PERSONAL_ZIP',
+			'mailbox' => 'PERSONAL_MAILBOX',
+			'country' => 'PERSONAL_COUNTRY',
+			'timeZoneOffset' => 'TIME_ZONE_OFFSET',
+			'company' => 'WORK_COMPANY',
+			'workPhone' => 'WORK_PHONE',
+			'workDepartment' => 'WORK_DEPARTMENT',
+			'workPosition' => 'WORK_POSITION',
+			'workCity' => 'WORK_CITY',
+			'workCountry' => 'WORK_COUNTRY',
+			'workStreet' => 'WORK_STREET',
+			'workState' => 'WORK_STATE',
+			'workZip' => 'WORK_ZIP',
+			'workMailbox' => 'WORK_MAILBOX',
+		];
+
+		foreach ($fields as $id => $dbName)
+		{
+			if (mb_strpos($dbName, 'PERSONAL_') === 0)
+			{
+				$fields['personal' . ucfirst($id)] = $dbName;
+			}
+
+			$fields[$dbName] = $dbName;
+		}
+
+		$intranetInstalled = ModuleManager::isModuleInstalled('intranet');
+		if ($intranetInstalled)
+		{
+			$userFields = $GLOBALS['USER_FIELD_MANAGER']->GetUserFields('USER');
+			$allowedUserFields = [
+				'ufPhoneInner' => 'UF_PHONE_INNER',
+				'ufDistrict' => 'UF_DISTRICT',
+				'ufSkype' => 'UF_SKYPE',
+				'ufSkypeLink' => 'UF_SKYPE_LINK',
+				'ufZoom' => 'UF_ZOOM',
+				'ufTwitter' => 'UF_TWITTER',
+				'ufFacebook' => 'UF_FACEBOOK',
+				'ufLinkedin' => 'UF_LINKEDIN',
+				'ufXing' => 'UF_XING',
+				'ufWebSites' => 'UF_WEB_SITES',
+				'ufSkills' => 'UF_SKILLS',
+				'ufInterests' => 'UF_INTERESTS',
+				'ufEmploymentDate' => 'UF_EMPLOYMENT_DATE',
+			];
+
+			foreach ($allowedUserFields as $id => $dbName)
+			{
+				if (array_key_exists($dbName, $userFields))
+				{
+					$fields[$id] = $dbName;
+					$fields[$dbName] = $dbName;
+				}
+			}
+		}
+
+		return $fields;
+	}
+
 	public static function getUsers(array $options = []): EO_User_Collection
 	{
-		$query = UserTable::query();
-		$query->setSelect([
+		$query = static::getQuery($options);
+		//echo '<pre>'.$query->getQuery().'</pre>';
+
+		$result = $query->exec();
+
+		return $result->fetchCollection();
+	}
+
+	protected static function getQuery(array $options = []): Query
+	{
+		$selectFields = [
 			'ID', 'ACTIVE', 'LAST_NAME', 'NAME', 'SECOND_NAME', 'LOGIN', 'EMAIL', 'TITLE',
 			'PERSONAL_GENDER', 'PERSONAL_PHOTO', 'WORK_POSITION',
 			'CONFIRM_CODE', 'EXTERNAL_AUTH_ID'
-		]);
+		];
+
+		if (isset($options['selectFields']) && is_array($options['selectFields']))
+		{
+			$allowedFields = static::getAllowedFields();
+			foreach ($options['selectFields'] as $field)
+			{
+				if (is_string($field) && array_key_exists($field, $allowedFields))
+				{
+					$selectFields[] = $allowedFields[$field];
+				}
+			}
+		}
+
+		$query = UserTable::query();
+		$query->setSelect(array_unique($selectFields));
 
 		$intranetInstalled = ModuleManager::isModuleInstalled('intranet');
 		if ($intranetInstalled)
@@ -435,15 +634,15 @@ class UserProvider extends BaseProvider
 		{
 			$query->registerRuntimeField(
 				new Reference(
-					'INDEX_SELECTOR',
-					\Bitrix\Main\UserIndexSelectorTable::class,
+					'USER_INDEX',
+					\Bitrix\Main\UserIndexTable::class,
 					Join::on('this.ID', 'ref.USER_ID'),
 					['join_type' => 'INNER']
 				)
 			);
 
 			$query->whereMatch(
-				'INDEX_SELECTOR.SEARCH_SELECTOR_CONTENT',
+				'USER_INDEX.SEARCH_USER_CONTENT',
 				Filter\Helper::matchAgainstWildcard(
 					Content::prepareStringToken($options['searchQuery']), '*', 1
 				)
@@ -455,30 +654,33 @@ class UserProvider extends BaseProvider
 		}
 
 		$currentUserId = (
-			!empty($options['currentUserId']) && is_int($options['currentUserId'])
-				? $options['currentUserId']
-				: $GLOBALS['USER']->getId()
+		!empty($options['currentUserId']) && is_int($options['currentUserId'])
+			? $options['currentUserId']
+			: $GLOBALS['USER']->getId()
 		);
 
 		$isIntranetUser = $intranetInstalled && self::isIntranetUser($currentUserId);
 		if ($intranetInstalled)
 		{
+			$emptyValue = serialize([]);
+			$emptyValue2 = serialize([0]);
+
 			$query->registerRuntimeField(new ExpressionField(
 				'IS_INTRANET_USER',
 				'IF(
-					(%s IS NOT NULL AND %s != \'a:0:{}\') AND
+					(%s IS NOT NULL AND %s != \'' . $emptyValue . '\' AND %s != \'' . $emptyValue2 . '\') AND
 					(%s IS NULL OR %s NOT IN (\''.join('\', \'', UserTable::getExternalUserTypes()).'\')), \'Y\', \'N\'
 				)',
-				['UF_DEPARTMENT', 'UF_DEPARTMENT', 'EXTERNAL_AUTH_ID', 'EXTERNAL_AUTH_ID'])
+				['UF_DEPARTMENT', 'UF_DEPARTMENT', 'UF_DEPARTMENT', 'EXTERNAL_AUTH_ID', 'EXTERNAL_AUTH_ID'])
 			);
 
 			$query->registerRuntimeField(new ExpressionField(
 				'IS_EXTRANET_USER',
 				'IF(
-					(%s IS NULL OR %s = \'a:0:{}\') AND
+					(%s IS NULL OR %s = \'' . $emptyValue . '\' OR %s = \'' . $emptyValue2 . '\') AND
 					(%s IS NULL OR %s NOT IN (\''.join('\', \'', UserTable::getExternalUserTypes()).'\')), \'Y\', \'N\'
 				)',
-				['UF_DEPARTMENT', 'UF_DEPARTMENT', 'EXTERNAL_AUTH_ID', 'EXTERNAL_AUTH_ID'])
+				['UF_DEPARTMENT', 'UF_DEPARTMENT', 'UF_DEPARTMENT', 'EXTERNAL_AUTH_ID', 'EXTERNAL_AUTH_ID'])
 			);
 
 			$query->registerRuntimeField(
@@ -579,6 +781,10 @@ class UserProvider extends BaseProvider
 				{
 					$query->where('IS_EXTRANET_USER', 'Y');
 				}
+				else
+				{
+					$query->addFilter('!=EXTERNAL_AUTH_ID', UserTable::getExternalUserTypes());
+				}
 
 				if ($extranetUsersQuery)
 				{
@@ -658,16 +864,19 @@ class UserProvider extends BaseProvider
 			$query->setOrder(['LAST_NAME' => 'asc']);
 		}
 
-		$query->setLimit(isset($options['limit']) && is_int($options['limit']) ? $options['limit'] : 100);
+		if (isset($options['limit']) && is_int($options['limit']))
+		{
+			$query->setLimit($options['limit']);
+		}
+		elseif ($userFilter !== 'userId' || empty($userIds))
+		{
+			$query->setLimit(100);
+		}
 
-		//echo '<pre>'.$query->getQuery().'</pre>';
-
-		$result = $query->exec();
-
-		return $result->fetchCollection();
+		return $query;
 	}
 
-	private static function getExtranetUsersQuery(int $currentUserId): ?Query
+	protected static function getExtranetUsersQuery(int $currentUserId): ?Query
 	{
 		$extranetSiteId = Option::get('extranet', 'extranet_site');
 		$extranetSiteId = ($extranetSiteId && ModuleManager::isModuleInstalled('extranet') ? $extranetSiteId : false);
@@ -678,7 +887,7 @@ class UserProvider extends BaseProvider
 		}
 
 		$query = UserToGroupTable::query();
-		$query->addSelect(new ExpressionField('DISTINCT_USER_ID', 'DISTINCT %s', 'USER_ID'));
+		$query->addSelect(new ExpressionField('DISTINCT_USER_ID', 'DISTINCT %s', 'USER.ID'));
 		// $query->where('ROLE', '<=', UserToGroupTable::ROLE_USER);
 		$query->whereIn('ROLE', self::EXTRANET_ROLES);
 		$query->registerRuntimeField(
@@ -707,7 +916,7 @@ class UserProvider extends BaseProvider
 	public static function getUser(int $userId, array $options = []): ?EO_User
 	{
 		$options['userId'] = $userId;
-		$users = self::getUsers($options);
+		$users = static::getUsers($options);
 
 		return $users->count() ? $users->getAll()[0] : null;
 	}
@@ -717,7 +926,7 @@ class UserProvider extends BaseProvider
 		$result = [];
 		foreach ($users as $user)
 		{
-			$result[] = self::makeItem($user, $options);
+			$result[] = static::makeItem($user, $options);
 		}
 
 		return $result;
@@ -732,16 +941,6 @@ class UserProvider extends BaseProvider
 			{
 				$customData[$field] = $user->{'get'.$field}();
 			}
-		}
-
-		if (isset($options['showLogin']) && $options['showLogin'] === false)
-		{
-			unset($customData['login']);
-		}
-
-		if (isset($options['showEmail']) && $options['showEmail'] === false)
-		{
-			unset($customData['email']);
 		}
 
 		if (!empty($user->getPersonalGender()))
@@ -761,13 +960,49 @@ class UserProvider extends BaseProvider
 			$customData['invited'] = true;
 		}
 
+		if (isset($options['selectFields']) && is_array($options['selectFields']))
+		{
+			$userData = $user->collectValues();
+			$allowedFields = static::getAllowedFields();
+			foreach ($options['selectFields'] as $field)
+			{
+				if (!is_string($field))
+				{
+					continue;
+				}
+
+				$dbName = $allowedFields[$field] ?? null;
+				$value = $userData[$dbName] ?? null;
+				if (!empty($value))
+				{
+					if ($field === 'country' || $field === 'workCountry')
+					{
+						$value = \Bitrix\Main\UserUtils::getCountryValue(['VALUE' => $value]);
+					}
+
+					$customData[$field] = $value;
+				}
+			}
+		}
+
+		if (isset($options['showLogin']) && $options['showLogin'] === false)
+		{
+			unset($customData['login']);
+		}
+
+		if (isset($options['showEmail']) && $options['showEmail'] === false)
+		{
+			unset($customData['email']);
+		}
+
 		$item = new Item([
 			'id' => $user->getId(),
-			'entityId' => 'user',
+			'entityId' => static::ENTITY_ID,
 			'entityType' => $userType,
 			'title' => self::formatUserName($user, $options),
 			'avatar' => self::makeUserAvatar($user),
 			'customData' => $customData,
+			'tabs' => static::getTabsNames(),
 		]);
 
 		if (($userType === 'employee' || $userType === 'integrator') && Loader::includeModule('intranet'))
@@ -780,6 +1015,11 @@ class UserProvider extends BaseProvider
 		}
 
 		return $item;
+	}
+
+	protected static function getTabsNames(): array
+	{
+		return [static::ENTITY_ID];
 	}
 
 	public static function getUserType(EO_User $user): string
@@ -807,7 +1047,18 @@ class UserProvider extends BaseProvider
 				}
 				else
 				{
-					$type = empty($user->getUfDepartment()) ? 'extranet' : 'employee';
+					$ufDepartment = $user->getUfDepartment();
+					if (
+						empty($ufDepartment)
+						|| (is_array($ufDepartment) && count($ufDepartment) === 1 && (int)$ufDepartment[0] === 0)
+					)
+					{
+						$type = 'extranet';
+					}
+					else
+					{
+						$type = 'employee';
+					}
 				}
 			}
 			else

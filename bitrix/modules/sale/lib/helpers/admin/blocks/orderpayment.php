@@ -109,7 +109,12 @@ class OrderPayment
 		$fields['PAY_SYSTEM_LIST'] = self::getPaySystemList($item);
 
 		$fields['CHECK'] = CheckManager::getCheckInfo($item);
+
 		$fields['CAN_PRINT_CHECK'] = $fields['PAY_SYSTEM_LIST'][$fields['PAY_SYSTEM_ID']]['CAN_PRINT_CHECK'];
+		if (Sale\Cashbox\Manager::isEnabledPaySystemPrint())
+		{
+			$fields['CAN_PRINT_CHECK'] = 'N';
+		}
 
 		$dbRes = CashboxTable::getList(array('filter' => array('=ACTIVE' => 'Y', '=ENABLED' => 'Y')));
 		$fields['HAS_ENABLED_CASHBOX'] = ($dbRes->fetch()) ? 'Y' : 'N';
@@ -490,6 +495,7 @@ class OrderPayment
 				<input type="hidden" name="PAYMENT['.$index.'][INDEX]" value="'.$index.'" class="index">
 				<input type="hidden" name="PAYMENT['.$index.'][PAID]" id="PAYMENT_PAID_'.$index.'" value="'.(empty($paid) ? 'N' : $paid).'">
 				<input type="hidden" name="PAYMENT['.$index.'][IS_RETURN]" id="PAYMENT_IS_RETURN_'.$index.'" value="'.($post['IS_RETURN'] ? htmlspecialcharsbx($post['IS_RETURN']) : 'N').'">
+				<input type="hidden" name="PAYMENT['.$index.'][IS_RETURN_CHANGED]" id="PAYMENT_IS_RETURN_CHANGED_'.$index.'" value="N">
 				'.$hiddenPaySystemInnerId.'
 				<div class="adm-bus-component-content-container">
 					<div class="adm-bus-pay-section">
@@ -1335,7 +1341,9 @@ class OrderPayment
 						$result->addErrors($setResult->getErrors());
 				}
 
-				if (!$canSetPaid)
+				$isReturnChanged = $payment['IS_RETURN_CHANGED'] === 'Y';
+
+				if (!$canSetPaid && !$isReturnChanged)
 				{
 					$setResult = $paymentItem->setPaid($payment['PAID']);
 					if (!$setResult->isSuccess())

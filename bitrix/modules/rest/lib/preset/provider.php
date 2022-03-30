@@ -10,6 +10,8 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Security\Random;
 use Bitrix\Main\Entity\ReferenceField;
 use Bitrix\Rest\APAuth\PermissionTable;
+use Bitrix\Rest\Lang;
+use Bitrix\Rest\PlacementLangTable;
 use Bitrix\Rest\Preset\Data\Element;
 use Bitrix\Rest\Preset\Data\Rest;
 use Bitrix\Rest\EventTable;
@@ -178,6 +180,8 @@ class Provider
 			$result['errors'] = $errorList;
 		}
 
+		\Bitrix\Rest\Engine\Access::getActiveEntity(true);
+
 		return $result;
 	}
 
@@ -268,7 +272,7 @@ class Provider
 				);
 			}
 
-			if (!empty($item['BOT_DATA_APP_ID']))
+			if (!empty($item['BOT_DATA_APP_ID']) && mb_strpos($item['BOT_DATA_APP_ID'], 'custom') === 0)
 			{
 				//clear 'custom' prefix only for webhook bot
 				$item['BOT_DATA_APP_ID'] = mb_substr($item['BOT_DATA_APP_ID'], 6);
@@ -286,6 +290,35 @@ class Provider
 				while ($lang = $resLang->fetch())
 				{
 					$item['APPLICATION_LANG_DATA'][$lang['LANGUAGE_ID']] = $lang['MENU_NAME'];
+				}
+			}
+
+			if ($item['APP_ID'] > 0 && !empty($item['WIDGET_LIST']))
+			{
+				$resLang = PlacementTable::getList(
+					[
+						'filter' => [
+							'=APP_ID' => $item['APP_ID'],
+						],
+						'select' => [
+							'ID',
+							'LANG_ALL',
+						],
+					]
+				);
+				foreach ($resLang->fetchCollection() as $placement)
+				{
+					if (!is_null($placement->getLangAll()))
+					{
+						foreach ($placement->getLangAll() as $lang)
+						{
+							$item['WIDGET_LANG_LIST'][$lang->getLanguageId()] = [
+								'TITLE' => $lang->getTitle(),
+								'DESCRIPTION' => $lang->getDescription(),
+								'GROUP_NAME' => $lang->getGroupName(),
+							];
+						}
+					}
 				}
 			}
 
@@ -335,6 +368,21 @@ class Provider
 			return $result;
 		}
 
+		if (!OAuthService::getEngine()->isRegistered())
+		{
+			try
+			{
+				OAuthService::register();
+				OAuthService::getEngine()->getClient()->getApplicationList();
+			}
+			catch (SystemException $e)
+			{
+				$result['status'] = false;
+				$result['errors'][] = $e->getCode() . ': ' . $e->getMessage();
+				return $result;
+			}
+		}
+
 		$presetData = $presetData['OPTIONS'];
 
 		$saveData = [
@@ -352,6 +400,7 @@ class Provider
 			'WIDGET_NEEDED' => ($requestData['WIDGET_NEEDED'] === 'Y') ? 'Y' : 'N',
 			'WIDGET_HANDLER_URL' => trim($requestData['WIDGET_HANDLER_URL']),
 			'WIDGET_LIST' => $requestData['WIDGET_LIST'],
+			'WIDGET_LANG_LIST' => is_array($requestData['WIDGET_LANG_LIST']) ? $requestData['WIDGET_LANG_LIST'] : [],
 			'BOT_HANDLER_URL' => trim($requestData['BOT_HANDLER_URL'])
 		];
 
@@ -461,11 +510,6 @@ class Provider
 								'NAME' => $requestData['BOT_NAME']
 							]
 						];
-						$events = [
-							'onImBotMessageAdd' => $saveData['BOT_HANDLER_URL'],
-							'onImBotJoinChat' => $saveData['BOT_HANDLER_URL'],
-							'onImBotDelete' => $saveData['BOT_HANDLER_URL'],
-						];
 
 						if ($integrationData['BOT_ID'] > 0)
 						{
@@ -481,18 +525,28 @@ class Provider
 								$params = array_merge($bot, $params);
 							}
 						}
-
+						$clientId = $params['APP_ID'];
 						if (!$params['APP_ID'])
 						{
-							$params['APP_ID'] = 'custom' . Random::getString(32);
+							$clientId = Random::getString(32);
+							$params['APP_ID'] = 'custom' . $clientId;
 							$params['CODE'] = Random::getString(16);
 						}
+						elseif (mb_stripos($clientId, 'custom') === 0)
+						{
+							$clientId = mb_substr($clientId, 6);
+						}
 
+						$uriWithClientId = $saveData['BOT_HANDLER_URL']
+							. (mb_strpos($saveData['BOT_HANDLER_URL'], '?') === false ? '?' : '&')
+							. 'CLIENT_ID=' . $clientId;
+						$events = [
+							'onImBotMessageAdd' => $uriWithClientId,
+							'onImBotJoinChat' => $uriWithClientId,
+							'onImBotDelete' => $uriWithClientId,
+						];
 						if (in_array($requestData['BOT_TYPE'], ['S', 'O']))
 						{
-							$uriWithClientId = $saveData['BOT_HANDLER_URL']
-								. (mb_strpos($saveData['BOT_HANDLER_URL'], '?') === false ? '?' : '&')
-								. 'CLIENT_ID=' . $params['APP_ID'];
 							$events['onImBotMessageUpdate'] = $uriWithClientId;
 							$events['onImBotMessageDelete'] = $uriWithClientId;
 							$params['EVENT_MESSAGE_UPDATE'] = $uriWithClientId;
@@ -522,7 +576,10 @@ class Provider
 										'filter' => [
 											'=APP_ID' => '',
 											'=EVENT_NAME' => array_keys($allEvents),
-											'=APPLICATION_TOKEN' => $params['APP_ID'],
+											'=APPLICATION_TOKEN' => [
+												$clientId,
+												$params['APP_ID'],
+											],
 										],
 										'select' => [
 											'ID',
@@ -553,13 +610,13 @@ class Provider
 											'APP_ID' => '',
 											'EVENT_NAME' => toUpper($event),
 											'EVENT_HANDLER' => $eventHandler,
-											'APPLICATION_TOKEN' => $params['APP_ID'],
+											'APPLICATION_TOKEN' => $clientId,
 											'USER_ID' => 0,
 										]
 									);
 									if ($result['status'] = $res->isSuccess())
 									{
-										Sender::bind('im', $eventHandler);
+										Sender::bind('im', $event);
 									}
 									else
 									{
@@ -695,6 +752,7 @@ class Provider
 							'APP_NAME' => $saveData['TITLE'],
 						],
 						'PLACEMENTS' => $saveData['WIDGET_LIST'],
+						'PLACEMENTS_LANG_LIST' => $saveData['WIDGET_LANG_LIST'],
 						'PLACEMENT_HANDLER_URL' => $saveData['WIDGET_HANDLER_URL'],
 						'INTEGRATION_CODE' => $saveData['ELEMENT_CODE'],
 						'INTEGRATION_ID' => $saveData['ID']
@@ -794,6 +852,7 @@ class Provider
 			$result['status'] = false;
 			$result['errors'] = $errorList;
 		}
+		\Bitrix\Rest\Engine\Access::getActiveEntity(true);
 
 		return $result;
 	}
@@ -833,18 +892,6 @@ class Provider
 				{
 					$errorList[] = strip_tags($eventResult);
 				}
-			}
-		}
-
-		if (!OAuthService::getEngine()->isRegistered())
-		{
-			try
-			{
-				OAuthService::register();
-			}
-			catch (SystemException $e)
-			{
-				$errorList[] = $e->getCode() . ': ' . $e->getMessage();
 			}
 		}
 
@@ -976,10 +1023,47 @@ class Provider
 
 			if (empty($errorList) && $data['PLACEMENTS'])
 			{
+				$title = '';
 				$placementListOld = [];
 				$updateIDList = [];
 				$addList = [];
 				$data['PLACEMENTS'] = is_array($data['PLACEMENTS']) ? $data['PLACEMENTS'] : [];
+
+				$placementLangList = [];
+				foreach ($data['PLACEMENTS_LANG_LIST'] as $lang => $fields)
+				{
+					if (!empty($fields['TITLE']))
+					{
+						$placementLangList[$lang] = [
+							'LANGUAGE_ID' => $lang,
+							'TITLE' => $fields['TITLE'],
+						];
+					}
+				}
+
+				$langList = Lang::listLanguage();
+				$defaultLang = $langList[0];
+				if (!empty($placementLangList))
+				{
+					foreach ($langList as $lang)
+					{
+						if (isset($placementLangList[$lang]))
+						{
+							$title = $placementLangList[$lang]['TITLE'];
+							break;
+						}
+					}
+				}
+
+				if ($title === '')
+				{
+					$title = $data['APP_NAME'];
+					$placementLangList[$defaultLang] = [
+						'LANGUAGE_ID' => $defaultLang,
+						'TITLE' => $title,
+					];
+				}
+
 				$accessPlacement = Rest::getAccessPlacement($data['FIELDS']['SCOPE']);
 				$placementRes = PlacementTable::getList(
 					[
@@ -1018,7 +1102,7 @@ class Provider
 							'APP_ID' => $return['ID'],
 							'PLACEMENT' => $placement,
 							'PLACEMENT_HANDLER' => $data['PLACEMENT_HANDLER_URL'],
-							'TITLE' => $data['APP_NAME']
+							'TITLE' => $title,
 						];
 					}
 				}
@@ -1029,16 +1113,37 @@ class Provider
 						PlacementTable::delete($place);
 					}
 				}
+
 				if (!empty($updateIDList))
 				{
 					$resultPlacementBind = PlacementTable::updateMulti(
 						$updateIDList,
 						[
 							'PLACEMENT_HANDLER' => $data['PLACEMENT_HANDLER_URL'],
-							'TITLE' => $data['APP_NAME']
+							'TITLE' => $title,
 						]
 					);
-					if (!$resultPlacementBind->isSuccess())
+					if ($resultPlacementBind->isSuccess())
+					{
+						foreach ($updateIDList as $id)
+						{
+							PlacementLangTable::deleteByPlacement((int) $id);
+							foreach ($placementLangList as $fields)
+							{
+								$fields['PLACEMENT_ID'] = $id;
+								$resultPlacementLang = PlacementLangTable::add($fields);
+								if (!$resultPlacementLang->isSuccess())
+								{
+									$errors = $resultPlacementLang->getErrorMessages();
+									if (is_array($errors))
+									{
+										$errorList = array_merge($errorList, $errors);
+									}
+								}
+							}
+						}
+					}
+					else
 					{
 						$errors = $resultPlacementBind->getErrorMessages();
 						if (is_array($errors))
@@ -1061,6 +1166,20 @@ class Provider
 						$resultPlacementBind = PlacementTable::add($item);
 						if ($resultPlacementBind->isSuccess())
 						{
+							$id = (int) $resultPlacementBind->getId();
+							foreach ($placementLangList as $fields)
+							{
+								$fields['PLACEMENT_ID'] = $id;
+								$resultPlacementLang = PlacementLangTable::add($fields);
+								if (!$resultPlacementLang->isSuccess())
+								{
+									$errors = $resultPlacementLang->getErrorMessages();
+									if (is_array($errors))
+									{
+										$errorList = array_merge($errorList, $errors);
+									}
+								}
+							}
 							Analytic::logToFile(
 								'integrationPlacementCreated',
 								'integration' . $data['INTEGRATION_ID'],

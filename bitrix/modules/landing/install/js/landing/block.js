@@ -217,6 +217,8 @@
 		this.manifest.attrs = isPlainObject(options.manifest.attrs) ? options.manifest.attrs : {};
 		this.onStyleInputWithDebounce = debounce(this.onStyleInput, 300, this);
 		this.changeTimeout = null;
+		this.php = options.php;
+		this.designed = options.designed;
 		this.access = options.access;
 		this.anchor = options.anchor;
 		this.savedAnchor = options.anchor;
@@ -261,37 +263,25 @@
 		this.initMenu();
 		this.adjustContextSensitivityStyles();
 
-		var specialType = BX.Landing.Env.getInstance().getOptions().specialType;
+		var envOptions = BX.Landing.Env.getInstance().getOptions();
+		var specialType = envOptions.specialType;
 		if (specialType === 'crm_forms')
 		{
-			var formId = this.getBlockFormId();
-			if (BX.Type.isPlainObject(formId))
+			var showOptions = {
+				formId: envOptions.formEditorData.formOptions.id,
+				formOptions: this.getCrmFormOptions(),
+				block: this,
+				showWithOptions: true,
+			};
+			var uri = new BX.Uri(window.top.location.toString());
+			if (BX.Text.toBoolean(uri.getQueryParam('formCreated')))
 			{
-				var showOptions = {
-					formId: formId.id,
-					instanceId: formId.instanceId,
-					formOptions: this.getCrmFormOptions(),
-					block: this,
-				};
-				var uri = new BX.Uri(window.top.location.toString());
-				if (BX.Text.toBoolean(uri.getQueryParam('formCreated')))
-				{
-					showOptions.state = 'presets';
-				}
-
-				var rootWindow = BX.Landing.PageObject.getRootWindow();
-				void Promise.all([
-					rootWindow.BX.Runtime
-						.loadExtension('landing.ui.panel.formsettingspanel'),
-					BX.Runtime
-						.loadExtension('landing.ui.panel.formsettingspanel')
-				])
-				.then(function(result) {
-					void result[1].FormSettingsPanel
-						.getInstance()
-						.show(showOptions);
-				});
+				showOptions.state = 'presets';
 			}
+
+			void BX.Landing.UI.Panel.FormSettingsPanel
+				.getInstance()
+				.show(showOptions);
 		}
 
 		BX.Landing.PageObject.getBlocks().push(this);
@@ -341,7 +331,8 @@
 
 		showRequiredUserAction: function(data)
 		{
-			this.node.innerHTML = (
+			var nodeMap = this.node.querySelector('[data-map]');
+			nodeMap.innerHTML = (
 				"<div class=\"landing-block-user-action\">" +
 					"<div class=\"landing-block-user-action-inner\">" +
 						(data.header ? (
@@ -352,7 +343,7 @@
 						) : "") +
 						((data.href || data.onClick || data.className) && data.text ? (
 							"<div>" +
-								"<a href=\""+data.href+"\" class=\"ui-btn "+data.className+"\" target=\""+(data.target ? data.target : '')+"\">"+data.text+"</a>" +
+								"<a href=\""+data.href+"\" class=\"landing-trusted-link ui-btn "+data.className+"\" target=\""+(data.target ? data.target : '')+"\">"+data.text+"</a>" +
 							"</div>"
 						) : "") +
 					"</div>" +
@@ -771,6 +762,20 @@
 								});
 							}
 						}.bind(this))(),
+						(function() {
+							if (isPlainObject(this.manifest.style))
+							{
+								return new BX.Main.MenuItem({
+									id: "designblock",
+									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
+									className: (this.access < ACCESS_W || this.php || this.isCrmFormPage()) ? "landing-ui-disabled" : "",
+									onclick: function() {
+										this.onDesignerBlockClick();
+										this.sidebarActionsMenu.close();
+									}.bind(this)
+								});
+							}
+						}.bind(this))(),
 						new BX.Main.MenuItem({
 							delimiter: true,
 						}),
@@ -992,6 +997,14 @@
 							attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_DESIGN")}
 						})
 					);
+					contentPanel.addButton(
+						new ActionButton("designblock", {
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
+							onClick: this.onDesignerBlockClick.bind(this),
+							disabled: this.access < ACCESS_W || this.php || this.isCrmFormPage(),
+							attrs: { title: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK") }
+						})
+					);
 				}
 
 				if (isPlainObject(allPlacements) && (this.manifest.code in allPlacements || allPlacements["*"]))
@@ -1048,7 +1061,7 @@
 						}
 					}
 
-					addClass(contentPanel.buttons.get("style").layout, "landing-ui-no-rounded");
+					addClass(contentPanel.buttons.get("designblock").layout, "landing-ui-no-rounded");
 				}
 
 				if (isPlainObject(this.manifest.style))
@@ -1201,9 +1214,12 @@
 
 				var menuItems = placements.map(function(placement) {
 					return new BX.Main.MenuItem({
-						id: "placement_" + placement.id + "_" + random(),
+						id: "placement_" + (placement.id || random()) + "_" + random(),
 						text: encodeDataValue(placement.title),
-						onclick: this.onPlacementClick.bind(this, placement)
+						disabled: placement.disabled === true,
+						onclick: (typeof placement.onClick === 'function')
+							? placement.onClick
+							: this.onPlacementClick.bind(this, placement)
 					})
 				}, this);
 
@@ -1224,6 +1240,83 @@
 
 			addClass(this.node, "landing-ui-hover");
 			this.blockPlacementsActionsMenu.show();
+		},
+
+		onDesignerBlockClick: function()
+		{
+			// get actual block content before designer edit
+			var oldContent = null;
+			BX.Landing.Backend.getInstance()
+				.action("Block::getContent", {
+					block: this.id,
+					lid: this.lid,
+					siteId: this.siteId,
+					editMode: 1
+				})
+				.then(function(response) {
+					oldContent = response.content;
+				});
+
+			// open slider with designer
+			var envOptions = BX.Landing.Env.getInstance().getOptions();
+			var sliderUrl = envOptions.params.sef_url["design_block"]
+				.replace("__block_id__", this.id)
+				.replace("__site_show__", this.siteId)
+				.replace("__landing_edit__", this.lid)
+				+ "&code=" + this.manifest.code
+				+ "&designed=" + (this.designed ? "Y" : "N");
+			BX.SidePanel.Instance.open(
+				sliderUrl,
+				{
+					cacheable: false,
+					allowChangeHistory: false,
+					requestMethod: "post",
+					customLeftBoundary: 40,
+					events: {
+						onClose: function(event)
+						{
+							// get actual block content after designer edit
+							BX.Landing.Backend.getInstance()
+								.action("Block::getContent", {
+									block: this.id,
+									lid: this.lid,
+									siteId: this.siteId,
+									editMode: 1
+								})
+								.then(function(response) {
+									var newContent = response.content;
+									if (oldContent !== newContent)
+									{
+										BX.Landing.History.getInstance().push(
+											new BX.Landing.History.Entry({
+												block: this.id,
+												selector: "#block" + this.id,
+												command: "updateContent",
+												undo: oldContent,
+												redo: newContent
+											})
+										);
+										void this.reload();
+										// analytic label on close
+										var metrika = new BX.Landing.Metrika(true);
+										metrika.sendLabel(
+											null,
+											"designerBlock",
+											"close" +
+											"&designed=" + (this.designed ? "Y" : "N") +
+											"&code=" + this.manifest.code
+										);
+									}
+								}.bind(this));
+						}.bind(this)
+					}
+				}
+			);
+
+			if (this.blockPlacementsActionsMenu)
+			{
+				this.blockPlacementsActionsMenu.close();
+			}
 		},
 
 		onRestrictedButtonMouseenter: function(event)
@@ -1647,6 +1740,7 @@
 		{
 			var formNode = this.node.querySelector('[data-b24form-use-style]');
 			var useAllowed = BX.Dom.attr(formNode, 'data-b24form-use-style');
+			var primaryMatcher = /--primary([\da-fA-F]{2})/;
 
 			if (BX.Type.isDomNode(formNode) && BX.Text.toBoolean(useAllowed))
 			{
@@ -1655,9 +1749,12 @@
 				{
 					var primaryColor = BX.Dom.style(document.documentElement, '--primary').trim();
 					Object.entries(designOptions.color).forEach(function(entry) {
-						if (entry[1] === '--primary')
+						if (
+							entry[1] === '--primary'
+							|| entry[1].match(primaryMatcher) !== null
+						)
 						{
-							designOptions.color[entry[0]] = primaryColor;
+							designOptions.color[entry[0]] = entry[1].replace('--primary', primaryColor);
 						}
 					});
 
@@ -1693,18 +1790,28 @@
 			)
 			{
 				var rootWindow = BX.Landing.PageObject.getRootWindow();
-				void Promise
-					.all([
-						rootWindow.BX.Runtime
-							.loadExtension('landing.ui.panel.formsettingspanel'),
-						BX.Runtime
-							.loadExtension('landing.ui.panel.formsettingspanel')
-					])
+				void (function() {
+						if (BX.Landing.UI.Panel.FormSettingsPanel)
+						{
+							return Promise.resolve([
+								rootWindow.BX.Landing.UI.Panel,
+								BX.Landing.UI.Panel
+							]);
+						}
+
+						return Promise
+							.all([
+								rootWindow.BX.Runtime
+									.loadExtension('landing.ui.panel.formsettingspanel'),
+								BX.Runtime
+									.loadExtension('landing.ui.panel.formsettingspanel')
+							]);
+					})()
 					.then(function(result) {
 						var FormSettingsPanel = result[1].FormSettingsPanel;
 						if (FormSettingsPanel)
 						{
-							FormSettingsPanel
+							return FormSettingsPanel
 								.getInstance()
 								.show({
 									formId: formId.id,
@@ -2555,6 +2662,21 @@
 			return Promise.resolve(clone(newState));
 		},
 
+		/**
+		 * Updates block's content.
+		 * @param {string} content
+		 */
+		updateContent: function(content)
+		{
+			var updatePromise = BX.Landing.Backend.getInstance().action(
+				"Block::updateContent",
+				{lid: this.lid, block: this.id, content: content.replaceAll(' style="', ' bxstyle="')},
+				{code: this.manifest.code}
+			);
+			var reloadPromise = this.reload();
+			return Promise.all([updatePromise, reloadPromise]);
+		},
+
 		updateBlockState: function(state, preventHistory)
 		{
 			if (
@@ -2712,10 +2834,13 @@
 
 					return acc;
 				}, []);
+
 				type.forEach(function(type) {
 					var typeSettings = getTypeSettings(type);
 					var styleNode = this.styles.get(selector);
 					var field = styleFactory.createField({
+						block: this,
+						styleNode: styleNode,
 						selector: !isBlock ? this.makeRelativeSelector(selector) : selector,
 						property: typeSettings.property,
 						multiple: typeSettings.multiple === true,
@@ -2723,85 +2848,165 @@
 						pseudoElement: typeSettings["pseudo-element"],
 						pseudoClass: typeSettings["pseudo-class"],
 						type: typeSettings.type,
+						subtype: typeSettings.subtype,
 						title: typeSettings.name,
 						items: typeSettings.items,
-						onChange: function(value, items, postfix, affect) {
-							var exclude = !!typeSettings.exclude ? getTypeSettings(typeSettings.exclude) : null;
+						help: typeSettings.help,
+						onChange: onChange.bind(this),
+						onReset: onReset.bind(this)
+					});
 
-							if (exclude)
-							{
-								form.fields.forEach(function(field) {
-									if (field.style === typeSettings.exclude)
-									{
-										field.reset();
-									}
-								});
-							}
+					function saveHistory(selector, oldValue, newValue) {
+						BX.Landing.History.getInstance().push(
+							new BX.Landing.History.Entry({
+								block: this.id,
+								command: "updateStyle",
+								selector: selector,
+								undo: oldValue,
+								redo: newValue
+							})
+						);
+					}
+					saveHistory = debounce(saveHistory, 500, this);
 
-							var oldValue = {className: "", style: ""};
-							if (styleNode.node[0])
-							{
-								oldValue.className = styleNode.node[0].className;
-								oldValue.style = styleNode.node[0].style.cssText;
-							}
+					// when field changed
+					function onChange(value, items, postfix, affect) {
+						var exclude = !!typeSettings.exclude ? getTypeSettings(typeSettings.exclude) : null;
 
-
-							var event = this.createEvent({
-								data: {
-									selector: selector,
-									value: value,
-									items: items,
-									postfix: postfix,
-									affect: affect,
-									exclude: exclude
+						if (exclude)
+						{
+							form.fields.forEach(function(field) {
+								if (field.style === typeSettings.exclude)
+								{
+									field.reset();
 								}
 							});
+						}
 
-							fireCustomEvent(window, "BX.Landing.Block:beforeApplyStyleChanges", [event]);
+						// todo: now use just node[0]. Need get node by "group select" and save position in history
+						var oldValue = styleNode.getValueForHistory();
 
-							styleNode.setValue(value, items, postfix, affect, exclude);
-
-							var newValue = {className: "", style: ""};
-							if (styleNode.node[0])
-							{
-								newValue.className = styleNode.node[0].className;
-								newValue.style = styleNode.node[0].style.cssText;
+						var event = this.createEvent({
+							data: {
+								selector: selector,
+								value: value,
+								items: items,
+								postfix: postfix,
+								affect: affect,
+								exclude: exclude
 							}
+						});
 
-							try
-							{
-								if (JSON.stringify(oldValue) !== JSON.stringify(newValue))
-								{
-									BX.Landing.History.getInstance().push(
-										new BX.Landing.History.Entry({
-											block: this.id,
-											command: "updateStyle",
-											selector: !isBlock ? this.makeRelativeSelector(selector) : selector,
-											undo: oldValue,
-											redo: newValue
-										})
-									);
-								}
-							}
-							catch(err) {}
+						fireCustomEvent(window, "BX.Landing.Block:beforeApplyStyleChanges", [event]);
 
-							fireCustomEvent("BX.Landing.Block:updateStyleWithoutDebounce", [
-								this.createEvent({node: styleNode.getNode(), data: styleNode.getValue()})
-							]);
-							this.onStyleInputWithDebounce({node: styleNode.getNode(), data: styleNode.getValue()});
-						}.bind(this)
-					});
+						styleNode.setValue(value, items, postfix, affect, exclude);
 
-					var preventEvent = true;
-					styleNode.getValue().classList.forEach(function(className) {
-						if (typeSettings.items.some(function(item) { return item.value === className}))
+						var newValue = styleNode.getValueForHistory();
+						try
 						{
-							if (field.property !== "display")
+							if (JSON.stringify(oldValue) !== JSON.stringify(newValue))
 							{
-								field.setValue(className, preventEvent);
+								saveHistory(selector, oldValue, newValue);
 							}
 						}
-					});
+						catch(err) {}
+
+						var data = {node: styleNode.getNode(), data: styleNode.getValue()};
+						fireCustomEvent("BX.Landing.Block:updateStyleWithoutDebounce", [
+							this.createEvent(data)
+						]);
+						this.onStyleInputWithDebounce(data);
+					}
+
+					// when field reset
+					function onReset(items, postfix, affect) {
+						// todo: add cache for backend
+						// todo: save history?
+						BX.Landing.Backend.getInstance()
+							.action("Landing\\Block::getContentFromRepository", {
+								code: this.manifest.code
+							})
+							.then(function(response) {
+								var repo = document.createElement('div');
+								repo.id = 'fake';
+								repo.innerHTML = response;
+								repo.style.display = 'none';
+								window.document.body.append(repo);
+
+								var targetNode = null;
+								var targetSelector = null;
+								if (isBlock)
+								{
+									targetSelector = '#fake > :first-child';
+									targetNode = repo.firstElementChild;
+								}
+								else
+								{
+									targetSelector = '#fake ' + selector;
+									var index = styleNode.getElementIndex(styleNode.getTargetElement());
+									targetNode = repo.querySelectorAll(targetSelector)[index];
+								}
+								var fakeStyleNode = new BX.Landing.UI.Style({
+									iframe: window,
+									selector: targetSelector,
+									relativeSelector: targetSelector,
+									node: targetNode
+								});
+								initFieldByStyleNode(fakeStyleNode);
+
+								// match new class list
+								var resetStyleValue = fakeStyleNode.getValue();
+								var resetClasses = [];
+								var currStyleValue = styleNode.getValue();
+								items.forEach(function(item) {
+									if(resetStyleValue.classList.indexOf(item.value) !== -1)
+									{
+										resetClasses.push(item.value);
+									}
+									var currIndex = currStyleValue.classList.indexOf(item.value);
+									if(currIndex !== -1)
+									{
+										delete currStyleValue.classList[currIndex];
+									}
+								});
+								resetStyleValue.classList = currStyleValue.classList.concat(resetClasses);
+								resetStyleValue.className = resetStyleValue.classList;
+								onChange.bind(this)(resetStyleValue, items, postfix, affect);
+								repo.remove();
+							}.bind(this))
+							.catch(function(error){
+								// todo: show err panel
+								console.error("Error on reset", error);
+							});
+					}
+
+					// when field init
+					function initFieldByStyleNode(styleNode)
+					{
+						styleNode.setInlineProperty(field.getInlineProperties());
+						styleNode.setComputedProperty(field.getComputedProperties());
+						styleNode.setPseudoElement(field.getPseudoElement());
+
+						var preventEvent = true;
+						var styleValue = styleNode.getValue(true);
+						if (field.getInlineProperties().length > 0 || field.getComputedProperties().length > 0)
+						{
+							field.setValue(styleValue.style, preventEvent);
+						}
+						else
+						{
+							styleValue.classList.forEach(function (className) {
+								if (typeSettings.items.some(function (item) {return item.value === className;}))
+								{
+									if (field.property !== "display")
+									{
+										field.setValue(className, preventEvent);
+									}
+								}
+							});
+						}
+					}
+					initFieldByStyleNode(styleNode);
 
 					form.addField(field);
 				}, this);
@@ -3134,13 +3339,12 @@
 			{
 				options.type = [
 					"display",
+					"background",
 					"padding-top",
 					"padding-bottom",
 					"padding-left",
 					"padding-right",
-					"margin-top",
-					"background-color",
-					"background-gradient"
+					"margin-top"
 				];
 			}
 
@@ -3237,15 +3441,33 @@
 			var selector = this.makeAbsoluteSelector(field.selector);
 			var value = field.getValue();
 
-			try {
-				value = encodeDataValue(value);
-			} catch(e) {
-				value = field.getValue();
-			}
-
 			requestData[selector] = requestData[selector] || {};
 			requestData[selector]["attrs"] = requestData[selector]["attrs"] || {};
-			requestData[selector]["attrs"][field.attribute] = value;
+			if(BX.Type.isArray(field.attribute))
+			{
+				field.attribute.forEach(function(attr){
+					var attrData = attr.replace('data-', '');
+					var itemValue = value[attrData];
+					if(itemValue !== undefined)
+					{
+						try {
+							itemValue = encodeDataValue(itemValue);
+						} catch(e) {
+							itemValue = field.getValue()[attrData];
+						}
+						requestData[selector]["attrs"][attr] = itemValue;
+					}
+				});
+			}
+			else
+			{
+				try {
+					value = encodeDataValue(value);
+				} catch(e) {
+					value = field.getValue();
+				}
+				requestData[selector]["attrs"][field.attribute] = value;
+			}
 			return requestData;
 		},
 
@@ -3375,7 +3597,10 @@
 				BX.Main.MenuManager.destroy(this.sidebarActionsMenu.id);
 			}
 
-			window.localStorage.removeItem("landingBlockId");
+			if (String(window.localStorage.getItem("landingBlockId")) === String(this.id))
+			{
+				window.localStorage.removeItem("landingBlockId");
+			}
 
 			BX.Landing.Backend.getInstance()
 				.action(
@@ -3554,6 +3779,7 @@
 					if (node)
 					{
 						var valuePromise = node.setValue(data[selector], true, true);
+						node.preventSave(false);
 						if (valuePromise)
 						{
 							valuePromises.push(valuePromise);
@@ -3725,6 +3951,7 @@
 											}
 
 											var nodePromise = node.setValue(card[key], true, true) || Promise.resolve();
+											node.preventSave(false);
 												nodePromise.then(function(selectorKey, mapKey, cardKey) {
 													card[join(selectorKey, "@", mapKey)] = node.getValue();
 

@@ -27,6 +27,13 @@ class Landing extends \CModule
 
 	public $docRoot = '';
 	public $eventsData = [
+		'crm' => [
+			'onAfterCrmCompanyAdd' => ['\Bitrix\Landing\Connector\Crm', 'onAfterCompanyChange'],
+			'onAfterCrmCompanyUpdate' => ['\Bitrix\Landing\Connector\Crm', 'onAfterCompanyChange']
+		],
+		'iblock' => [
+			'onAfterIBlockSectionDelete' => ['\Bitrix\Landing\Connector\Iblock', 'onAfterIBlockSectionDelete']
+		],
 		'intranet' => [
 			'onBuildBindingMenu' => ['\Bitrix\Landing\Connector\Intranet', 'onBuildBindingMenu']
 		],
@@ -52,6 +59,9 @@ class Landing extends \CModule
 			'onRestApplicationConfigurationEntity' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'getEntityList'],
 			'onRestApplicationConfigurationImport' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onEventImportController'],
 			'onRestApplicationConfigurationFinish' => ['\Bitrix\Landing\Transfer\AppConfiguration', 'onFinish']
+		],
+		'seo' => [
+			'onExtensionInstall' => ['\Bitrix\Landing\Hook\Page\PixelFb', 'changeBusinessPixel'],
 		],
 		'socialnetwork' => [
 			'onFillSocNetFeaturesList' => ['\Bitrix\Landing\Connector\SocialNetwork', 'onFillSocNetFeaturesList'],
@@ -223,6 +233,9 @@ class Landing extends \CModule
 			$this->setOptions();
 		}
 		$this->setSiteTemplates();
+
+		// route handlers
+		$this->setRouteHandlers();
 
 		return true;
 	}
@@ -594,9 +607,6 @@ class Landing extends \CModule
 
 		// templates
 		$this->setSiteTemplates(false);
-
-		// route handlers
-		$this->setRouteHandlers();
 
 		// delete files finaly
 		if (isset($arParams['savedata']) && !$arParams['savedata'])

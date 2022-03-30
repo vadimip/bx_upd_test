@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["SONET_C4_FUNC_TITLE"] = "Функціонал '#NAME#' увімкнений";
 $MESS["SONET_C4_FUNC_TITLE_OFF"] = "Функціонал \"#NAME#\" вимкнений";
 $MESS["SONET_C4_FUNC_TITLE_ON"] = "Функціонал \"#NAME#\" увімкнений";
@@ -14,4 +14,4 @@ $MESS["SONET_C4_T_CANCEL"] = "Скасування";
 $MESS["SONET_C4_T_ERROR"] = "Виникла помилка обробки запиту";
 $MESS["SONET_C4_US_SUCCESS"] = "Параметри користувача успішно змінені.";
 $MESS["SONET_FEATURES_NAME"] = "Назва";
-?>
+$MESS["SONET_C4_SPAM_OPERATION"] = "Відправляти повідомлення членам групи можуть";

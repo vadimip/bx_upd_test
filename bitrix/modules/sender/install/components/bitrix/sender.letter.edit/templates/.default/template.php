@@ -17,10 +17,23 @@ Loc::loadMessages(__FILE__);
 /** @var array $arResult */
 $containerId = 'bx-sender-letter-edit';
 
-Extension::load("ui.buttons");
-Extension::load("ui.buttons.icons");
-Extension::load("ui.notification");
+Extension::load([
+	'ui.buttons',
+	'ui.buttons.icons',
+	'ui.notification',
+	'ui.sidepanel-content',
+	'ui.sidepanel.layout',
+	'ui.info-helper',
+	'sender.consent.preview',
+]);
+
 CJSCore::Init(array('admin_interface'));
+
+if($arParams['IFRAME'] === 'Y')
+{
+	\Bitrix\UI\Toolbar\Facade\Toolbar::deleteFavoriteStar();
+}
+
 ?>
 <script type="text/javascript">
 	BX.ready(function () {
@@ -28,7 +41,7 @@ CJSCore::Init(array('admin_interface'));
 		BX.Sender.Letter.init(<?=Json::encode(array(
 			'containerId' => $containerId,
 			'actionUrl' => $arResult['ACTION_URL'],
-			'isFrame' => $arParams['IFRAME'] == 'Y',
+			'isFrame' => $arParams['IFRAME'] === 'Y',
 			'isSaved' => $arResult['IS_SAVED'],
 			'isOutside' => $arParams['IS_OUTSIDE'],
 			'isTemplateShowed' => $arResult['SHOW_TEMPLATE_SELECTOR'],
@@ -160,6 +173,7 @@ CJSCore::Init(array('admin_interface'));
 							'IS_RECIPIENT_COUNT_EXACT' => $arResult['SEGMENTS']['IS_RECIPIENT_COUNT_EXACT'],
 							'DURATION_FORMATTED' => $arResult['SEGMENTS']['DURATION_FORMATTED'],
 							'SHOW_COUNTERS' => $arParams['SHOW_SEGMENT_COUNTERS'],
+							'CHECK_ON_STATIC' => $arParams['CHECK_ON_STATIC'],
 							'MESS' => $arParams['MESS'],
 						),
 						false
@@ -186,7 +200,8 @@ CJSCore::Init(array('admin_interface'));
 			?>
 		</div>
 
-		<div data-role="letter-buttons" style="<?=($arResult['SHOW_TEMPLATE_SELECTOR'] ? 'display: none;' : '')?>">
+		<div data-role="letter-buttons"
+			style="<?=($arResult['SHOW_TEMPLATE_SELECTOR'] || !$arResult['SHOW_BUTTONS'] ? 'display: none;' : '')?>">
 			<?
 			$buttons = [];
 			if ($arParams['CAN_EDIT'])
@@ -199,8 +214,8 @@ CJSCore::Init(array('admin_interface'));
 						'NAME' => 'save_as_template'
 					];
 				}
-				$buttons[] = ['TYPE' => 'save'];
-				$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => 'BX.Sender.Letter.applyChanges()'];
+				$buttons[] = ['TYPE' => 'save', 'ONCLICK' => !$arResult['IS_AVAILABLE']? "BX.UI.InfoHelper.show('limit_crm_marketing_adv'); return false;": ""];
+				$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => !$arResult['IS_AVAILABLE']? "BX.UI.InfoHelper.show('limit_crm_marketing_adv'); return false;": "BX.Sender.Letter.applyChanges()"];
 			}
 			$buttons[] = ['TYPE' => 'cancel', 'LINK' => $arParams['PATH_TO_LIST']];
 			$APPLICATION->IncludeComponent(
@@ -216,6 +231,19 @@ CJSCore::Init(array('admin_interface'));
 
 	</form>
 </div>
+<?php
+if(!$arResult['IS_AVAILABLE'] )
+{
+	$APPLICATION->IncludeComponent("bitrix:ui.info.helper", "", array());
+	?>
+	<script>
+		BX.ready(function () {
+			BX.UI.InfoHelper.show('limit_crm_marketing_email');
+		});
+	</script>
+	<?
+}
+
 
 
 

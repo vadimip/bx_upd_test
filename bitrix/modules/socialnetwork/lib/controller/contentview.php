@@ -1,26 +1,27 @@
-<?
+<?php
+
 namespace Bitrix\Socialnetwork\Controller;
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\Error;
-use Bitrix\Socialnetwork\Livefeed;
+use Bitrix\Main\Engine\ActionFilter;
 use Bitrix\Socialnetwork\Item\UserContentView;
 
 class ContentView extends Base
 {
-	public function configureActions()
+	public function configureActions(): array
 	{
 		$configureActions = parent::configureActions();
 		$configureActions['set'] = [
 			'+prefilters' => [
-				new \Bitrix\Main\Engine\ActionFilter\CloseSession(),
+				new ActionFilter\CloseSession(),
 			]
 		];
 
 		return $configureActions;
 	}
 
-	public function setAction(array $params = [])
+	public function setAction(array $params = []): ?array
 	{
 		$xmlIdList = (
 			isset($params["viewXMLIdList"])
@@ -29,61 +30,26 @@ class ContentView extends Base
 				: []
 		);
 
+		$context = ($params['context'] ?? '');
+
 		if (!Loader::includeModule('socialnetwork'))
 		{
 			$this->addError(new Error('Cannot include Socialnetwork module', 'SONET_CONTROLLER_CONTENTVIEW_NO_SOCIALNETWORK_MODULE'));
 			return null;
 		}
 
-		if (!empty(!empty($xmlIdList)))
-		{
-			foreach($xmlIdList as $val)
-			{
-				$xmlId = $val['xmlId'];
-				$save = (
-					!isset($val['save'])
-					|| $val['save'] != 'N'
-				);
-
-				$tmp = explode('-', $xmlId, 2);
-				$entityType = trim($tmp[0]);
-				$entityId = intval($tmp[1]);
-
-				if (
-					!empty($entityType)
-					&& $entityId > 0
-				)
-				{
-					$provider = Livefeed\Provider::init([
-						'ENTITY_TYPE' => $entityType,
-						'ENTITY_ID' => $entityId,
-					]);
-					if ($provider)
-					{
-						$provider->setContentView([
-							'save' => $save
-						]);
-/*
-						$provider->deleteCounter([
-							'userId' => $this->getCurrentUser()->getId(),
-							'siteId' => SITE_ID
-						]);
-*/
-					}
-				}
-			}
-
-			UserContentView::finalize([
-				'userId' => $this->getCurrentUser()->getId()
-			]);
-		}
+		UserContentView::set([
+			'xmlIdList' => $xmlIdList,
+			'context' => $context,
+			'userId' => $this->getCurrentUser()->getId()
+		]);
 
 		return [
 			'SUCCESS' => 'Y'
 		];
 	}
 
-	public function getListAction(array $params = [])
+	public function getListAction(array $params = []): ?array
 	{
 		$contentId = (
 			isset($params['contentId'])
@@ -94,8 +60,8 @@ class ContentView extends Base
 
 		$page = (
 			isset($params['page'])
-			&& intval($params['page']) > 0
-				? intval($params['page'])
+			&& (int)$params['page'] > 0
+				? (int)$params['page']
 				: 1
 		);
 
@@ -106,7 +72,7 @@ class ContentView extends Base
 				: ''
 		);
 
-		if ($contentId == '')
+		if ($contentId === '')
 		{
 			$this->addError(new Error('Empty Content ID', 'SONET_CONTROLLER_CONTENTVIEW_EMPTY_CONTENT_ID'));
 			return null;

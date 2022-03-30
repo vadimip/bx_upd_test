@@ -1,6 +1,11 @@
 <?php
 namespace Bitrix\Landing;
 
+use Bitrix\Main\Loader;
+use Bitrix\Landing\Internals\BlockTable;
+use Bitrix\Crm\WebForm;
+use Bitrix\Landing\Subtype;
+
 class Agent
 {
 	/**
@@ -10,7 +15,7 @@ class Agent
 	 * @param int $time Time in seconds for executing period.
 	 * @return void
 	 */
-	public static function addUniqueAgent($funcName, array $params = [], $time = 7200)
+	public static function addUniqueAgent(string $funcName, array $params = [], int $time = 7200): void
 	{
 		if (!method_exists(__CLASS__, $funcName))
 		{
@@ -45,12 +50,91 @@ class Agent
 	}
 
 	/**
-	 * Clear recycle bin for scope.
-	 * @param string $scope Scope code.
-	 * @param int $days After this time items will be deleted.
+	 * Agent to remove one not resolved domain. Removes agent if such domains not exists.
 	 * @return string
 	 */
-	public static function clearRecycleScope($scope, $days = null)
+	public static function removeBadDomain(): string
+	{
+		$maxFailCount = 7;
+
+		Rights::setGlobalOff();
+
+		// only custom domain
+		$filterDomains = array_map(function($domain)
+		{
+			return '%.' . $domain;
+		}, Domain::B24_DOMAINS);
+		$filterDomains[] = '%' . Manager::getHttpHost();
+
+		$customDomainExist = false;
+		$resDomain = Domain::getList([
+			'select' => [
+				'ID', 'DOMAIN', 'FAIL_COUNT'
+			],
+			'filter' => [
+				'!DOMAIN' => $filterDomains
+			],
+			'limit' => 5,
+			'order' => [
+				'DATE_MODIFY' => 'asc'
+			]
+		]);
+		while ($domain = $resDomain->fetch())
+		{
+			$customDomainExist = true;
+			if (Domain\Register::isDomainActive($domain['DOMAIN']))
+			{
+				Domain::update($domain['ID'], [
+					'FAIL_COUNT' => null
+				])->isSuccess();
+			}
+			else
+			{
+				// remove domain
+				if ($domain['FAIL_COUNT'] >= $maxFailCount - 1)
+				{
+					// wee need site for randomize domain
+					$resSite = Site::getList([
+						'select' => [
+							'ID', 'DOMAIN_ID', 'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
+						],
+						'filter' => [
+							'DOMAIN_ID' => $domain['ID']
+						]
+					]);
+					if ($rowSite = $resSite->fetch())
+					{
+						Debug::log('removeBadDomain-randomizeDomain', var_export($rowSite, true));
+						Site::randomizeDomain($rowSite['ID']);
+					}
+					// site not exist, delete domain
+					/*else
+					{
+						Debug::log('removeBadDomain-Domain::delete', var_export($rowSite, true));
+						Domain::delete($domain['ID'])->isSuccess();
+					}*/
+				}
+				else
+				{
+					Domain::update($domain['ID'], [
+						'FAIL_COUNT' => intval($domain['FAIL_COUNT']) + 1
+					])->isSuccess();
+				}
+			}
+		}
+
+		Rights::setGlobalOn();
+
+		return $customDomainExist ? __CLASS__ . '::' . __FUNCTION__ . '();' : '';
+	}
+
+	/**
+	 * Clear recycle bin for scope.
+	 * @param string $scope Scope code.
+	 * @param int|null $days After this time items will be deleted.
+	 * @return string
+	 */
+	public static function clearRecycleScope(string $scope, ?int $days = null): string
 	{
 		Site\Type::setScope($scope);
 
@@ -61,15 +145,15 @@ class Agent
 
 	/**
 	 * Clear recycle bin.
-	 * @param int $days After this time items will be deleted.
+	 * @param int|null $days After this time items will be deleted.
 	 * @return string
 	 */
-	public static function clearRecycle($days = null)
+	public static function clearRecycle(?int $days = null): string
 	{
 		Rights::setGlobalOff();
 
 		$days = !is_null($days)
-				? (int) $days
+				? $days
 				: (int) Manager::getOption('deleted_lifetime_days');
 
 		$date = new \Bitrix\Main\Type\DateTime;
@@ -119,9 +203,11 @@ class Agent
 			]);
 			while ($rowSub = $resSub->fetch())
 			{
+				Lock::lockDeleteLanding($rowSub['ID'], false);
 				$resDel = Landing::delete($rowSub['ID'], true);
 				$resDel->isSuccess();// for trigger
 			}
+			Lock::lockDeleteLanding($row['ID'], false);
 			$resDel = Landing::delete($row['ID'], true);
 			$resDel->isSuccess();// for trigger
 		}
@@ -142,6 +228,7 @@ class Agent
 		]);
 		while ($row = $res->fetch())
 		{
+			Lock::lockDeleteSite($row['ID'], false);
 			$resDel = Site::delete($row['ID']);
 			$resDel->isSuccess();// for trigger
 		}
@@ -153,12 +240,12 @@ class Agent
 
 	/**
 	 * Remove marked for deleting files.
-	 * @param int $count Count of files wich will be deleted per once.
+	 * @param int|null $count Count of files wich will be deleted per once.
 	 * @return string
 	 */
-	public static function clearFiles($count = null)
+	public static function clearFiles(?int $count = null): string
 	{
-		$count = !is_null($count) ? (int) $count : 30;
+		$count = !is_null($count) ? $count : 30;
 
 		File::deleteFinal($count);
 
@@ -169,7 +256,7 @@ class Agent
 	 * Send used rest statistic.
 	 * @return string
 	 */
-	public static function sendRestStatistic() : string
+	public static function sendRestStatistic(): string
 	{
 		if (
 			\Bitrix\Main\Loader::includeModule('rest')
@@ -195,5 +282,47 @@ class Agent
 		}
 
 		return __CLASS__ . '::' . __FUNCTION__ . '();';
+	}
+
+	/**
+	 * Tmp agent for rebuild form's blocks.
+	 * @param int $lastLid Last item id.
+	 * @return string
+	 */
+	public static function repairFormUrls(int $lastLid = 0): string
+	{
+		if (Loader::includeModule('crm'))
+		{
+			$formQuery = WebForm\Internals\LandingTable::query()
+				->addSelect('FORM_ID')
+				->addSelect('LANDING_ID')
+				->addOrder('LANDING_ID')
+				->setLimit(50)
+				->where('LANDING_ID', '>', $lastLid)
+				->exec()
+			;
+			$lastLid = 0;
+			while ($form = $formQuery->fetch())
+			{
+				$blocksQuery = BlockTable::query()
+					->addSelect('ID')
+					->where('LID', $form['LANDING_ID'])
+					->where('CODE', '66.90.form_new_default')
+					->exec()
+				;
+				while ($block = $blocksQuery->fetch())
+				{
+					Subtype\Form::setFormIdToBlock($block['ID'], $form['FORM_ID']);
+				}
+				$lastLid = (int)$form['LANDING_ID'];
+			}
+
+			if ($lastLid > 0)
+			{
+				return __CLASS__ . '::' . __FUNCTION__ . '(' . $lastLid . ');';
+			}
+		}
+
+		return '';
 	}
 }

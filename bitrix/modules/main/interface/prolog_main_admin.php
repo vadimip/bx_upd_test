@@ -61,7 +61,7 @@ if (!defined('ADMIN_SECTION_LOAD_AUTH') || !ADMIN_SECTION_LOAD_AUTH):
 <meta http-equiv="Content-Type" content="text/html; charset=<?=htmlspecialcharsbx(LANG_CHARSET)?>">
 <meta name="viewport" content="initial-scale=1.0, width=device-width">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<title><?$adminPage->ShowTitle()?> - <?echo COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])?></title>
+<title><?$adminPage->ShowTitle()?> - <?= htmlspecialcharsbx(COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])) ?></title>
 <?
 else:
 ?>
@@ -393,7 +393,7 @@ if($USER->IsAuthorized()):
 		echo EndNote();
 
 	elseif(defined("TIMELIMIT_EDITION") && TIMELIMIT_EDITION == "Y"):
-	
+
 		$delta = $SiteExpireDate - time();
 		$daysToExpire = ceil($delta / 86400);
 		$sWarnDate = ConvertTimeStamp($SiteExpireDate, "SHORT");

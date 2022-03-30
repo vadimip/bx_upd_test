@@ -1,11 +1,14 @@
-<?
+<?php
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/socialnetwork/classes/general/group.php");
 
+use Bitrix\Socialnetwork\Util;
 use Bitrix\Socialnetwork\WorkgroupTable;
 use Bitrix\Socialnetwork\WorkgroupSiteTable;
 use Bitrix\Socialnetwork\Item\Workgroup;
 use Bitrix\Socialnetwork\Item\WorkgroupSubject;
 use Bitrix\Socialnetwork\Integration;
+use Bitrix\Socialnetwork\WorkgroupTagTable;
 
 class CSocNetGroup extends CAllSocNetGroup
 {
@@ -16,28 +19,26 @@ class CSocNetGroup extends CAllSocNetGroup
 	{
 		global $DB, $CACHE_MANAGER, $USER_FIELD_MANAGER;
 
-		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
+		$arFields1 = Util::getEqualityFields($arFields);
 
 		if (!CSocNetGroup::CheckFields("ADD", $arFields))
 		{
 			return false;
 		}
-		else
+
+		$arSiteID = [];
+		if(array_key_exists("SITE_ID", $arFields))
 		{
-			$arSiteID = array();
-			if(array_key_exists("SITE_ID", $arFields))
+			if(is_array($arFields["SITE_ID"]))
 			{
-				if(is_array($arFields["SITE_ID"]))
+				foreach($arFields["SITE_ID"] as $site_id)
 				{
-					foreach($arFields["SITE_ID"] as $site_id)
-					{
-						$arSiteID[$site_id] = $DB->ForSQL($site_id);
-					}
+					$arSiteID[$site_id] = $DB->ForSQL($site_id);
 				}
-				else
-				{
-					$arSiteID[$arFields["SITE_ID"]] = $DB->ForSQL($arFields["SITE_ID"]);
-				}
+			}
+			else
+			{
+				$arSiteID[$arFields["SITE_ID"]] = $DB->ForSQL($arFields["SITE_ID"]);
 			}
 		}
 
@@ -76,7 +77,7 @@ class CSocNetGroup extends CAllSocNetGroup
 		CFile::SaveForDB($arFields, "IMAGE_ID", "socialnetwork");
 
 		$arInsert = $DB->PrepareInsert("b_sonet_group", $arFields);
-		\Bitrix\Socialnetwork\Util::processEqualityFieldsToInsert($arFields1, $arInsert);
+		Util::processEqualityFieldsToInsert($arFields1, $arInsert);
 
 		$ID = false;
 		if ($arInsert[0] <> '')
@@ -86,7 +87,7 @@ class CSocNetGroup extends CAllSocNetGroup
 				"VALUES(".$arInsert[1].")";
 			$DB->Query($strSql, False, "File: ".__FILE__."<br>Line: ".__LINE__);
 
-			$ID = intval($DB->LastID());
+			$ID = (int)$DB->LastID();
 
 			$events = GetModuleEvents("socialnetwork", "OnSocNetGroupAdd");
 			while ($arEvent = $events->Fetch())
@@ -141,7 +142,7 @@ class CSocNetGroup extends CAllSocNetGroup
 						&& is_array($tagsList)
 					)
 					{
-						\Bitrix\Socialnetwork\WorkgroupTagTable::set([
+						WorkgroupTagTable::set([
 							'groupId' => $ID,
 							'tags' => $tagsList
 						]);
@@ -169,7 +170,7 @@ class CSocNetGroup extends CAllSocNetGroup
 			return false;
 		}
 
-		$ID = intval($ID);
+		$ID = (int)$ID;
 
 		$arGroupOld = CSocNetGroup::GetByID($ID);
 		if (!$arGroupOld)
@@ -178,41 +179,43 @@ class CSocNetGroup extends CAllSocNetGroup
 			return false;
 		}
 
-		$arFields1 = \Bitrix\Socialnetwork\Util::getEqualityFields($arFields);
+		$arFields1 = Util::getEqualityFields($arFields);
 
 		if (!CSocNetGroup::CheckFields("UPDATE", $arFields, $ID))
 		{
 			return false;
 		}
-		else
+
+		$arSiteID = [];
+
+		if (is_set($arFields, "SITE_ID"))
 		{
-			$arSiteID = array();
-
-			if(is_set($arFields, "SITE_ID"))
+			if(is_array($arFields["SITE_ID"]))
 			{
-				if(is_array($arFields["SITE_ID"]))
-				{
-					$arSiteID = $arFields["SITE_ID"];
-				}
-				else
-				{
-					$arSiteID[] = $arFields["SITE_ID"];
-				}
+				$arSiteID = $arFields["SITE_ID"];
+			}
+			else
+			{
+				$arSiteID[] = $arFields["SITE_ID"];
+			}
 
-				$arFields["SITE_ID"] = false;
-				$str_SiteID = "''";
-				foreach($arSiteID as $v)
-				{
-					$arFields["SITE_ID"] = $v;
-					$str_SiteID .= ", '".$DB->ForSql($v)."'";
-				}
+			$arFields["SITE_ID"] = false;
+			$str_SiteID = "''";
+			foreach($arSiteID as $v)
+			{
+				$arFields["SITE_ID"] = $v;
+				$str_SiteID .= ", '".$DB->ForSql($v)."'";
 			}
 		}
 
 		$db_events = GetModuleEvents("socialnetwork", "OnBeforeSocNetGroupUpdate");
 		while ($arEvent = $db_events->Fetch())
-			if (ExecuteModuleEventEx($arEvent, array($ID, &$arFields))===false)
+		{
+			if (ExecuteModuleEventEx($arEvent, array($ID, &$arFields)) === false)
+			{
 				return false;
+			}
+		}
 
 		if (
 			array_key_exists("IMAGE_ID", $arFields)
@@ -229,7 +232,7 @@ class CSocNetGroup extends CAllSocNetGroup
 		CFile::SaveForDB($arFields, "IMAGE_ID", "socialnetwork");
 
 		$strUpdate = $DB->PrepareUpdate("b_sonet_group", $arFields);
-		\Bitrix\Socialnetwork\Util::processEqualityFieldsToUpdate($arFields1, $strUpdate);
+		Util::processEqualityFieldsToUpdate($arFields1, $strUpdate);
 
 		if ($strUpdate <> '')
 		{
@@ -350,9 +353,9 @@ class CSocNetGroup extends CAllSocNetGroup
 			{
 				ExecuteModuleEventEx($arEvent, array($ID, &$arFields));
 			}
-			CSocNetGroup::SearchIndex($ID, false, $arGroupOld, $bAutoSubscribe);
+			CSocNetGroup::SearchIndex($ID, false, $arGroupOld);
 
-			if (!empty($arFields["KEYWORDS"]))
+			if (isset($arFields['KEYWORDS']))
 			{
 				$tagsList = explode(',', $arFields["KEYWORDS"]);
 				if (
@@ -363,16 +366,11 @@ class CSocNetGroup extends CAllSocNetGroup
 					$tagsList = array_map(function($a) { return trim($a, ' '); }, $tagsList);
 					$tagsList = array_filter($tagsList, function($a) { return ($a <> ''); });
 				}
-				if (
-					!empty($tagsList)
-					&& is_array($tagsList)
-				)
-				{
-					\Bitrix\Socialnetwork\WorkgroupTagTable::set([
-						'groupId' => $ID,
-						'tags' => $tagsList
-					]);
-				}
+
+				WorkgroupTagTable::set([
+					'groupId' => $ID,
+					'tags' => $tagsList
+				]);
 			}
 
 			Workgroup::setIndex(array(
@@ -381,8 +379,8 @@ class CSocNetGroup extends CAllSocNetGroup
 
 			$arGroupNew = CSocNetGroup::GetByID($ID);
 			if (
-				$arGroupNew["OPENED"] == "Y"
-				&& $arGroupOld["OPENED"] == "N"
+				$arGroupNew['OPENED'] === 'Y'
+				&& $arGroupOld['OPENED'] === 'N'
 			)
 			{
 				CSocNetGroup::ConfirmAllRequests($ID, $bAutoSubscribe);
@@ -505,6 +503,8 @@ class CSocNetGroup extends CAllSocNetGroup
 			"SCRUM_OWNER_ID" => ["FIELD" => "G.SCRUM_OWNER_ID", "TYPE" => "int"],
 			"SCRUM_MASTER_ID" => ["FIELD" => "G.SCRUM_MASTER_ID", "TYPE" => "int"],
 			"SCRUM_SPRINT_DURATION" => ["FIELD" => "G.SCRUM_SPRINT_DURATION", "TYPE" => "int"],
+			"SCRUM_TASK_RESPONSIBLE" => ["FIELD" => "G.SCRUM_TASK_RESPONSIBLE", "TYPE" => "string"],
+			'AVATAR_TYPE' => [ 'FIELD' => 'G.AVATAR_TYPE', 'TYPE' => 'string'],
 		);
 
 		if (array_key_exists("SITE_ID", $arFilter))
@@ -513,7 +513,7 @@ class CSocNetGroup extends CAllSocNetGroup
 			$strDistinct = " DISTINCT ";
 			foreach ($arSelectFields as $i => $strFieldTmp)
 			{
-				if ($strFieldTmp == "SITE_ID")
+				if ($strFieldTmp === "SITE_ID")
 				{
 					unset($arSelectFields[$i]);
 				}
@@ -710,4 +710,3 @@ class CSocNetGroup extends CAllSocNetGroup
 		return $dbRes;
 	}
 }
-?>

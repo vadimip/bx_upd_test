@@ -52,7 +52,6 @@
 		addClass(this.layout, "landing-ui-panel-google-fonts");
 		addClass(this.overlay, "landing-ui-panel-google-fonts-overlay");
 		this.client = new BX.Landing.Client.GoogleFonts();
-
 		var rootWindow = BX.Landing.PageObject.getRootWindow();
 		var container = rootWindow.document.body.querySelector(".landing-ui-view-container");
 		append(this.layout, container);
@@ -87,7 +86,7 @@
 		 * Shows panel
 		 * @return {Promise}
 		 */
-		show: function()
+		show: function(params)
 		{
 			var showPromise = this.superclass.show.call(this);
 
@@ -95,6 +94,18 @@
 			{
 				return showPromise
 					.then(proxy(this.saveResolver, this));
+			}
+
+			if (params)
+			{
+				if (params['hideOverlay'])
+				{
+					this.overlay.style.display = "none";
+				}
+				if (params['context'])
+				{
+					this.context = params['context'];
+				}
 			}
 
 			return showPromise
@@ -195,6 +206,16 @@
 		 */
 		loadFonts: function(response)
 		{
+			var context;
+			if (this.context)
+			{
+				context = this.context;
+			}
+			else
+			{
+				context = top;
+			}
+
 			return new Promise(function(resolve) {
 				WebFont.load({
 					google: {
@@ -202,7 +223,7 @@
 							return font.family.replace(/ /g, "+")
 						})
 					},
-					context: top,
+					context: context,
 					classes: false,
 					active: function()
 					{
@@ -293,7 +314,7 @@
 					"<div class=\"landing-ui-font-preview-font-button\">" +
 						"<span class=\"ui-btn ui-btn-xs ui-btn-light-border ui-btn-round\">"+BX.Landing.Loc.getMessage("LANDING_GOOGLE_FONT_SELECT_BUTTON")+"</span>" +
 					"</div>" +
-					"<div style=\"font-family: "+options.family+"; direction: "+direction+";\" class=\"landing-ui-font-preview-pangram\" contenteditable=\"true\">" +
+					"<div style=\"font-family: "+options.family+"; direction: "+direction+";\" class=\"landing-ui-font-preview-pangram\" contenteditable=\"true\" onpaste=\"return false;\">" +
 						pangram +
 					"</div>" +
 				"</div>"

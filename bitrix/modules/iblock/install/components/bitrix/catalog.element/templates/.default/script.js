@@ -225,6 +225,10 @@
 
 			this.initBasketData();
 			this.initCompareData();
+
+			this.isFacebookConversionCustomizeProductEventEnabled =
+				this.params.IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED
+			;
 		}
 
 		if (this.errorCode === 0)
@@ -1003,7 +1007,6 @@
 			{
 				case 'showDetail':
 					info = {
-						'event': 'showDetail',
 						'ecommerce': {
 							'currencyCode': this.currentPrices[this.currentPriceSelected] && this.currentPrices[this.currentPriceSelected].CURRENCY || '',
 							'detail': {
@@ -1021,7 +1024,6 @@
 					break;
 				case 'addToCart':
 					info = {
-						'event': 'addToCart',
 						'ecommerce': {
 							'currencyCode': this.currentPrices[this.currentPriceSelected] && this.currentPrices[this.currentPriceSelected].CURRENCY || '',
 							'add': {
@@ -2168,6 +2170,22 @@
 						smallCardItem.style.display = '';
 					}
 				}
+
+				if (
+					this.isFacebookConversionCustomizeProductEventEnabled
+					&& BX.Type.isArrayFilled(this.offers)
+					&& BX.Type.isObject(this.offers[this.offerNum])
+				)
+				{
+					BX.ajax.runAction(
+						'sale.facebookconversion.customizeProduct',
+						{
+							data: {
+								offerId: this.offers[this.offerNum]['ID']
+							}
+						}
+					);
+				}
 			}
 		},
 
@@ -3087,7 +3105,7 @@
 							style: {marginRight: '10px'}
 						}),
 						new BasketButton({
-							text: BX.message('BTN_MESSAGE_CLOSE_POPUP'),
+							text: BX.message('BTN_MESSAGE_DETAIL_CLOSE_POPUP'),
 							events: {
 								click: BX.delegate(this.obPopupWin.close, this.obPopupWin)
 							}
@@ -3437,14 +3455,14 @@
 					{
 						popupButtons = [
 							new BasketButton({
-								text: BX.message('BTN_MESSAGE_BASKET_REDIRECT'),
+								text: BX.message('BTN_MESSAGE_DETAIL_BASKET_REDIRECT'),
 								events: {
 									click: BX.delegate(this.basketRedirect, this)
 								},
 								style: {marginRight: '10px'}
 							}),
 							new BasketButton({
-								text: BX.message('BTN_MESSAGE_CLOSE_POPUP'),
+								text: BX.message('BTN_MESSAGE_DETAIL_CLOSE_POPUP'),
 								events: {
 									click: BX.delegate(this.obPopupWin.close, this.obPopupWin)
 								}
@@ -3455,7 +3473,7 @@
 					{
 						popupButtons = [
 							new BasketButton({
-								text: BX.message('BTN_MESSAGE_BASKET_REDIRECT'),
+								text: BX.message('BTN_MESSAGE_DETAIL_BASKET_REDIRECT'),
 								events: {
 									click: BX.delegate(this.basketRedirect, this)
 								}

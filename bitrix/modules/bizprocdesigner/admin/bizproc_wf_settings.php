@@ -1,5 +1,9 @@
-<?
+<?php
+
 define("NOT_CHECK_FILE_PERMISSIONS", true);
+define("NO_KEEP_STATISTIC", true);
+define("BX_STATISTIC_BUFFER_USED", false);
+
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 
 \Bitrix\Main\Loader::includeModule('bizproc');
@@ -21,6 +25,7 @@ $arWorkflowParameters = $_POST['arWorkflowParameters'];
 $arWorkflowVariables = $_POST['arWorkflowVariables'];
 $arWorkflowConstants = $_POST['arWorkflowConstants'];
 $arGlobalConstants = \Bitrix\Bizproc\Workflow\Type\GlobalConst::getAll();
+$arGlobalVariables = \Bitrix\Bizproc\Workflow\Type\GlobalVar::getAll();
 
 $globalTypes = $arResult['TYPES'] = \Bitrix\Bizproc\FieldType::getBaseTypesMap();
 unset($globalTypes[\Bitrix\Bizproc\FieldType::INTERNALSELECT]);
@@ -74,10 +79,15 @@ if ($_POST["save"] == "Y")
 			$errorMessage = GetMessage('BIZPROC_SAVE_GCONST_ERROR');
 		}
 	}
+	if ($isAdmin && isset($_POST['arWorkflowGlobalVariables']) && is_array($_POST['arWorkflowGlobalVariables']))
+	{
+		\Bitrix\Bizproc\Workflow\Type\GlobalVar::saveAll($_POST['arWorkflowGlobalVariables']);
+	}
 
 	echo CUtil::PhpToJSObject([
 			'perms' => $perms,
 			'arWorkflowGlobalConstants' => \Bitrix\Bizproc\Workflow\Type\GlobalConst::getAll(),
+			'arWorkflowGlobalVariables' => \Bitrix\Bizproc\Workflow\Type\GlobalVar::getAll(),
 			'error_message' => $errorMessage
 	], false);
 	\Bitrix\Main\Application::getInstance()->terminate();
@@ -126,9 +136,10 @@ WFSAllData['P'] = <?=(is_array($arWorkflowParameters) && !empty($arWorkflowParam
 WFSAllData['V'] = <?=(is_array($arWorkflowVariables) && !empty($arWorkflowVariables) ?CUtil::PhpToJSObject($arWorkflowVariables):'{}')?>;
 WFSAllData['C'] = <?=(is_array($arWorkflowConstants) && !empty($arWorkflowConstants) ?CUtil::PhpToJSObject($arWorkflowConstants):'{}')?>;
 
-<?if ($isAdmin):?>
+<?php if ($isAdmin): ?>
 WFSAllData['GC'] = <?=(!empty($arGlobalConstants) ?CUtil::PhpToJSObject($arGlobalConstants):'{}')?>;
-<?endif?>
+WFSAllData['GV'] = <?= (!empty($arGlobalVariables) ? CUtil::PhpToJSObject($arGlobalVariables) : '{}') ?>;
+<?php endif ?>
 
 function WFSStart()
 {
@@ -148,8 +159,8 @@ function WFSStart()
 	}
 	document.getElementById('WFStemplate_name').value = workflowTemplateName;
 	document.getElementById('WFStemplate_description').value = workflowTemplateDescription;
-	document.getElementById('WFStemplate_is_system').checked = workflowTemplateIsSystem === 'Y';
-	document.getElementById('WFStemplate_sort').value = workflowTemplateSort || 10;
+	document.getElementById('WFStemplate_is_system').checked = window.workflowTemplateIsSystem === 'Y';
+	document.getElementById('WFStemplate_sort').value = window.workflowTemplateSort || 10;
 
 	if (workflowTemplateAutostart < 8)
 	{
@@ -189,6 +200,41 @@ function WFSFSave()
 		}));
 	}
 
+	var wfsListGVar = document.getElementById('WFSListGV');
+	if (wfsListGVar && WFSAllData['GV'])
+	{
+		var wfsGlobalVarData = <?= (!empty($arGlobalVariables) ? CUtil::PhpToJSObject($arGlobalVariables) : '{}') ?>;
+		var variables = {};
+		for (var j = 1; j < wfsListGVar.rows.length; j++)
+		{
+			var paramId = wfsListGVar.rows[j].paramId;
+			variables[paramId] = WFSAllData['GV'][paramId];
+			if (wfsGlobalVarData[paramId] !== undefined)
+			{
+				var changed = false;
+				for (var property in wfsGlobalVarData[paramId])
+				{
+					if (String(wfsGlobalVarData[paramId][property]) !== String(variables[paramId][property]))
+					{
+						changed = true;
+						break;
+					}
+				}
+				variables[paramId]['Changed'] = changed;
+			}
+		}
+
+		ajaxData += '&arWorkflowGlobalVariables=' + encodeURIComponent(JSON.stringify(variables, function(i, v)
+		{
+			if (typeof(v) === 'boolean')
+			{
+				return v ? '1' : '0';
+			}
+
+			return v;
+		}));
+	}
+
 	BX.showWait();
 	BX.ajax({
 		'url': '/bitrix/tools/bizproc_wf_settings.php?lang=<?= LANGUAGE_ID ?>&dts=<?= CUtil::JSEscape($documentTypeSigned) ?>',
@@ -198,7 +244,7 @@ function WFSFSave()
 		'timeout': 10,
 		'async': false,
 		'start': true,
-		'onsuccess': WFSSaveOK, 
+		'onsuccess': WFSSaveOK,
 		'onfailure': WFSSaveN
 	});
 }
@@ -244,6 +290,10 @@ function WFSSaveOK(response)
 	if (response['arWorkflowGlobalConstants'])
 	{
 		window.arWorkflowGlobalConstants = response['arWorkflowGlobalConstants'];
+	}
+	if (response['arWorkflowGlobalVariables'])
+	{
+		window.arWorkflowGlobalVariables = response['arWorkflowGlobalVariables'];
 	}
 
 	arWorkflowVariables = WFSAllData['V'];
@@ -469,6 +519,11 @@ function WFSSwitchSubTypeControlGC(newSubtype)
 	WFSSwitchSubTypeControl(newSubtype, 'GC');
 }
 
+function WFSSwitchSubTypeControlGV(newSubtype)
+{
+	WFSSwitchSubTypeControl(newSubtype, 'GV');
+}
+
 function WFSParamDeleteParam(ob, Type)
 {
 	var id = ob.parentNode.parentNode.paramId;
@@ -619,7 +674,7 @@ function WFSParamNewParam(pvMode)
 	WFSParamEditForm(true, pvMode);
 
 	var i;
-	var prefix = {P: 'Parameter', V: 'Variable', C: 'Constant', GC: 'Constant'}[pvMode];
+	var prefix = {P: 'Parameter', V: 'Variable', C: 'Constant', GC: 'Constant', GV: 'Variable'}[pvMode];
 	for (i=1; i<10000; i++)
 	{
 		if (!WFSAllData[pvMode][prefix+i])
@@ -688,12 +743,13 @@ setTimeout(WFSStart, 0);
 
 <form id="bizprocform" name="bizprocform" method="post">
 <?=bitrix_sessid_post()?>
-<?
+<?php
 $aTabs = [["DIV" => "edit1", "TAB" => GetMessage("BIZPROC_WFS_TAB_MAIN"), "ICON" => "group_edit", "TITLE" => GetMessage("BIZPROC_WFS_TAB_MAIN_TITLE")]];
 $aTabs[] = ["DIV" => "edit2", "TAB" => GetMessage("BIZPROC_WFS_TAB_PARAM"), "ICON" => "group_edit", "TITLE" => GetMessage("BIZPROC_WFS_TAB_PARAM_TITLE")];
 $aTabs[] = ["DIV" => "edit3", "TAB" => GetMessage("BP_WF_TAB_VARS"), "ICON" => "group_edit", "TITLE" => GetMessage("BP_WF_TAB_VARS_TITLE")];
 $aTabs[] = ["DIV" => "edit5", "TAB" => GetMessage("BP_WF_TAB_CONSTANTS"), "ICON" => "group_edit", "TITLE" => GetMessage("BP_WF_TAB_CONSTANTS_TITLE")];
 $aTabs[] = ["DIV" => "edit6", "TAB" => GetMessage("BP_WF_TAB_G_CONST"), "ICON" => "group_edit", "TITLE" => GetMessage("BP_WF_TAB_G_CONST_TITLE")];
+$aTabs[] = ['DIV' => 'edit7', 'TAB' => GetMessage('BP_WF_TAB_G_VAR'), 'ICON' => 'group_edit', 'TITLE' => GetMessage('BP_WF_TAB_G_VAR_TITLE')];
 
 if (!empty($arAllowableOperations))
 {
@@ -1039,6 +1095,90 @@ $tabControl->BeginNextTab(['className' => 'bizproc-wf-settings-tab-content bizpr
 			<?endif;?>
 		</td>
 	</tr>
+<?php
+$tabControl->BeginNextTab(['className' => 'bizproc-wf-settings-tab-content bizproc-wf-settings-tab-content-variables']);
+?>
+	<tr>
+		<td colspan="2">
+			<?php if ($isAdmin): ?>
+				<div id="dparamlistGV" class="bizproc-valign-top">
+					<table width="100%" class="internal" id="WFSListGV">
+						<tr class="heading">
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_NAME") ?></td>
+							<td><?= GetMessage("BIZPROC_WFS_PARAMID") ?></td>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_TYPE") ?></td>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_REQUIRED") ?></td>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_MULT") ?></td>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_ACT") ?></td>
+						</tr>
+					</table>
+					<br>
+					<span class="bizproc-wf-settings-tab-add-button" style="padding: 10px;">
+						<a href="javascript:void(0);" onclick="WFSParamNewParam('GV')"><?= GetMessage('BP_WF_VAR_ADD') ?></a>
+					</span>
+				</div>
+				<div id="dparamformGV" class="bizproc-valign-top" style="display: none">
+					<table class="internal">
+						<tr>
+							<td><span style="color: #FF0000">*</span><?= GetMessage("BIZPROC_WFS_PARAMID") ?>:</td>
+							<td>
+								<input type="text" size="20" id="WFSFormIdGV" readonly=readonly>
+								<input type="hidden" id="WFSFormIdOldGV">
+							</td>
+						</tr>
+						<tr>
+							<td><span style="color: #FF0000">*</span><?= GetMessage("BIZPROC_WFS_PARAM_NAME") ?>:</td>
+							<td><input type="text" size="30" id="WFSFormNameGV"></td>
+						</tr>
+						<tr>
+							<td><?= GetMessage("BIZPROC_WFS_PARAMDESC") ?>:</td>
+							<td><textarea id="WFSFormDescGV" rows="2" cols="30"></textarea></td>
+						</tr>
+						<tr>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_TYPE") ?>:</td>
+							<td>
+								<select id="WFSFormTypeGV" onchange="WFSSwitchTypeControl(this.value, 'GV');">
+									<?php foreach ($arWorkflowParameterTypes as $k => $v):
+										if ($k === 'UF:date')
+											$k = 'date';
+
+										if (!isset($globalTypes[$k]))
+											continue ?>
+										<option value="<?= $k ?>"><?= htmlspecialcharsbx($v) ?></option>
+									<?php endforeach ?>
+								</select><br />
+								<span id="WFSAdditionalTypeInfoGV"></span>
+							</td>
+						</tr>
+						<tr>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_REQUIRED") ?>:</td>
+							<td><input type="checkbox" id="WFSFormReqGV" value="Y" onchange="WFSSwitchTypeControl(null, 'GV', {Required: this.checked});"></td>
+						</tr>
+						<tr>
+							<td><?= GetMessage("BIZPROC_WFS_PARAM_MULT") ?>:</td>
+							<td><input type="checkbox" id="WFSFormMultGV" value="Y" onchange="WFSSwitchTypeControl(null, 'GV', {Multiple: this.checked});"></td>
+						</tr>
+						<tr id="WFSFormOptionsRowGV" style="display: none;">
+							<td id="tdWFSFormOptionsPromtGV"><?= GetMessage("BIZPROC_WFS_PARAMLIST") ?>:</td>
+							<td id="tdWFSFormOptionsGV"><textarea id="WFSFormOptionsGV" rows="5" cols="30"></textarea></td>
+						</tr>
+						<tr>
+							<td><?= GetMessage("BIZPROC_WFS_VARIABLEDEF") ?>:</td>
+							<td id="tdWFSFormDefaultGV">
+								<input id="id_WFSFormDefaultGV">
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" align="center"><input type="button" id="dpsavebuttonformGV" value="OK" onclick="WFSParamSaveForm('GV')"><input type="button" id="dpcancelbuttonformGV" onclick="WFSParamEditForm(false, 'GV')" value="<?= GetMessage("BIZPROC_WFS_BUTTON_CANCEL") ?>"></td>
+						</tr>
+					</table>
+				</div>
+			<?php else:
+				ShowError(GetMessage('BIZPROC_IS_ADMIN_ERROR'))?>
+			<?php endif ?>
+		</td>
+	</tr>
+
 	<?
 if (!empty($arAllowableOperations)):
 	$tabControl->BeginNextTab();
@@ -1080,4 +1220,3 @@ $tabControl->End();
 </form>
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
-?>

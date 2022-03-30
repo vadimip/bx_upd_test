@@ -260,7 +260,6 @@
 		saveSection: function(name, color, access, params)
 		{
 			var promise = new BX.Promise();
-
 			name = BX.util.trim(name) || BX.message('EC_SEC_SLIDER_NEW_SECTION');
 
 			if (params.section.id)
@@ -350,16 +349,6 @@
 			return !BX.util.in_array(id, this.hiddenSections);
 		},
 
-		getHiddenSections: function()
-		{
-			return this.hiddenSections || [];
-		},
-
-		setHiddenSections: function(hiddenSections)
-		{
-			this.hiddenSections = hiddenSections;
-		},
-
 		getSectionsInfo: function()
 		{
 			var
@@ -371,7 +360,13 @@
 
 			for (i = 0; i < this.sections.length; i++)
 			{
-				if (this.sections[i].canDo('view_time'))
+				if (this.sections[i].canDo('view_time')
+					&& (
+						this.sections[i].belongsToView()
+						|| this.sections[i].isSuperposed()
+						|| this.sections[i].isPseudo()
+					)
+				)
 				{
 					if (this.sections[i].isShown())
 					{
@@ -450,28 +445,6 @@
 			return this.calendar.sectionController.sectionIsShown(this.id);
 		},
 
-		show: function()
-		{
-			if (!this.isShown())
-			{
-				var hiddenSections = this.calendar.sectionController.getHiddenSections();
-				hiddenSections = BX.util.deleteFromArray(hiddenSections, BX.util.array_search(this.id, hiddenSections));
-				this.calendar.sectionController.setHiddenSections(hiddenSections);
-				BX.userOptions.save('calendar', 'hidden_sections', 'hidden_sections', hiddenSections);
-			}
-		},
-
-		hide: function()
-		{
-			if (this.isShown())
-			{
-				var hiddenSections = this.calendar.sectionController.getHiddenSections();
-				hiddenSections.push(this.id);
-				this.calendar.sectionController.setHiddenSections(hiddenSections);
-				BX.userOptions.save('calendar', 'hidden_sections', 'hidden_sections', hiddenSections);
-			}
-		},
-
 		remove: function()
 		{
 			if (confirm(BX.message('EC_SEC_DELETE_CONFIRM')))
@@ -504,7 +477,7 @@
 						}
 						else
 						{
-							BX.Calendar.CalendarSectionManager.setNewEntrySectionId(this.calendar.sectionController.getCurrentSection().id);
+							BX.Calendar.SectionManager.setNewEntrySectionId(this.calendar.sectionController.getCurrentSection().id);
 							this.calendar.reload();
 						}
 					}.bind(this),
@@ -622,7 +595,8 @@
 		{
 			return (this.data.CAL_DAV_CAL && this.data.CAL_DAV_CAL.indexOf('@virtual/events/') !== -1)
 				|| (this.data.GAPI_CALENDAR_ID && this.data.GAPI_CALENDAR_ID.indexOf('@group.v.calendar.google.com') !== -1)
-				|| (this.data.GAPI_CALENDAR_ID && this.data.GAPI_CALENDAR_ID.indexOf('@group.calendar.google.com') !== -1)
+				|| (this.data.EXTERNAL_TYPE === 'google_readonly')
+				|| (this.data.EXTERNAL_TYPE === 'google_freebusy')
 		},
 
 		isGoogle: function()

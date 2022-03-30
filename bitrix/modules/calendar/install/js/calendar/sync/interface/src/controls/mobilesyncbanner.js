@@ -8,7 +8,7 @@ export default class MobileSyncBanner
 {
 	zIndex = 3100;
 	DOM = {};
-	QRCODE_SIZE = 128;
+	QRCODE_SIZE = 186;
 	QRCODE_COLOR_LIGHT = '#ffffff';
 	QRCODE_COLOR_DARK = '#000000';
 	QRCODE_WRAP_CLASS = 'calendar-sync-slider-qr-container';
@@ -18,7 +18,6 @@ export default class MobileSyncBanner
 	{
 		this.type = options.type;
 		this.helpDeskCode = options.helpDeskCode || '11828176';
-		this.fixHintPopupZIndexBinded = this.fixHintPopupZIndex.bind(this);
 	}
 
 	show()
@@ -75,12 +74,7 @@ export default class MobileSyncBanner
 			</div>
 		`;
 
-		this.DOM.mobileHintIcon = this.DOM.container.querySelector('.calendar-notice-mobile-banner');
-		if (this.DOM.mobileHintIcon && BX.UI.Hint)
-		{
-			BX.UI.Hint.initNode(this.DOM.mobileHintIcon);
-			BX.addCustomEvent('onPopupShow', this.fixHintPopupZIndexBinded);
-		}
+		Util.initHintNode(this.DOM.container.querySelector('.calendar-notice-mobile-banner'));
 
 		return this.DOM.container;
 	}
@@ -130,7 +124,11 @@ export default class MobileSyncBanner
 	getMobileSyncUrl()
 	{
 		return new Promise((resolve, reject) => {
-			BX.ajax.runAction('calendar.api.calendarajax.getAuthLink')
+			BX.ajax.runAction('calendar.api.calendarajax.getAuthLink', {
+				data: {
+					type: this.type ? 'slider' : 'banner',
+				}
+			})
 			.then(
 				(response) => {
 					resolve(response.data.link);
@@ -153,23 +151,5 @@ export default class MobileSyncBanner
 	getHelpdeskCode()
 	{
 		return this.helpDeskCode;
-	}
-
-	fixHintPopupZIndex(popupWindow)
-	{
-		if (popupWindow.uniquePopupId === 'ui-hint-popup'
-			&& popupWindow.bindElement === this.DOM.mobileHintIcon)
-		{
-			const Z_INDEX = 3200;
-			if (popupWindow.params.zIndex && popupWindow.params.zIndex < Z_INDEX
-				||
-				popupWindow.popupContainer.style.zIndex
-				&& popupWindow.popupContainer.style.zIndex < Z_INDEX
-			)
-			{
-				popupWindow.params.zIndex = Z_INDEX;
-				popupWindow.popupContainer.style.zIndex = Z_INDEX;
-			}
-		}
 	}
 }

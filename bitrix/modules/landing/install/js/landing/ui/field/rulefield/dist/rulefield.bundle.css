@@ -437,7 +437,7 @@
 	-webkit-box-align: center;
 	    -ms-flex-align: center;
 	        align-items: center;
-	height: 35px;
+	min-height: 35px;
 	padding-left: 11px;
 	padding-right: 9px;
 	cursor: pointer;
@@ -456,7 +456,6 @@
 	-webkit-box-flex: 1;
 	    -ms-flex-positive: 1;
 	        flex-grow: 1;
-	line-height: 35px;
 }
 
 .value-settings-item-separator {
@@ -491,4 +490,9 @@
 	background-position: left center;
 	background-repeat: no-repeat;
 	padding-left: 20px;
+}
+
+.landing-ui-field-checkbox[data-selector="operator"] {
+	padding-left: 5px;
+	margin-bottom: 0;
 }

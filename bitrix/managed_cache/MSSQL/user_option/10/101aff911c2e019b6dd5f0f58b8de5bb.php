@@ -1,7 +1,7 @@
 <?
 if($INCLUDE_FROM_CACHE!='Y')return false;
-$datecreate = '001639580311';
-$dateexpire = '001639583911';
+$datecreate = '001644220991';
+$dateexpire = '001644224591';
 $ser_content = 'a:2:{s:7:"CONTENT";s:0:"";s:4:"VARS";a:6:{s:15:"product_license";a:4:{s:7:"columns";s:116:"ID,ORDER_DATE,PARTNER_NAME,PRODUCT_NAME,LICENSE_NUM,REG_NUM,CUSTOMER_NAME,CUSTOMER_EMAIL,CUSTOMER_DATE,PARTNER_EMAIL";s:2:"by";s:2:"id";s:5:"order";s:4:"desc";s:9:"page_size";s:3:"100";}s:52:"tbl_iblock_el_search13d4961f4ab32b5cae64149befed0230";a:4:{s:7:"columns";s:41:"ID,TIMESTAMP_X,USER_NAME,ACTIVE,NAME,CODE";s:2:"by";s:4:"name";s:5:"order";s:3:"asc";s:9:"page_size";s:2:"20";}s:52:"tbl_iblock_el_search3b49c86006709b4c49e0063f2335e3e4";a:4:{s:7:"columns";s:60:"ID,TIMESTAMP_X,USER_NAME,ACTIVE,NAME,PROPERTY_62,PROPERTY_81";s:2:"by";s:4:"name";s:5:"order";s:3:"asc";s:9:"page_size";s:2:"20";}s:52:"tbl_iblock_el_search401afecb631874b3eed9b88081834c27";a:4:{s:7:"columns";s:49:"ID,TIMESTAMP_X,USER_NAME,ACTIVE,NAME,PROPERTY_108";s:2:"by";s:4:"name";s:5:"order";s:3:"asc";s:9:"page_size";s:2:"20";}s:52:"tbl_iblock_el_search50d97a0fc42fbb51b2562a172199c395";a:4:{s:7:"columns";s:96:"ID,TIMESTAMP_X,USER_NAME,ACTIVE,NAME,PROPERTY_50,PROPERTY_56,PROPERTY_45,PROPERTY_85,PROPERTY_52";s:2:"by";s:4:"name";s:5:"order";s:3:"asc";s:9:"page_size";s:2:"20";}s:55:"tbl_iblock_sub_element_30975736bf664b952aec1131b6792500";a:4:{s:7:"columns";s:87:"CATALOG_TYPE,NAME,ACTIVE,SORT,ID,CATALOG_AVAILABLE,CATALOG_PURCHASING_PRICE,PROPERTY_69";s:2:"by";s:2:"id";s:5:"order";s:3:"asc";s:9:"page_size";s:2:"20";}}}';
 return true;
 ?>

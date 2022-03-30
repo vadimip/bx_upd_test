@@ -1,10 +1,8 @@
-<?
+<?php
 $MESS["FL_FORUM_CHAIN"] = "Forum";
 $MESS["FL_FORUM_GROUP_CHAIN"] = "Diskussion";
 $MESS["FL_FORUM_USER_CHAIN"] = "Forum";
 $MESS["IBLOCK_DEFAULT_UF"] = "Standardgalerie";
-$MESS["PHOTO_STEPPER_PROGRESS_ERROR"] = "Fotos mit folgenden IDs konnten nicht kopiert werden:";
-$MESS["PHOTO_STEPPER_PROGRESS_TITLE"] = "Fotos kopieren";
 $MESS["SONET_APP_IS_NOT_ACTIVE"] = "Anwendung wurde nicht gefunden.";
 $MESS["SONET_CONTENT_SEARCH_CHAIN"] = "Suche";
 $MESS["SONET_CREATE_WEBDAV"] = "Bibliothek erstellen";
@@ -32,4 +30,4 @@ $MESS["SONET_P_MODULE_IS_NOT_INSTALLED"] = "Das Modul \"Fotogalerie\" wurde nich
 $MESS["SONET_WD_MODULE_IS_NOT_INSTALLED"] = "Das Modul \"Dokumentenarchiv\" wurde nicht installiert.";
 $MESS["SONET_WEBDAV_NOT_EXISTS"] = "Keine Dokumente.";
 $MESS["SONET_WORKGROUPS_FEATURE_DISABLED"] = "Die Funktionalität \"Arbeitsgruppe\" ist ausgeschaltet.";
-?>
+$MESS["SONET_GROUP_PAGES_TITLE_TEMPLATE"] = "#GROUP_NAME#: #PAGE_TITLE#";

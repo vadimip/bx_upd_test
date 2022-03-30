@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
@@ -8,27 +9,50 @@
 namespace Bitrix\Socialnetwork;
 
 use Bitrix\Main\Entity;
+use Bitrix\Main\ModuleManager;
 use Bitrix\Main\NotImplementedException;
+use Bitrix\Main\ORM\Query\Join;
 
+/**
+ * Class UserToGroupTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_UserToGroup_Query query()
+ * @method static EO_UserToGroup_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_UserToGroup_Result getById($id)
+ * @method static EO_UserToGroup_Result getList(array $parameters = array())
+ * @method static EO_UserToGroup_Entity getEntity()
+ * @method static \Bitrix\Socialnetwork\EO_UserToGroup createObject($setDefaultValues = true)
+ * @method static \Bitrix\Socialnetwork\EO_UserToGroup_Collection createCollection()
+ * @method static \Bitrix\Socialnetwork\EO_UserToGroup wakeUpObject($row)
+ * @method static \Bitrix\Socialnetwork\EO_UserToGroup_Collection wakeUpCollection($rows)
+ */
 class UserToGroupTable extends Entity\DataManager
 {
-	const ROLE_OWNER = SONET_ROLES_OWNER;
-	const ROLE_MODERATOR = SONET_ROLES_MODERATOR;
-	const ROLE_USER = SONET_ROLES_USER;
-	const ROLE_BAN = SONET_ROLES_BAN;
-	const ROLE_REQUEST = SONET_ROLES_REQUEST;
+	public const ROLE_OWNER = SONET_ROLES_OWNER;
+	public const ROLE_MODERATOR = SONET_ROLES_MODERATOR;
+	public const ROLE_USER = SONET_ROLES_USER;
+	public const ROLE_BAN = SONET_ROLES_BAN;
+	public const ROLE_REQUEST = SONET_ROLES_REQUEST;
 
-	const INITIATED_BY_USER = SONET_INITIATED_BY_USER;
-	const INITIATED_BY_GROUP = SONET_INITIATED_BY_GROUP;
+	public const INITIATED_BY_USER = SONET_INITIATED_BY_USER;
+	public const INITIATED_BY_GROUP = SONET_INITIATED_BY_GROUP;
 
 	/**
 	 * Returns DB table name for entity
 	 *
 	 * @return string
 	 */
-	public static function getTableName()
+	public static function getTableName(): string
 	{
 		return 'b_sonet_user2group';
+	}
+
+	public static function getUfId(): string
+	{
+		return 'USER_TO_WORKGROUP';
 	}
 
 	/**
@@ -36,9 +60,9 @@ class UserToGroupTable extends Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getRolesAll()
+	public static function getRolesAll(): array
 	{
-		return array(self::ROLE_OWNER, self::ROLE_MODERATOR, self::ROLE_USER, self::ROLE_BAN, self::ROLE_REQUEST);
+		return [ self::ROLE_OWNER, self::ROLE_MODERATOR, self::ROLE_USER, self::ROLE_BAN, self::ROLE_REQUEST ];
 	}
 
 	/**
@@ -46,9 +70,9 @@ class UserToGroupTable extends Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getRolesMember()
+	public static function getRolesMember(): array
 	{
-		return array(self::ROLE_OWNER, self::ROLE_MODERATOR, self::ROLE_USER);
+		return [ self::ROLE_OWNER, self::ROLE_MODERATOR, self::ROLE_USER ];
 	}
 
 	/**
@@ -56,15 +80,15 @@ class UserToGroupTable extends Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function getInitiatedByAll()
+	public static function getInitiatedByAll(): array
 	{
-		return array(self::INITIATED_BY_USER, self::INITIATED_BY_GROUP);
+		return [ self::INITIATED_BY_USER, self::INITIATED_BY_GROUP ];
 	}
 
 	/**
 	 * Returns entity map definition
 	 */
-	public static function getMap()
+	public static function getMap(): array
 	{
 		return array(
 			'ID' => array(
@@ -76,8 +100,9 @@ class UserToGroupTable extends Entity\DataManager
 				'data_type' => 'integer',
 			),
 			'USER' => array(
-				'data_type' => 'Bitrix\Main\UserTable',
+				'data_type' => (ModuleManager::isModuleInstalled('intranet') ? 'Bitrix\Intranet\UserTable' : 'Bitrix\Main\UserTable'),
 				'reference' => array('=this.USER_ID' => 'ref.ID'),
+				'join_type' => Join::TYPE_INNER,
 			),
 			'GROUP_ID' => array(
 				'data_type' => 'integer',
@@ -85,6 +110,7 @@ class UserToGroupTable extends Entity\DataManager
 			'GROUP' => array(
 				'data_type' => 'Bitrix\Socialnetwork\WorkgroupTable',
 				'reference' => array('=this.GROUP_ID' => 'ref.ID'),
+				'join_type' => Join::TYPE_INNER,
 			),
 			'ROLE' => array(
 				'data_type' => 'enum',

@@ -162,10 +162,24 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      main_core.Dom.append(_this.getHeaderCheckbox(), _this.header);
 	    }
 
+	    if (_this.options.hidden === true) {
+	      _this.hide();
+	    }
+
 	    return _this;
 	  }
 
 	  babelHelpers.createClass(BaseForm, [{
+	    key: "show",
+	    value: function show() {
+	      main_core.Dom.attr(this.getLayout(), 'hidden', null);
+	    }
+	  }, {
+	    key: "hide",
+	    value: function hide() {
+	      main_core.Dom.attr(this.getLayout(), 'hidden', true);
+	    }
+	  }, {
 	    key: "getLayout",
 	    value: function getLayout() {
 	      return this.layout;
@@ -266,6 +280,15 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    value: function replaceCard(oldCard, newCard) {
 	      this.removeCard(oldCard);
 	      this.addCard(newCard);
+	    }
+	  }, {
+	    key: "replaceField",
+	    value: function replaceField(oldField, newField) {
+	      if (main_core.Type.isObject(oldField) && main_core.Type.isObject(newField)) {
+	        main_core.Dom.replace(oldField.getNode(), newField.getNode());
+	        this.fields.remove(oldField);
+	        this.fields.add(newField);
+	      }
 	    }
 	  }, {
 	    key: "isCheckboxChecked",

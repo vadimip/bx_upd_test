@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -7,32 +13,13 @@
 /** @global CMain $APPLICATION */
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Socialnetwork\Helper\Workgroup;
 
 Loc::loadMessages(__FILE__);
 
-$arResult['TypesProject'] = $arResult['TypesNonProject'] = [];
-
-$arResult['ClientConfig'] = array(
-	'refresh' => (empty($_GET["refresh"]) || $_GET["refresh"] != 'N' ? 'Y' : 'N')
-);
-
-if (
-	is_array($arResult['Types'])
-	&& !empty($arResult['Types'])
-)
-{
-	foreach($arResult['Types'] as $code => $type)
-	{
-		if ($type['PROJECT'] == 'Y')
-		{
-			$arResult['TypesProject'][$code] = $type;
-		}
-		else
-		{
-			$arResult['TypesNonProject'][$code] = $type;
-		}
-	}
-}
+$arResult['ClientConfig'] = [
+	'refresh' => (empty($_REQUEST['refresh']) || $_REQUEST['refresh'] !== 'N' ? 'Y' : 'N')
+];
 
 $arResult['openAdditional'] = false;
 
@@ -44,7 +31,12 @@ if (
 {
 	foreach($arResult["GROUP_PROPERTIES"] as $key => $userField)
 	{
-		if ($userField["MANDATORY"] == "Y")
+		if ($key === 'UF_SG_DEPT')
+		{
+			continue;
+		}
+
+		if ($userField['MANDATORY'] === 'Y')
 		{
 			$arResult["GROUP_PROPERTIES_MANDATORY"][$key] = $userField;
 		}
@@ -54,20 +46,6 @@ if (
 		}
 	}
 }
-
-$arResult["TypeRowNameList"] = array(
-	"Project" => Loc::getMessage('SONET_GCE_T_TYPE_SUBTITLE_PROJECT'),
-	"NonProject" => Loc::getMessage('SONET_GCE_T_TYPE_SUBTITLE_GROUP')
-);
-
-$arResult["TypeRowList"] = (
-	!empty($arParams["FIRST_ROW"])
-	&& $arParams["FIRST_ROW"] == "project"
-		? array("TypesProject", "TypesNonProject")
-		: array("TypesNonProject", "TypesProject")
-);
-
-$arResult['AVATAR_UPLOADER_CID'] = 'GROUP_IMAGE_ID';
 
 if (
 	$arParams["GROUP_ID"] <= 0
@@ -84,17 +62,61 @@ if (
 	}
 }
 
-if ($arParams["GROUP_ID"] > 0)
+if ($arParams['GROUP_ID'] > 0)
 {
-	$arResult["typeCode"] = \Bitrix\Socialnetwork\Item\Workgroup::getTypeCodeByParams(array(
+	$arResult['typeCode'] = Workgroup::getTypeCodeByParams([
 		'typesList' => $arResult['Types'],
 		'fields' => [
-			'VISIBLE' => (isset($arResult["POST"]['VISIBLE']) && $arResult["POST"]['VISIBLE'] == 'Y' ? 'Y' : 'N'),
-			'OPENED' => (isset($arResult["POST"]['OPENED']) && $arResult["POST"]['OPENED'] == 'Y' ? 'Y' : 'N'),
-			'PROJECT' => (isset($arResult["POST"]['PROJECT']) && $arResult["POST"]['PROJECT'] == 'Y' ? 'Y' : 'N'),
-			'EXTERNAL' => (isset($arResult["POST"]["IS_EXTRANET_GROUP"]) && $arResult["POST"]["IS_EXTRANET_GROUP"] == 'Y' ? 'Y' : 'N')
+			'VISIBLE' => (isset($arResult['POST']['VISIBLE']) && $arResult['POST']['VISIBLE'] === 'Y' ? 'Y' : 'N'),
+			'OPENED' => (isset($arResult['POST']['OPENED']) && $arResult['POST']['OPENED'] === 'Y' ? 'Y' : 'N'),
+			'PROJECT' => (isset($arResult['POST']['PROJECT']) && $arResult['POST']['PROJECT'] === 'Y' ? 'Y' : 'N'),
+			'EXTERNAL' => (isset($arResult['POST']['IS_EXTRANET_GROUP']) && $arResult['POST']['IS_EXTRANET_GROUP'] === 'Y' ? 'Y' : 'N'),
 		]
-	));
+	]);
 }
 
-?>
+switch ($arResult['preset'])
+{
+	case 'project-open':
+		$arResult['selectedProjectType'] = 'project';
+		$arResult['selectedConfidentialityType'] = 'open';
+		break;
+	case 'project-closed':
+	case 'project-external':
+		$arResult['selectedProjectType'] = 'project';
+		$arResult['selectedConfidentialityType'] = 'secret';
+		break;
+	case 'project-scrum':
+		$arResult['selectedProjectType'] = 'scrum';
+		$arResult['selectedConfidentialityType'] = 'secret';
+		break;
+	case 'group-landing':
+		$arResult['selectedProjectType'] = 'group';
+		$arResult['selectedConfidentialityType'] = 'secret';
+		break;
+	default:
+		$arResult['selectedProjectType'] = '';
+		$arResult['selectedConfidentialityType'] = '';
+}
+
+$arResult['POST']['IMAGE_SRC'] = '';
+
+if ((int)$arResult['POST']['IMAGE_ID'] > 0)
+{
+	if ($fileTmp = \CFile::resizeImageGet(
+		(int)$arResult['POST']['IMAGE_ID'],
+		[
+			'width' => 300,
+			'height' => 300,
+		],
+		BX_RESIZE_IMAGE_PROPORTIONAL,
+		false,
+		false,
+		true,
+	))
+	{
+		$arResult['POST']['IMAGE_SRC'] = $fileTmp['src'];
+	}
+}
+
+$arResult['avatarTypesList'] = Workgroup::getAvatarTypes();

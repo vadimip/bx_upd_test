@@ -75,6 +75,7 @@ class Landing
 			{
 				continue;
 			}
+
 			// repo blocks
 			$repoBlock = [];
 			if ($block->getRepoId())
@@ -90,13 +91,37 @@ class Landing
 					];
 				}
 			}
+			$repoInfo = [];
+			if ($block->getRepoId())
+			{
+				$repoInfo = Repo::getById($block->getRepoId())->fetch();
+				if ($repoInfo)
+				{
+					$repoInfo = [
+						'NAME' => $repoInfo['NAME'],
+						'DESCRIPTION' => $repoInfo['DESCRIPTION'],
+						'SECTIONS' => $repoInfo['SECTIONS'],
+						'PREVIEW' => $repoInfo['PREVIEW'],
+						'MANIFEST' => $repoInfo['MANIFEST'],
+						'CONTENT' => $repoInfo['CONTENT']
+					];
+				}
+				else
+				{
+					$repoInfo = [];
+				}
+			}
+
 			$exportBlock = $block->export();
 			$exportItem = array(
 				'code' => $block->getCode(),
 				'old_id' => $block->getId(),
 				'access' => $block->getAccess(),
 				'anchor' => $block->getLocalAnchor(),
+				'designed' => $block->isDesigned(),
+				'full_content' => $block->isDesigned() ? $block->getContent() : null,
 				'repo_block' => $repoBlock,
+				'repo_info' => $repoInfo,
 				'cards' => $exportBlock['cards'],
 				'nodes' => $exportBlock['nodes'],
 				'menu' => $exportBlock['menu'],
@@ -104,6 +129,7 @@ class Landing
 				'attrs' => $exportBlock['attrs'],
 				'dynamic' => $exportBlock['dynamic']
 			);
+
 			foreach ($exportItem as $key => $item)
 			{
 				if (!$item)
@@ -112,6 +138,7 @@ class Landing
 				}
 			}
 			$landing['BLOCKS'][$block->getId()] = $exportItem;
+
 			$blockFiles = File::getFilesFromBlockContent(
 				$block->getId(),
 				$block->getContent()

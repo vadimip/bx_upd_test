@@ -1,5 +1,10 @@
-<?
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -16,7 +21,16 @@ Loc::loadMessages(__FILE__);
 
 CSocNetLogComponent::processDateTimeFormatParams($arParams);
 
-$APPLICATION->SetTitle(Loc::getMessage($arResult['Group']['PROJECT'] == 'Y' ? 'SONET_C6_CARD_TITLE_PROJECT' : 'SONET_C6_CARD_TITLE'));
+$pageTitle = Loc::getMessage('SONET_C6_CARD_TITLE');
+if ($arResult['isScrumProject'])
+{
+	$pageTitle = Loc::getMessage('SONET_C6_CARD_TITLE_SCRUM');
+}
+elseif ($arResult['Group']['PROJECT'] === 'Y')
+{
+	$pageTitle = Loc::getMessage('SONET_C6_CARD_TITLE_PROJECT');
+}
+$APPLICATION->SetTitle($pageTitle);
 
 if (is_array($arResult["Owner"]))
 {
@@ -132,24 +146,24 @@ if ($USER->IsAuthorized())
 	$arResult["FAVORITES"] = ($res->fetch());
 }
 
-$arResult["Types"] = \Bitrix\Socialnetwork\Item\Workgroup::getTypes(array(
-	'currentExtranetSite' => $arResult["bExtranet"]
-));
+$arResult["Types"] = \Bitrix\Socialnetwork\Helper\Workgroup::getTypes([
+	'currentExtranetSite' => $arResult["bExtranet"],
+]);
 
-$arResult["groupTypeCode"] = \Bitrix\Socialnetwork\Item\Workgroup::getTypeCodeByParams(array(
+$arResult["groupTypeCode"] = \Bitrix\Socialnetwork\Helper\Workgroup::getTypeCodeByParams(array(
 	'fields' => array(
-		'VISIBLE' => (isset($arResult["Group"]['VISIBLE']) && $arResult["Group"]['VISIBLE'] == 'Y' ? 'Y' : 'N'),
-		'OPENED' => (isset($arResult["Group"]['OPENED']) && $arResult["Group"]['OPENED'] == 'Y' ? 'Y' : 'N'),
-		'PROJECT' => (isset($arResult["Group"]['PROJECT']) && $arResult["Group"]['PROJECT'] == 'Y' ? 'Y' : 'N'),
-		'EXTERNAL' => (isset($arResult["Group"]["IS_EXTRANET_GROUP"]) && $arResult["Group"]["IS_EXTRANET_GROUP"] == 'Y' ? 'Y' : 'N')
+		'VISIBLE' => (isset($arResult["Group"]['VISIBLE']) && $arResult["Group"]['VISIBLE'] === 'Y' ? 'Y' : 'N'),
+		'OPENED' => (isset($arResult["Group"]['OPENED']) && $arResult["Group"]['OPENED'] === 'Y' ? 'Y' : 'N'),
+		'PROJECT' => (isset($arResult["Group"]['PROJECT']) && $arResult["Group"]['PROJECT'] === 'Y' ? 'Y' : 'N'),
+		'EXTERNAL' => (isset($arResult["Group"]["IS_EXTRANET_GROUP"]) && $arResult["Group"]["IS_EXTRANET_GROUP"] === 'Y' ? 'Y' : 'N'),
 	)
 ));
 
 $arResult["Group"]["IS_EXTRANET_GROUP"] = (
 	Loader::includeModule("extranet")
 	&& CExtranet::isExtranetSocNetGroup($arResult["Group"]["ID"])
-	? "Y"
-	: "N"
+		? "Y"
+		: "N"
 );
 
 $arResult["Group"]["KEYWORDS_LIST"] = array();

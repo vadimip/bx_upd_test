@@ -1,10 +1,12 @@
 <?php
 $MESS["BLOG_C_BUTTON_MORE"] = "Ще";
 $MESS["BLOG_C_HIDE"] = "Згорнути коментарі";
+$MESS["BLOG_C_LOADING"] = "Завантаження&hellip;";
 $MESS["BLOG_C_REPLY"] = "Відповісти";
 $MESS["BLOG_C_VIEW"] = "Дивитися попередні коментарі";
 $MESS["BLOG_C_VIEW1"] = "Більше коментарів";
 $MESS["BLOG_C_VIEW2"] = "Попередні коментарі";
+$MESS["BPC_MES_CREATE_SUBTASK"] = "Створити підзавдання";
 $MESS["BPC_MES_CREATE_TASK"] = "Створити завдання";
 $MESS["BPC_MES_DELETE"] = "Видалити";
 $MESS["BPC_MES_DELETE_POST_CONFIRM"] = "Ви впевнені, що хочете видалити коментар?";

@@ -215,6 +215,8 @@ Class sale extends CModule
 
 		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestServiceBuildDescription');
 		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Delivery\Rest\Handlers', 'onRestServiceBuildDescription');
+		RegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestServiceBuildDescription');
+
 		$eventManager->registerEventHandler('main', 'onNumberGeneratorsClassesCollect', 'sale', '\Bitrix\Sale\Integration\Numerator\OrderIdNumberGenerator', 'onGeneratorClassesCollect');
 		$eventManager->registerEventHandler('main', 'onNumberGeneratorsClassesCollect', 'sale', '\Bitrix\Sale\Integration\Numerator\OrderUserOrdersNumberGenerator', 'onGeneratorClassesCollect');
 		$eventManager->registerEventHandler('main', 'onBuildNumeratorTemplateWordsList', 'sale', '\Bitrix\Sale\Integration\Numerator\AccountNumberCompatibilityManager', 'onBuildNumeratorTemplateWordsList');
@@ -224,6 +226,7 @@ Class sale extends CModule
 		$eventManager->registerEventHandler('main', 'OnAfterUserLogin', 'sale', '\Bitrix\Sale\Update\CrmEntityCreatorStepper', 'OnAfterUserLogin');
 
 		$eventManager->registerEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterAdd', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteAdd');
+		$eventManager->registerEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterUpdate', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteUpdate');
 		$eventManager->registerEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterDelete', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteDelete');
 		$eventManager->registerEventHandler('landing', 'onBeforeSiteRecycle', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingBeforeSiteRecycle');
 
@@ -231,6 +234,12 @@ Class sale extends CModule
 		$eventManager->registerEventHandler('report', 'onAnalyticPageBatchCollect', 'sale', '\Bitrix\Sale\Integration\Report\EventHandler', 'onAnalyticPageBatchCollect');
 
 		$eventManager->registerEventHandler('documentgenerator', 'onDocumentTransformationComplete', 'sale', '\Bitrix\Sale\DocumentGenerator\CallbackRegistry', 'onDocumentGenerated');
+
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestAppDelete');
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Delivery\Rest\BaseService', 'onRestAppDelete');
+		$eventManager->registerEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestAppDelete');
+
+		$eventManager->registerEventHandler('main', 'OnSiteDelete','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'OnSiteDeleteHandler');
 
 		COption::SetOptionString("sale", "viewed_capability", "N");
 		COption::SetOptionString("sale", "viewed_count", 10);
@@ -372,6 +381,7 @@ Class sale extends CModule
 
 		\CAgent::AddAgent('\Bitrix\Sale\PaySystem\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
 		\CAgent::AddAgent('\Bitrix\Sale\Cashbox\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
+		\CAgent::AddAgent('\Bitrix\Sale\Delivery\Internals\Analytics\Agent::send();', 'sale', 'Y', 86400, '', 'Y');
 
 		return true;
 	}
@@ -478,6 +488,7 @@ Class sale extends CModule
 
 		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestServiceBuildDescription');
 		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Delivery\Rest\Handlers', 'onRestServiceBuildDescription');
+		UnRegisterModuleDependences('rest', 'OnRestServiceBuildDescription', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestServiceBuildDescription');
 
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
 		$eventManager->unRegisterEventHandler('main', 'OnUserLogout', 'sale', '\Bitrix\Sale\DiscountCouponsManager', 'logout');
@@ -494,6 +505,7 @@ Class sale extends CModule
 		$eventManager->unRegisterEventHandler('sale', 'OnSaleBasketItemRefreshData', 'sale', '\Bitrix\Sale\Compatible\DiscountCompatibility', 'OnSaleBasketItemRefreshData');
 
 		$eventManager->unRegisterEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterAdd', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteAdd');
+		$eventManager->unRegisterEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterUpdate', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteUpdate');
 		$eventManager->unRegisterEventHandler('landing', '\Bitrix\Landing\Internals\Site::OnAfterDelete', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingSiteDelete');
 		$eventManager->unRegisterEventHandler('landing', 'onBeforeSiteRecycle', 'sale', '\Bitrix\Sale\TradingPlatform\Landing\Landing', 'onLandingBeforeSiteRecycle');
 
@@ -501,6 +513,15 @@ Class sale extends CModule
 		$eventManager->unRegisterEventHandler('report', 'onAnalyticPageBatchCollect', 'sale', '\Bitrix\Sale\Integration\Report\EventHandler', 'onAnalyticPageBatchCollect');
 
 		$eventManager->unRegisterEventHandler('documentgenerator', 'onDocumentTransformationComplete', 'sale', '\Bitrix\Sale\DocumentGenerator\CallbackRegistry', 'onDocumentGenerated');
+
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\PaySystem\RestService', 'onRestAppDelete');
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Delivery\Rest\BaseService', 'onRestAppDelete');
+		$eventManager->unRegisterEventHandler('rest', 'onRestAppDelete', 'sale', '\Bitrix\Sale\Cashbox\Rest\RestService', 'onRestAppDelete');
+
+		$eventManager->unRegisterEventHandler('sale', 'OnBasketAdd', 'sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onAddToCartHandler');
+		$eventManager->unRegisterEventHandler('sale', 'OnSaleComponentOrderCreated', 'sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onOrderCreatedHandler');
+		$eventManager->unregisterEventHandler('main', 'OnSiteDelete','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'OnSiteDeleteHandler');
+		$eventManager->unregisterEventHandler('main', 'onFeedbackFormSubmit','sale', '\Bitrix\Sale\Internals\FacebookConversion', 'onFeedbackFormContactHandler');
 
 		if (\Bitrix\Main\Loader::includeModule('sale'))
 		{
@@ -547,6 +568,7 @@ Class sale extends CModule
 		$statusMes[] = "SALE_ORDER_TRACKING_NUMBER";
 		$statusMes[] = "SALE_SUBSCRIBE_PRODUCT";
 		$statusMes[] = "SALE_CHECK_PRINT";
+		$statusMes[] = "SALE_CHECK_VALIDATION_ERROR";
 		$statusMes[] = "SALE_CHECK_PRINT_ERROR";
 		$statusMes[] = "SALE_ORDER_SHIPMENT_STATUS_CHANGED";
 
@@ -555,7 +577,7 @@ Class sale extends CModule
 		foreach($statusMes as $v)
 		{
 			$eventType->Delete($v);
-			$dbEvent = CEventMessage::GetList($b="ID", $order="ASC", Array("EVENT_NAME" => $v));
+			$dbEvent = CEventMessage::GetList("id", "asc", Array("EVENT_NAME" => $v));
 			while($arEvent = $dbEvent->Fetch())
 			{
 				$eventM->Delete($arEvent["ID"]);
@@ -603,7 +625,7 @@ Class sale extends CModule
 		return true;
 	}
 
-	function OnGetTableSchema()
+	public static function OnGetTableSchema()
 	{
 		return array(
 			'sale' => array(

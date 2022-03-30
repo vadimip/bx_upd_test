@@ -14,6 +14,22 @@ use \Bitrix\Landing\Restriction;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class SiteTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Site_Query query()
+ * @method static EO_Site_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Site_Result getById($id)
+ * @method static EO_Site_Result getList(array $parameters = array())
+ * @method static EO_Site_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_Site createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_Site_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_Site wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_Site_Collection wakeUpCollection($rows)
+ */
 class SiteTable extends Entity\DataManager
 {
 	/**
@@ -104,7 +120,7 @@ class SiteTable extends Entity\DataManager
 			)),
 			'DOMAIN_ID' => new Entity\IntegerField('DOMAIN_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_DOMAIN_ID'),
-				'required' => true
+				//'required' => true
 			)),
 			'DOMAIN' => new Entity\ReferenceField(
 				'DOMAIN',
@@ -259,8 +275,9 @@ class SiteTable extends Entity\DataManager
 		}
 
 		// build filter
+		$allowedSites = Rights::getAllowedSites();
 		$buildFilter = Rights::getAccessFilter(
-			['ID' => Rights::getAllowedSites()]
+			$allowedSites ? ['ID' => $allowedSites] : []
 		);
 		if (empty($buildFilter))
 		{
@@ -300,14 +317,11 @@ class SiteTable extends Entity\DataManager
 		}
 
 		// create runtime fields
-		$runtimeParams = [
+		$runtimeParams = [];
+		$runtimeParams[] = [
+			'LOGIC' => 'OR',
 			'=this.ID' => 'ref.ENTITY_ID',
-			'=ref.ENTITY_TYPE' => [
-				'?', Rights::ENTITY_TYPE_SITE
-			]
-			/*'=ref.TASK_ID' => [
-				$tasks[$readCode]
-			]*/
+			'=ref.ENTITY_ID' => [0]
 		];
 		if ($extendedRights)
 		{
@@ -315,36 +329,15 @@ class SiteTable extends Entity\DataManager
 		}
 		else
 		{
+			$runtimeParams['=ref.ENTITY_TYPE'] = ['?', Rights::ENTITY_TYPE_SITE];
 			$runtimeParams['@ref.ROLE_ID'] = [implode(',', $expectedRoles)];
 		}
 		$params['runtime'][] = new Entity\ReferenceField(
 			'RIGHTS',
 			'Bitrix\Landing\Internals\RightsTable',
 			$runtimeParams,
-			[
-				'join_type' => 'LEFT'
-			]
+			['join_type' => 'INNER']
 		);
-		if (!$extendedRights)
-		{
-			$params['runtime'][] = new Entity\ReferenceField(
-				'RIGHTS_COMMON',
-				'Bitrix\Landing\Internals\RightsTable',
-				[
-					'=ref.ENTITY_ID' => [0],
-					'=ref.ENTITY_TYPE' => [
-						'?', Rights::ENTITY_TYPE_SITE
-					],
-					/*'=ref.TASK_ID' => [
-						$tasks[$readCode]
-					],*/
-					'@ref.ROLE_ID' => [implode(',', $expectedRoles)]
-				],
-				[
-					'join_type' => 'LEFT'
-				]
-			);
-		}
 
 		$params['group'][] = 'ID';
 
@@ -421,6 +414,21 @@ class SiteTable extends Entity\DataManager
 				print_r([$fields, \Bitrix\Main\Diag\Helper::getBackTrace(15)],  true),
 				'LANDING_SITE_CREATE'
 			);
+		}
+
+		// clear binding cache
+		if (
+			isset($fields['CODE']) ||
+			isset($fields['TITLE']) ||
+			isset($fields['DELETED'])
+		)
+		{
+			if ($primary)
+			{
+				\Bitrix\Landing\Binding\Entity::onSiteChange(
+					$primary['ID']
+				);
+			}
 		}
 
 		if (
@@ -517,7 +525,8 @@ class SiteTable extends Entity\DataManager
 				'CREATED_BY_ID',
 				'MODIFIED_BY_ID',
 				'DATE_CREATE',
-				'DATE_MODIFY'
+				'DATE_MODIFY',
+				'TOUCH'
 			];
 			if (in_array(Rights::ACCESS_TYPES['sett'], $rights))
 			{
@@ -653,6 +662,25 @@ class SiteTable extends Entity\DataManager
 			}
 			else
 			{
+				$domainProvider = self::getValueByCode(
+					$primary['ID'],
+					$fields,
+					'DOMAIN_PROVIDER'
+				);
+				if ($domainProvider)
+				{
+					if (!Restriction\Manager::isAllowed('limit_free_domen', ['trueOnNotNull' => true]))
+					{
+						$result->unsetFields($unsetFields);
+						$result->setErrors(array(
+							new Entity\EntityError(
+								Restriction\Manager::getSystemErrorMessage('limit_free_domen'),
+								'FREE_DOMAIN_IS_NOT_ALLOWED'
+							)
+						));
+						return $result;
+					}
+				}
 				$canPublicSite = Manager::checkFeature(
 					Manager::FEATURE_PUBLICATION_SITE,
 					$primary
@@ -1014,6 +1042,7 @@ class SiteTable extends Entity\DataManager
 										SiteTable::update($primary['ID'], array(
 											'DOMAIN_ID' => $domainId
 										));
+										SiteTable::$disableCallback = false;
 									}
 								}
 							}
@@ -1022,6 +1051,7 @@ class SiteTable extends Entity\DataManager
 							{
 								$res = Domain::update($domainId, array(
 									'DOMAIN' => $domainName,
+									'FAIL_COUNT' => null,
 									'PROVIDER' => null
 								));
 								if ($res->isSuccess())
@@ -1136,48 +1166,46 @@ class SiteTable extends Entity\DataManager
 	}
 
 	/**
-	 * Sets new random domain to site. Actual for Bitrix24 only.
+	 * Sets new random domain to site.
 	 * @param int $siteId Site id.
 	 * @return bool
 	 */
 	public static function randomizeDomain(int $siteId): bool
 	{
-		if (ModuleManager::isModuleInstalled('bitrix24'))
+		$res = self::getList([
+			'select' => [
+				'ID',
+				'TYPE',
+				'DOMAIN_ID',
+				'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
+			],
+			'filter' => [
+				'ID' => $siteId
+			]
+		]);
+		if ($row = $res->fetch())
 		{
-			$res = self::getList([
-				'select' => [
-					'ID',
-					'TYPE',
-					'DOMAIN_ID',
-					'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
-				],
-				'filter' => [
-					'ID' => $siteId
-				]
-			]);
-			if ($row = $res->fetch())
+			$siteController = self::getSiteController();
+			$publicUrl = Manager::getPublicationPath($row['ID']);
+			try
 			{
-				$siteController = self::getSiteController();
-				$publicUrl = Manager::getPublicationPath($row['ID']);
-				try
+				$siteController::deleteDomain($row['DOMAIN_NAME']);
+				$domainName = $siteController::addRandomDomain(
+					$publicUrl,
+					($row['TYPE'] == 'STORE') ? 'shop' : $row['TYPE'],
+					Manager::getZone()
+				);
+				if ($domainName)
 				{
-					$siteController::deleteDomain($row['DOMAIN_NAME']);
-					$domainName = $siteController::addRandomDomain(
-						$publicUrl,
-						($row['TYPE'] == 'STORE') ? 'shop' : $row['TYPE'],
-						Manager::getZone()
-					);
-					if ($domainName)
-					{
-						$res = Domain::update($row['DOMAIN_ID'], [
-							'DOMAIN' => $domainName,
-							'PROVIDER' => null
-						]);
-						return $res->isSuccess();
-					}
+					$res = Domain::update($row['DOMAIN_ID'], [
+						'DOMAIN' => $domainName,
+						'FAIL_COUNT' => null,
+						'PROVIDER' => null
+					]);
+					return $res->isSuccess();
 				}
-				catch (SystemException $ex) {}
 			}
+			catch (SystemException $ex) {}
 		}
 
 		return false;
@@ -1424,6 +1452,17 @@ class SiteTable extends Entity\DataManager
 					new Entity\EntityError(
 						Loc::getMessage('LANDING_TABLE_ERROR_SITE_IS_NOT_EMPTY'),
 						'SITE_IS_NOT_EMPTY'
+					)
+				));
+				return $result;
+			}
+			// check lock status
+			if (\Bitrix\Landing\Lock::isSiteDeleteLocked($primary['ID']))
+			{
+				$result->setErrors(array(
+					new Entity\EntityError(
+						Loc::getMessage('LANDING_TABLE_ERROR_SITE_IS_LOCK'),
+						'SITE_IS_LOCK'
 					)
 				));
 				return $result;

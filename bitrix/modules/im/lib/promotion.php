@@ -3,7 +3,7 @@ namespace Bitrix\Im;
 
 class Promotion
 {
-	const DEVICE_TYPE_WEB = "web";
+	const DEVICE_TYPE_WEB = "web"; // browser + desktop
 	const DEVICE_TYPE_BROWSER = "browser";
 	const DEVICE_TYPE_DESKTOP = "desktop";
 	const DEVICE_TYPE_MOBILE = "mobile";
@@ -17,17 +17,17 @@ class Promotion
 		{
 			return $result;
 		}
-
+/*
 		$result[] = [
 			"ID" => 'im:video:01042020:web',
 			"USER_TYPE" => \Bitrix\Main\UI\Tour::USER_TYPE_OLD,
 			"DEVICE_TYPE" => self::DEVICE_TYPE_WEB
 		];
-
+*/
 		$result[] = [
-			"ID" => 'im:video:01042020:mobile',
+			"ID" => 'ol:crmform:17092021:web',
 			"USER_TYPE" => \Bitrix\Main\UI\Tour::USER_TYPE_OLD,
-			"DEVICE_TYPE" => self::DEVICE_TYPE_MOBILE
+			"DEVICE_TYPE" => self::DEVICE_TYPE_WEB
 		];
 
 		return $result;

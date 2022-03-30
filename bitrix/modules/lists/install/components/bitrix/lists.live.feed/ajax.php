@@ -1,4 +1,5 @@
 <?php
+
 use Bitrix\Lists\Internals\Error\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Loader;
@@ -72,9 +73,14 @@ class LiveFeedAjaxController extends Controller
 		);
 	}
 
+	private function isFeatureEnabled(): bool
+	{
+		return Loader::includeModule('bizproc') && CLists::isFeatureEnabled();
+	}
+
 	protected function processActionGetList()
 	{
-		if(!CLists::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			ShowError(Loc::getMessage('LISTS_SEAC_ACCESS_DENIED'));
 			return;
@@ -84,7 +90,8 @@ class LiveFeedAjaxController extends Controller
 
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
 			return;
 		}
@@ -98,7 +105,8 @@ class LiveFeedAjaxController extends Controller
 		$this->checkPermissionElement();
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
 			return;
 		}
@@ -108,8 +116,8 @@ class LiveFeedAjaxController extends Controller
 
 		$this->getListData();
 		$this->createPreparedFields();
-		if(Loader::includeModule('bizproc') && CBPRuntime::isFeatureEnabled())
-			$this->getBizprocData();
+
+		$this->getBizprocData();
 
 		$this->createHtml();
 	}
@@ -182,20 +190,23 @@ class LiveFeedAjaxController extends Controller
 	protected function processActionSetResponsible()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'randomString'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 		}
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
 			return;
 		}
 		$this->iblockId = intval($this->request->getPost('iblockId'));
-		if(!CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_edit'))
+
+		if (!CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_rights_edit'))
 		{
 			ShowError(Loc::getMessage('LISTS_SEAC_ACCESS_DENIED'));
+
 			return;
 		}
 
@@ -252,7 +263,8 @@ class LiveFeedAjaxController extends Controller
 		}
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
 			return;
 		}
@@ -282,7 +294,7 @@ class LiveFeedAjaxController extends Controller
 	protected function processActionIsConstantsTuned()
 	{
 		$this->checkRequiredPostParams(array('iblockId'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 		}
@@ -309,9 +321,7 @@ class LiveFeedAjaxController extends Controller
 			$this->sendJsonErrorResponse();
 		}
 
-		$admin = true;
-		if($this->listPerm < CListPermissions::IS_ADMIN && !CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_edit'))
-			$admin = false;
+		$admin = CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_rights_edit');
 
 		$isConstantsTuned = true;
 		foreach($templateData as $templateId => $templateName)
@@ -340,7 +350,7 @@ class LiveFeedAjaxController extends Controller
 	 */
 	protected function getTemplatesIdList($iblockId)
 	{
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			return array();
 		}
@@ -394,7 +404,7 @@ class LiveFeedAjaxController extends Controller
 			if($right['TASK_ID'] == $idRight && $res === 0)
 			{
 				$userId = mb_substr($right['GROUP_CODE'], 1);
-				$users = CUser::GetList($by="id", $order="asc",
+				$users = CUser::GetList("id", "asc",
 					array('ID' => $userId),
 					array('FIELDS' => array('ID', 'PERSONAL_PHOTO', 'NAME', 'LAST_NAME'))
 				);
@@ -414,7 +424,7 @@ class LiveFeedAjaxController extends Controller
 				$listUser[$userId]['name'] = CUser::FormatName($nameTemplate, $user, false);
 			}
 		}
-		$users = CUser::getList(($b = 'ID'), ($o = 'ASC'),
+		$users = CUser::getList('ID', 'ASC',
 			array('GROUPS_ID' => 1, 'ACTIVE' => 'Y'),
 			array('FIELDS' => array('ID', 'PERSONAL_PHOTO', 'NAME', 'LAST_NAME'))
 		);
@@ -497,7 +507,7 @@ class LiveFeedAjaxController extends Controller
 	protected function processActionGetBizprocTemplateId()
 	{
 		$this->checkRequiredPostParams(array('iblockId'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 		}
@@ -552,7 +562,7 @@ class LiveFeedAjaxController extends Controller
 	protected function processActionCheckPermissions()
 	{
 		$this->checkRequiredPostParams(array('iblockId'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 		}
@@ -574,7 +584,7 @@ class LiveFeedAjaxController extends Controller
 	protected function processActionCreateSettingsDropdown()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'randomString'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 		{
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 		}
@@ -650,7 +660,7 @@ class LiveFeedAjaxController extends Controller
 				if(!in_array(1, $userGroups))
 				{
 					$userQuery = CUser::getList(
-						$by = 'ID', $order = 'ASC',
+						'ID', 'ASC',
 						array('ID' => $userId),
 						array('FIELDS' => array('ID' ,'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'TITLE', 'EMAIL')
 						)
@@ -696,7 +706,7 @@ class LiveFeedAjaxController extends Controller
 		if($_POST["save"] != "Y" && $_POST["changePostFormTab"] != "lists" && !check_bitrix_sessid())
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_IBLOCK'))));
 
-		if(!Loader::IncludeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if (!$this->isFeatureEnabled())
 			$this->errorCollection->add(array(new Error(Loc::getMessage('LISTS_SEAC_CONNECTION_MODULE_BIZPROC'))));
 
 		if(!Loader::includeModule('iblock'))
@@ -717,7 +727,7 @@ class LiveFeedAjaxController extends Controller
 
 		if(!empty($templateData))
 		{
-			if(CModule::IncludeModule('bizproc') && CBPRuntime::isFeatureEnabled())
+			if ($this->isFeatureEnabled())
 			{
 				$isConstantsTuned = true;
 				foreach($templateData as $templateId)
@@ -738,7 +748,7 @@ class LiveFeedAjaxController extends Controller
 		}
 		else
 		{
-			if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled())
+			if ($this->isFeatureEnabled())
 			{
 				$templateData = $this->getTemplatesIdList($this->iblockId);
 

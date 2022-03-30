@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var string $templateFolder */
 /** @var array $arParams */
@@ -19,7 +25,7 @@ $error = false;
 
 $this->setFrameMode(true);
 
-if ($arResult["NEED_AUTH"] == "Y")
+if ($arResult["NEED_AUTH"] === "Y")
 {
 	$APPLICATION->AuthForm("");
 }
@@ -35,7 +41,7 @@ elseif (
 	}
 	else
 	{
-		?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?
+		?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?php
 		return;
 	}
 }
@@ -43,25 +49,26 @@ elseif (
 CUtil::InitJSCore(array("ajax", "window", "tooltip", "popup", "fx", "viewer", "content_view", "clipboard"));
 UI\Extension::load([
 	'socialnetwork.livefeed',
-	'socialnetwork.commentaux'
+	'socialnetwork.commentaux',
+	'tasks.comment-action-controller',
 ]);
 
-Asset::getInstance()->setUnique('PAGE', 'live_feed_v2'.($arParams["IS_CRM"] != "Y" ? "" : "_crm"));
+Asset::getInstance()->setUnique('PAGE', 'live_feed_v2'.($arParams["IS_CRM"] !== "Y" ? "" : "_crm"));
 Asset::getInstance()->addJs("/bitrix/js/main/rating_like.js");
 
 if (
 	defined('SITE_TEMPLATE_ID')
-	&& SITE_TEMPLATE_ID == "bitrix24"
-	&& $arResult['PAGE_MODE'] == 'first'
+	&& SITE_TEMPLATE_ID === "bitrix24"
+	&& $arResult['PAGE_MODE'] === 'first'
 )
 {
 	$bodyClass = $APPLICATION->GetPageProperty("BodyClass");
-	$APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass." " : "")."workarea-transparent");
+	$APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass." " : "")."workarea-transparent no-background");
 }
 
 if (
 	$arParams["IS_CRM"] !== "Y"
-	&& $arResult['PAGE_MODE'] == 'first'
+	&& $arResult['PAGE_MODE'] === 'first'
 )
 {
 	$bodyClass = $APPLICATION->GetPageProperty("BodyClass");
@@ -70,11 +77,11 @@ if (
 
 	if (
 		defined('SITE_TEMPLATE_ID')
-		&& SITE_TEMPLATE_ID == "bitrix24"
+		&& SITE_TEMPLATE_ID === "bitrix24"
 		&& (
 			(
 				ModuleManager::isModuleInstalled('bitrix24')
-				&& \CBitrix24::isPortalAdmin($arResult["currentUserId"])
+				&& CBitrix24::isPortalAdmin($arResult["currentUserId"])
 			)
 			|| (
 				!ModuleManager::isModuleInstalled('bitrix24')
@@ -88,24 +95,43 @@ if (
 }
 
 $stub = '
-	<div class="bx-placeholder">
-		<table class="bx-feed-curtain">
-			<tr class="bx-curtain-row-0"><td class="bx-curtain-cell-1"></td><td class="bx-curtain-cell-2 transparent"></td><td class="bx-curtain-cell-3"></td><td class="bx-curtain-cell-4"></td><td class="bx-curtain-cell-5"></td><td class="bx-curtain-cell-6"></td><td class="bx-curtain-cell-7"></td></tr><tr class="bx-curtain-row-1 2"><td class="bx-curtain-cell-1"></td><td class="bx-curtain-cell-2 transparent"></td><td class="bx-curtain-cell-3"></td><td class="bx-curtain-cell-4 transparent"></td><td class="bx-curtain-cell-5" colspan="3"></td></tr><tr class="bx-curtain-row-2 3"><td class="bx-curtain-cell-1"></td><td class="bx-curtain-cell-2 transparent"><div class="bx-bx-curtain-avatar"></div></td><td class="bx-curtain-cell-3" colspan="5"></td></tr>
-			<tr class="bx-curtain-row-1"><td class="bx-curtain-cell-1"></td><td class="bx-curtain-cell-2 transparent"></td><td class="bx-curtain-cell-3"></td><td class="bx-curtain-cell-4 transparent" colspan="3"></td><td class="bx-curtain-cell-7"></td></tr>
-			<tr class="bx-curtain-row-2"><td class="bx-curtain-cell-1" colspan="7"></td></tr>
-			<tr class="bx-curtain-row-1"><td class="bx-curtain-cell-1" colspan="3"></td><td class="bx-curtain-cell-4 transparent" colspan="3"></td><td class="bx-curtain-cell-7"></td></tr>
-			<tr class="bx-curtain-row-2"><td class="bx-curtain-cell-1" colspan="7"></td></tr>
-			<tr class="bx-curtain-row-1"><td class="bx-curtain-cell-1" colspan="3"></td><td class="bx-curtain-cell-4 transparent" colspan="3"></td><td class="bx-curtain-cell-7"></td></tr>
-			<tr class="bx-curtain-row-2"><td class="bx-curtain-cell-1" colspan="7"></td></tr>
-			<tr class="bx-curtain-row-1"><td class="bx-curtain-cell-1" colspan="3"></td><td class="bx-curtain-cell-4 transparent" colspan="2"></td><td class="bx-curtain-cell-6" colspan="2"></td></tr><tr class="bx-curtain-row-last"><td class="bx-curtain-cell-1" colspan="7"></td></tr>
-		</table>
-	</div>
+<svg style="margin-bottom: 12px;" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="100%" height="230">
+	<svg>
+		<rect width="100%" height="230" y="0" fill="#fff"/>
+	</svg>
+	<svg>
+		<defs>
+			<g fill="none" fill-rule="evenodd" id="content">
+				<circle cx="40" cy="45" r="25" fill="#9EA6AD" opacity=".2"/>
+				<rect width="145" height="8" x="85" y="28" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="280" height="8" x="265" y="28" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="110" height="5" x="85" y="50" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="70%" height="8" x="85" y="72" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="70%" height="8" x="85" y="100" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="70%" height="8" x="85" y="128" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="70%" height="8" x="85" y="156" fill="#9EA6AD" opacity=".2" rx="2"/>
+				<rect width="70%" height="8" x="85" y="184" fill="#9EA6AD" opacity=".2" rx="2"/>
+			</g>
+		</defs>
+		<use xlink:href="#content" y="0" x="0"/>
+	</svg>
+	<rect id="msk1" width="100%" fill="url(#msk_gd)" mask="url(#mask)" height="230"/>
+	<mask id="mask" fill="white">
+		<use xlink:href="#content"/>
+	</mask>
+	<linearGradient x1="66.6%" y1="50%" x2="33.3%" y2="50%" id="msk_gd">
+		<stop stop-color="#9EA6AD" stop-opacity="0" offset="0%"/>
+		<stop stop-color="#9EA6AD" stop-opacity="1" offset="50%"/>
+		<stop stop-color="#9EA6AD" stop-opacity="0" offset="100%"/>
+	</linearGradient>
+	<animate xlink:href="#msk1" attributeName="x" from="-100%" to="100%" dur="1s" begin="0s" repeatCount="indefinite"/>
+</svg>
 ';
 $stub = '<div class="bx-placeholder-wrap">'.str_repeat($stub, 4).'</div>';
 
 if (
 	!$error
-	&& $arResult['PAGE_MODE'] == 'first'
+	&& $arResult['PAGE_MODE'] === 'first'
 )
 {
 	Asset::getInstance()->addJs('/bitrix/components/bitrix/socialnetwork.log.entry/templates/.default/scripts.js');
@@ -154,15 +180,15 @@ if (
 				</div>
 			</div>
 			<div id="feed-notification-notasks-close-btn" class="feed-notification-close-btn" onclick=""></div>
-		</div><?
+		</div><?php
 	}
 
-	?><div id="log_internal_container"><?
-		?><div class="feed-loader-container" id="feed-loader-container"><?
-			?><svg class="feed-loader-circular" viewBox="25 25 50 50"><?
-				?><circle class="feed-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/><?
-			?></svg><?
-		?></div><?
+	?><div id="log_internal_container"><?php
+		?><div class="feed-loader-container" id="feed-loader-container"><?php
+			?><svg class="feed-loader-circular" viewBox="25 25 50 50"><?php
+				?><circle class="feed-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/><?php
+			?></svg><?php
+		?></div><?php
 }
 elseif (
 	!$error
@@ -180,9 +206,9 @@ if (
 )
 {
 
-	if ($arResult['PAGE_MODE'] == 'first')
+	if ($arResult['PAGE_MODE'] === 'first')
 	{
-		?><div class="feed-wrap"><?
+		?><div class="feed-wrap"><?php
 	}
 
 	/*
@@ -191,8 +217,8 @@ if (
 	ob_start();
 
 	?><script>
-		<?
-		if ($arResult['PAGE_MODE'] == 'first')
+		<?php
+		if ($arResult['PAGE_MODE'] === 'first')
 		{
 			?>
 			BX.message({
@@ -201,43 +227,49 @@ if (
 				sonetLESetPath: '<?=CUtil::JSEscape('/bitrix/components/bitrix/socialnetwork.log.entry/ajax.php')?>',
 				sonetLEPath: '<?=CUtil::JSEscape($arParams["PATH_TO_LOG_ENTRY"])?>',
 				sonetLSessid: '<?=bitrix_sessid_get()?>',
-				sonetLSiteTemplateId: '<?=(defined('SITE_TEMPLATE_ID') ? CUtil::JSEscape(SITE_TEMPLATE_ID) : '')?>',
 				sonetLAssetsCheckSum: '<?=(!empty($arResult['ASSETS_CHECKSUM']) ? CUtil::JSEscape($arResult['ASSETS_CHECKSUM']) : '')?>',
 				sonetLNoSubscriptions: '<?=GetMessageJS("SONET_C30_NO_SUBSCRIPTIONS")?>',
 				sonetLInherited: '<?=GetMessageJS("SONET_C30_INHERITED")?>',
 				sonetLDialogClose: '<?=GetMessageJS("SONET_C30_DIALOG_CLOSE_BUTTON")?>',
 				sonetLDialogSubmit: '<?=GetMessageJS("SONET_C30_DIALOG_SUBMIT_BUTTON")?>',
 				sonetLDialogCancel: '<?=GetMessageJS("SONET_C30_DIALOG_CANCEL_BUTTON")?>',
-				sonetLbUseFavorites: '<?=(!isset($arParams["USE_FAVORITES"]) || $arParams["USE_FAVORITES"] != "N" ? "Y" : "N")?>',
+				sonetLbUseFavorites: '<?=(!isset($arParams["USE_FAVORITES"]) || $arParams["USE_FAVORITES"] !== "N" ? "Y" : "N")?>',
 				sonetLMenuLink: '<?=GetMessageJS("SONET_C30_MENU_TITLE_LINK2")?>',
 				sonetLMenuHref: '<?=GetMessageJS("SONET_C30_MENU_TITLE_HREF")?>',
-				sonetLMenuDelete: '<?=GetMessageJS(\Bitrix\Main\ModuleManager::isModuleInstalled('intranet') ? "SONET_C30_MENU_TITLE_DELETE2" : "SONET_C30_MENU_TITLE_DELETE")?>',
+				sonetLMenuDelete: '<?=GetMessageJS(ModuleManager::isModuleInstalled('intranet') ? "SONET_C30_MENU_TITLE_DELETE2" : "SONET_C30_MENU_TITLE_DELETE")?>',
 				sonetLMenuDeleteConfirm: '<?=GetMessageJS("SONET_C30_MENU_TITLE_DELETE_CONFIRM")?>',
-				sonetLMenuDeleteSuccess: '<?=GetMessageJS("SONET_C30_MENU_TITLE_DELETE_SUCCESS")?>',
 				sonetLMenuDeleteFailure: '<?=GetMessageJS("SONET_C30_MENU_TITLE_DELETE_FAILURE")?>',
 				sonetLMenuCreateTask: '<?=GetMessageJS("SONET_C30_MENU_TITLE_CREATETASK")?>',
+				sonetLMenuCreateSubTask: '<?=GetMessageJS("SONET_C30_MENU_TITLE_CREATESUBTASK")?>',
 				sonetLCounterType: '<?=CUtil::JSEscape($arResult["COUNTER_TYPE"])?>',
-				sonetLIsB24: '<?=(defined('SITE_TEMPLATE_ID') && SITE_TEMPLATE_ID == "bitrix24" ? "Y" : "N")?>',
+				sonetLIsB24: '<?=(defined('SITE_TEMPLATE_ID') && SITE_TEMPLATE_ID === "bitrix24" ? "Y" : "N")?>',
 				sonetRatingType : '<?=CUtil::JSEscape($arParams["RATING_TYPE"])?>',
-				sonetLErrorSessid : '<?=GetMessageJS("SONET_ERROR_SESSION")?>',
 				sonetLIsCRM : '<?=CUtil::JSEscape($arParams["IS_CRM"])?>',
 				sonetLCanDelete : '<?=($arResult["CAN_DELETE"] ? 'Y' : 'N')?>',
-				sonetLForumID : <?=intval($arParams["FORUM_ID"])?>,
+				sonetLForumID : <?= (int)$arParams["FORUM_ID"] ?>,
 				SONET_C30_T_LINK_COPIED: '<?=GetMessageJS("SONET_C30_T_LINK_COPIED")?>',
 				SONET_C30_T_EMPTY: '<?=GetMessageJS("SONET_C30_T_EMPTY")?>',
 				SONET_C30_T_EMPTY_SEARCH: '<?=GetMessageJS("SONET_C30_T_EMPTY_SEARCH")?>'
 			});
 
 			BX.ready(function(){
-				oLF.initOnce({
-					crmEntityTypeName: '<?=(!empty($arResult['CRM_ENTITY_TYPE_NAME']) ? CUtil::JSEscape($arResult['CRM_ENTITY_TYPE_NAME']) : '')?>',
-					crmEntityId: <?=(!empty($arResult['CRM_ENTITY_ID']) ? intval($arResult['CRM_ENTITY_ID']) : 0)?>,
-					filterId: '<?=(!empty($arResult['FILTER_ID']) ? CUtil::JSEscape($arResult["FILTER_ID"]) : '')?>',
-					signedParameters: '<?=$this->getComponent()->getSignedParameters()?>',
-					componentName: '<?=$this->getComponent()->getName()?>'
+
+				BX.Livefeed.FeedInstance.init();
+
+				BX.addCustomEvent('onFrameDataProcessed', function() {
+					BX.Livefeed.FeedInstance.init();
+				});
+
+				BX.Livefeed.FeedInstance.initOnce({
+					crmEntityTypeName: '<?= (!empty($arResult['CRM_ENTITY_TYPE_NAME']) ? CUtil::JSEscape($arResult['CRM_ENTITY_TYPE_NAME']) : '') ?>',
+					crmEntityId: <?= (!empty($arResult['CRM_ENTITY_ID']) ? (int)$arResult['CRM_ENTITY_ID'] : 0) ?>,
+					filterId: '<?= (!empty($arResult['FILTER_ID']) ? CUtil::JSEscape($arResult["FILTER_ID"]) : '') ?>',
+					commentFormUID: '<?= (!empty($arParams['UID']) ? CUtil::JSEscape($arParams['UID']) : '') ?>',
+					signedParameters: '<?= $this->getComponent()->getSignedParameters() ?>',
+					componentName: '<?= $this->getComponent()->getName() ?>',
 				});
 			});
-			<?
+			<?php
 		}
 
 		if (in_array($arResult['PAGE_MODE'], [ 'first', 'refresh' ]))
@@ -245,115 +277,76 @@ if (
 			?>
 			BX.ready(function(){
 				oLF.init({
-					firstPageLastTS : <?=intval($arResult["dateLastPageTS"])?>,
-					firstPageLastId : <?=intval($arResult["dateLastPageId"])?>,
-					useBXMainFilter: '<?=(isset($arParams["useBXMainFilter"]) && $arParams["useBXMainFilter"] == 'Y' ? 'Y' : 'N')?>'
+					firstPageLastTS : <?= (int)$arResult["dateLastPageTS"] ?>,
+					firstPageLastId : <?= (int)$arResult["dateLastPageId"] ?>,
+					useBXMainFilter: '<?=(isset($arParams["useBXMainFilter"]) && $arParams["useBXMainFilter"] === 'Y' ? 'Y' : 'N')?>',
+					blogCommentFormUID: '<?= (!empty($arParams['BLOG_UID']) ? CUtil::JSEscape($arParams['BLOG_UID']) : '') ?>',
 				});
 			});
-			<?
+			<?php
 		}
 
 		if (
-			in_array($arResult['PAGE_MODE'], [ 'refresh', 'next' ])
-			&& $arParams["SHOW_RATING"] == "Y"
+			$arParams["SHOW_RATING"] === "Y"
+			&& in_array($arResult['PAGE_MODE'], [ 'refresh', 'next' ])
 		)
 		{
 			$likeTemplate = (
-				\Bitrix\Main\ModuleManager::isModuleInstalled('intranet')
+				ModuleManager::isModuleInstalled('intranet')
 					? 'like_react'
 					: 'like'
 			);
 
-			if ($arParams["RATING_TYPE"] == "like")
+			if ($arParams["RATING_TYPE"] === "like")
 			{
 				Asset::getInstance()->addCss('/bitrix/components/bitrix/rating.vote/templates/'.$likeTemplate.'/popup.css');
 			}
-			Asset::getInstance()->addCss('/bitrix/components/bitrix/rating.vote/templates/'.($arParams["RATING_TYPE"] == "like" ? $likeTemplate : $arParams["RATING_TYPE"]).'/style.css');
+			Asset::getInstance()->addCss('/bitrix/components/bitrix/rating.vote/templates/'.($arParams["RATING_TYPE"] === "like" ? $likeTemplate : $arParams["RATING_TYPE"]).'/style.css');
 		}
 
-		if ($arResult['PAGE_MODE'] == 'refresh')
+		if ($arResult['PAGE_MODE'] === 'refresh')
 		{
 			?>
 			if (typeof __logOnReload === 'function')
 			{
 				BX.ready(function(){
 					window.bRefreshed = true;
-					__logOnReload(<?=intval($arResult["LOG_COUNTER"])?>);
+					__logOnReload(<?= (int)$arResult["LOG_COUNTER"] ?>);
 				});
 			}
-			<?
+			<?php
 		}
 		elseif (
-			$arParams["IS_CRM"] == "Y"
-			&& $arResult['PAGE_MODE'] == 'first'
+			$arParams["IS_CRM"] === "Y"
+			&& $arResult['PAGE_MODE'] === 'first'
 		)
 		{
 			?>
 			if (typeof __logOnReload === 'function')
 			{
 				BX.ready(function(){
-					__logOnReload(<?=intval($arResult["LOG_COUNTER"])?>);
+					__logOnReload(<?=(int)$arResult["LOG_COUNTER"]?>);
 				});
 			}
-			<?
+			<?php
 		}
 
 		if (in_array($arResult['PAGE_MODE'], ['first', 'refresh' ]))
 		{
 			?>
 			BX.ready(function() {
-				<?
+				<?php
 				if (
-					$arParams["SET_LOG_COUNTER"] != "N"
+					$arParams["SET_LOG_COUNTER"] !== "N"
 					&& !(isset($arResult["EXPERT_MODE_SET"]) && $arResult["EXPERT_MODE_SET"])
 				)
 				{
 					?>
 					BX.onCustomEvent(window, 'onSonetLogCounterClear', [BX.message('sonetLCounterType')]);
-					<?
-					if ($arResult['PAGE_MODE'] == 'first')
-					{
-						?>
-						BX.addCustomEvent("onGoUp", function() {
-							var counter_wrap = BX('sonet_log_counter_2_wrap');
-							if (counter_wrap)
-							{
-								BX.removeClass(counter_wrap, 'feed-new-message-informer-fixed');
-								BX.removeClass(counter_wrap, 'feed-new-message-informer-fix-anim');
-							}
-						});
-
-						BX.addCustomEvent("onPullEvent-main", BX.delegate(function(command,params){
-							if (
-								command == 'user_counter'
-								&& params[BX.message('SITE_ID')]
-								&& params[BX.message('SITE_ID')][BX.message('sonetLCounterType')]
-							)
-							{
-								oLF.counter.changeCounter(BX.clone(params[BX.message('SITE_ID')][BX.message('sonetLCounterType')]));
-							}
-						}, this));
-
-						BX.addCustomEvent(window, "onImUpdateCounter", BX.proxy(function(arCount) {
-							oLF.counter.changeCounterArray(arCount);
-						}, this));
-
-					BX.addCustomEvent("OnUCCommentWasRead", function(xmlId, id, options) {
-						if (
-							BX.type.isPlainObject(options)
-							&& options.live
-							&& options.new
-						)
-						{
-							BX.onCustomEvent("onCounterDecrement", [1]);
-							oLF.counter.decrement(1);
-						}
-						});
-						<?
-					}
+				<?php
 				}
 
-				if ($arResult['PAGE_MODE'] == 'first')
+				if ($arResult['PAGE_MODE'] === 'first')
 				{
 					?>
 					BX.addCustomEvent('onAjaxFailure', function(status){
@@ -362,72 +355,72 @@ if (
 							top.location = top.location.href;
 						}
 					});
-					<?
+				<?php
 				}
 				?>
 			});
 
-			<?
-			if ($arResult['PAGE_MODE'] == 'first')
+			<?php
+			if ($arResult['PAGE_MODE'] === 'first')
 			{
 				if(\Bitrix\Main\Page\Frame::isAjaxRequest())
 				{
 					?>
 					setTimeout(function() {
-						oLF.recalcMoreButton();
-						oLF.registerViewAreaList();
+						BX.Livefeed.MoreButton.recalcPostsList()
+						BX.Livefeed.ContentView.registerAreaList();
 					}, 1000);
-					<?
+					<?php
 				}
 				elseif (!empty($arParams["CRM_ENTITY_ID"]))
 				{
 					?>
 					BX.bind(window, 'load', function() {
 						setTimeout(function() {
-							oLF.recalcMoreButton();
+							BX.Livefeed.MoreButton.recalcPostsList();
 						}, 1000);
-						oLF.registerViewAreaList();
+						BX.Livefeed.ContentView.registerAreaList();
 					});
-					<?
+					<?php
 				}
 				else
 				{
 				?>
 					BX.ready(function() {
-						setTimeout(BX.proxy(oLF.recalcMoreButton, oLF), 1);
+						setTimeout(function() {
+							BX.Livefeed.MoreButton.recalcPostsList();
+						}, 1);
 					});
 					BX.bind(window, 'load', function() {
-						oLF.registerViewAreaList();
+						BX.Livefeed.ContentView.registerAreaList();
 					});
-					<?
+					<?php
 				}
 			}
 		}
 		?>
-
 		BX.ready(function()
 		{
-			oLF.arMoreButtonID = [];
-
-			BX.bind(BX('sonet_log_counter_2_container'), 'click', oLF.clearContainerExternalNew);
-			BX.bind(BX('sonet_log_counter_2_container'), 'click', __logOnAjaxInsertToNode);
-
-			if (BX('sonet_log_more_container'))
-			{
-				BX.bind(BX('sonet_log_more_container'), 'click', oLF.clearContainerExternalMore);
-				BX.bind(BX('sonet_log_more_container'), 'click', __logOnAjaxInsertToNode);
-			}
+			BX.Livefeed.FeedInstance.clearMoreButtons();
+			BX.bind(BX('sonet_log_counter_2_container'), 'click', BX.Livefeed.PageInstance.clearContainerExternalNew);
 
 			if (BX('sonet_log_comment_text'))
 			{
 				BX('sonet_log_comment_text').onkeydown = BX.eventCancelBubble;
 			}
+			<?php
+			if (!empty($arResult['RESULT_COMMENTS_ID_LIST']))
+			{
+				?>
+				BX.Livefeed.CommentForm.appendTaskResultComments(<?= CUtil::PhpToJSObject($arResult['RESULT_COMMENTS_ID_LIST']) ?>);
+				<?php
+			}
+			?>
 		});
 
-	</script><?
+	</script><?php
 
-	$blockContent = ob_get_contents();
-	ob_end_clean();
+	$blockContent = ob_get_clean();
 
 	if (in_array($arResult['PAGE_MODE'],  ['refresh', 'next' ]))
 	{
@@ -442,18 +435,16 @@ if (
 	*/
 
 	if(
-		$arResult['PAGE_MODE'] == 'first'
+		$arResult['PAGE_MODE'] === 'first'
 		&& $arResult["ErrorMessage"] <> ''
 	)
 	{
-		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?
+		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?php
 	}
 
-	$hasBlogEvent = (
-		in_array($arResult['PAGE_MODE'], [ 'first', 'refresh'])
-		|| $_REQUEST['noblog'] == 'Y'
-			? false
-			: true
+	$hasBlogEvent = !(
+		in_array($arResult['PAGE_MODE'], ['first', 'refresh'])
+		|| $_REQUEST['noblog'] === 'Y'
 	);
 
 	ob_start();
@@ -473,25 +464,24 @@ if (
 				continue;
 			}
 
-			$ind = randString(8);
+			$ind = \Bitrix\Main\Security\Random::getString(8);
 
-			$event_date_log_ts = (
-				isset($arEvent["LOG_DATE_TS"])
-					? $arEvent["LOG_DATE_TS"]
-					: (MakeTimeStamp($arEvent["LOG_DATE"]) - intval($arResult["TZ_OFFSET"]))
+			$event_date_log_ts = ($arEvent["LOG_DATE_TS"] ?? (MakeTimeStamp($arEvent["LOG_DATE"]) - (int)$arResult["TZ_OFFSET"])
 			);
 
 			$is_unread = (
-				$arResult["SHOW_UNREAD"] == "Y"
+				$arResult["SHOW_UNREAD"] === "Y"
 				&& in_array($arResult["COUNTER_TYPE"], [ '**', 'CRM_**', 'blog_post' ])
 				&& $arEvent["USER_ID"] != $arResult["currentUserId"]
-				&& intval($arResult["LAST_LOG_TS"]) > 0
+				&& (int)$arResult["LAST_LOG_TS"] > 0
 				&& $event_date_log_ts > $arResult["LAST_LOG_TS"]
 			);
 
-			if(in_array($arEvent["EVENT_ID"], array_merge($blogPostEventIdList, array("blog_comment", "blog_comment_micro"))))
+			if(
+				in_array($arEvent["EVENT_ID"], array_merge($blogPostEventIdList, ["blog_comment", "blog_comment_micro"]), true)
+			)
 			{
-				if (intval($arEvent["SOURCE_ID"]) <= 0)
+				if ((int)$arEvent["SOURCE_ID"] <= 0)
 				{
 					continue;
 				}
@@ -513,20 +503,19 @@ if (
 		$arResult["IS_FILTERED"]
 		&& (
 			empty($arParams["GROUP_ID"])
-			|| intval($arParams["GROUP_ID"]) <= 0
+			|| (int)$arParams["GROUP_ID"] <= 0
 		)
 			? Loc::getMessage('SONET_C30_T_EMPTY_SEARCH')
 			: Loc::getMessage('SONET_C30_T_EMPTY')
 	);
 
-	?><div class="feed-wrap-empty-wrap" id="feed-empty-wrap" style="display: <?=(!is_array($arResult["Events"]) || empty($arResult["Events"]) ? 'block' : 'none')?>"><?
-		?><div class="feed-wrap-empty"><?=$emptyMessage?></div><?
-	?></div><?
+	?><div class="feed-wrap-empty-wrap" id="feed-empty-wrap" style="display: <?=(!is_array($arResult["Events"]) || empty($arResult["Events"]) ? 'block' : 'none')?>"><?php
+		?><div class="feed-wrap-empty"><?=$emptyMessage?></div><?php
+	?></div><?php
 
-	$blockContent = ob_get_contents();
-	ob_end_clean();
+	$blockContent = ob_get_clean();
 
-	if (in_array($arResult['PAGE_MODE'], ['refresh', 'next' ]))
+		if (in_array($arResult['PAGE_MODE'], ['refresh', 'next' ]))
 	{
 		$targetHtml .= $blockContent;
 	}
@@ -540,7 +529,7 @@ if (
 	*/
 
 	if (
-		$arParams["SHOW_NAV_STRING"] != "N"
+		$arParams["SHOW_NAV_STRING"] !== "N"
 		&& is_array($arResult["Events"])
 	)
 	{
@@ -557,13 +546,9 @@ if (
 
 		$uriParams = [
 			'logajax' => 'Y',
-			'PAGEN_'.$arResult["PAGE_NAVNUM"] => ($arResult["PAGE_NUMBER"] + 1)
+			'PAGEN_' . $arResult['PAGE_NAVNUM'] => ($arResult['PAGE_NUMBER'] + 1),
+			'ts' => $arResult['LAST_LOG_TS'],
 		];
-
-		if (in_array($arResult['PAGE_MODE'], [ 'first', 'refresh' ]))
-		{
-			$uriParams['ts'] = $arResult["LAST_LOG_TS"];
-		}
 
 		if (
 			is_array($arResult["arLogTmpID"])
@@ -572,9 +557,9 @@ if (
 		{
 			$uriParams['pplogid'] = implode("|", $arResult["arLogTmpID"]);
 		}
-		if (intval($arResult["NEXT_PAGE_SIZE"]) > 0)
+		if ((int)$arResult["NEXT_PAGE_SIZE"] > 0)
 		{
-			$uriParams['pagesize'] = intval($arResult["NEXT_PAGE_SIZE"]);
+			$uriParams['pagesize'] = (int)$arResult["NEXT_PAGE_SIZE"];
 		}
 		if (!$hasBlogEvent)
 		{
@@ -584,30 +569,54 @@ if (
 		$uriParams['preset_filter_top_id'] = $arResult['presetFilterTopIdValue'];
 		$uriParams['preset_filter_id'] = $arResult['presetFilterIdValue'];
 
+		if (
+			isset($arParams['CREATED_BY_ID'])
+			&& (int)$arParams['CREATED_BY_ID'] > 0
+		)
+		{
+			$uriParams['CREATED_BY_ID'] = (int)$arParams['CREATED_BY_ID'];
+		}
+
+		$request = \Bitrix\Main\Context::getCurrent()->getRequest();
+
+		if ($request->get('flt_date_datesel'))
+		{
+			$uriParams['flt_date_datesel'] = preg_replace('/[^a-z0-9_]/i', '', $request->get('flt_date_datesel'));
+		}
+
+		if ($request->get('flt_date_from'))
+		{
+			$uriParams['flt_date_from'] = preg_replace('/[^0-9\/]/', '', $request->get('flt_date_from'));
+		}
+
+		if ($request->get('flt_date_to'))
+		{
+			$uriParams['flt_date_to'] = preg_replace('/[^0-9\/]/', '', $request->get('flt_date_to'));
+		}
+
 		$uri->addParams($uriParams);
 
 		ob_start();
 		?>
 		<script>
 			BX.ready(function() {
-				oLF.nextURL = '<?=CUtil::JSEscape(htmlspecialcharsEx($uri->getUri()))?>';
+				BX.Livefeed.PageInstance.setNextPageUrl('<?= CUtil::JSEscape(htmlspecialcharsEx($uri->getUri())) ?>');
 
-				<?
+				<?php
 				if (
-					$arResult["PAGE_NUMBER"] == 1
+					(int)$arResult["PAGE_NUMBER"] === 1
 					&& in_array($arResult['PAGE_MODE'], [ 'first', 'refresh' ])
 				)
 				{
 					?>
-					oLF.initScroll();
-					<?
+					BX.Livefeed.PageInstance.initScroll();
+					<?php
 				}
 				?>
 			});
-		</script><?
+		</script><?php
 
-		$blockContent = ob_get_contents();
-		ob_end_clean();
+		$blockContent = ob_get_clean();
 
 		if (in_array($arResult['PAGE_MODE'], ['refresh', 'next' ]))
 		{
@@ -625,22 +634,21 @@ if (
 		{
 			ob_start();
 
-			?><div class="feed-new-message-inf-wrap-first" id="feed-new-message-inf-wrap-first"><?
-				?><a href="javascript:void(0);" id="sonet_log_more_container_first" class="feed-new-message-inf-bottom"><?
-				?><span class="feed-new-message-inf-text" id="feed-new-message-inf-text-first" style="display: none;"><?
-					?><?=GetMessage("SONET_C30_MORE")?><?
-					?><span class="feed-new-message-icon"></span><?
-				?></span><?
-				?><span class="feed-new-message-inf-loader-first-cont" id="feed-new-message-inf-loader-first"><?
-					?><svg class="feed-new-message-inf-loader-first-loader" viewBox="25 25 50 50"><circle class="feed-new-message-inf-loader-first-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle><circle class="feed-new-message-inf-loader-first-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle></svg><?
-				?></span><?
-				?></a><?
-			?></div><?
+			?><div class="feed-new-message-inf-wrap-first" id="feed-new-message-inf-wrap-first"><?php
+				?><a href="javascript:void(0);" id="sonet_log_more_container_first" class="feed-new-message-inf-bottom"><?php
+				?><span class="feed-new-message-inf-text" id="feed-new-message-inf-text-first" style="display: none;"><?php
+					?><?=GetMessage("SONET_C30_MORE")?><?php
+					?><span class="feed-new-message-icon"></span><?php
+				?></span><?php
+				?><span class="feed-new-message-inf-loader-first-cont" id="feed-new-message-inf-loader-first"><?php
+					?><svg class="feed-new-message-inf-loader-first-loader" viewBox="25 25 50 50"><circle class="feed-new-message-inf-loader-first-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle><circle class="feed-new-message-inf-loader-first-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle></svg><?php
+				?></span><?php
+				?></a><?php
+			?></div><?php
 
-			$blockContent = ob_get_contents();
-			ob_end_clean();
+			$blockContent = ob_get_clean();
 
-			if ($arResult['PAGE_MODE'] == 'refresh')
+			if ($arResult['PAGE_MODE'] === 'refresh')
 			{
 				$targetHtml .= $blockContent;
 			}
@@ -653,13 +661,13 @@ if (
 		* next page loader block end
 		*/
 
-		?><div class="feed-new-message-inf-wrap feed-new-message-active" id="feed-new-message-inf-wrap" style="display: none;"><?=$stub?></div><?
+		?><div class="feed-new-message-inf-wrap feed-new-message-active" id="feed-new-message-inf-wrap" style="display: none;"><?=$stub?></div><?php
 	}
 
-	if ($arResult['PAGE_MODE'] == 'first')
+	if ($arResult['PAGE_MODE'] === 'first')
 	{
-			?></div><? // feed-wrap
-		?></div><? // log_internal_container
+			?></div><?php // feed-wrap
+		?></div><?php // log_internal_container
 
 		CUtil::InitJSCore(array("ajax"));
 
@@ -672,16 +680,13 @@ if (
 			CUtil::PhpToJSObject($component->arResult["ENTITIES_XML_ID"]).', '.
 			CUtil::PhpToJSObject($component->arResult["ENTITIES_CORRESPONDENCE"]).');';
 		$inlineJs .= '</script>';
-		$inlineJs .= \Bitrix\Main\Page\Asset::getInstance()->getJs();
+		$inlineJs .= Asset::getInstance()->getJs();
 
 		$strText = ob_get_clean();
 
 		ob_start();
 		echo  $inlineJs.$strText;
-		$targetHtml .= ob_get_contents();
-		ob_end_clean();
-
-		// die() was here
+		$targetHtml .= ob_get_clean();
 	}
 }
 
@@ -695,4 +700,3 @@ if (defined("BITRIX24_INDEX_COMPOSITE"))
 {
 	$dynamicArea->finishDynamicArea();
 }
-?>

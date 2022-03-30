@@ -1,5 +1,9 @@
-<?
+<?php
+
 define("NOT_CHECK_FILE_PERMISSIONS", true);
+define("NO_KEEP_STATISTIC", true);
+define("BX_STATISTIC_BUFFER_USED", false);
+
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_js.php");
 
@@ -140,13 +144,7 @@ if ($_POST["save"] == "Y" && check_bitrix_sessid())
 
 function PHPToHiddens($ob, $name)
 {
-	global $APPLICATION;
-	if (mb_strtolower(LANG_CHARSET) != 'utf-8')
-	{
-		$ob = $APPLICATION->ConvertCharsetArray($ob, LANG_CHARSET, 'utf-8');
-		$ob = CBPHelper::decodeArrayKeys($ob, true);
-	}
-	$ob = json_encode($ob);
+	$ob = \Bitrix\Main\Web\Json::encode($ob);
 	return '<input type="hidden" name="'.htmlspecialcharsbx($name).'" value="'.htmlspecialcharsbx($ob).'">';
 }
 
@@ -225,14 +223,17 @@ function HideShowId(id)
 	<td width="75%"><textarea cols="70" rows="3" name="activity_editor_comment"><?=htmlspecialcharsbx($editorComment)?></textarea></td>
 </tr>
 
-<?
+<?php
 
 //TODO: Experimental
-$arCurrentActivity['Properties'] = \Bitrix\Bizproc\Automation\Helper::convertProperties(
-	$arCurrentActivity['Properties'],
-	$documentType,
-	false
-);
+if ($arCurrentActivity && is_array($arCurrentActivity['Properties']))
+{
+	$arCurrentActivity['Properties'] = \Bitrix\Bizproc\Automation\Helper::convertProperties(
+		$arCurrentActivity['Properties'],
+		$documentType,
+		false
+	);
+}
 
 $z = CBPActivity::CallStaticMethod(
 	$activityType,
@@ -306,11 +307,10 @@ setTimeout("document.getElementById('bpastitle').focus();", 100);
 
 <input type="hidden" name="save" value="Y" />
 <input type="hidden" name="postback" value="Y" />
-<?
+<?php
 $popupWindow->EndContent();
 $popupWindow->StartButtons();
 $popupWindow->ShowStandardButtons();
 $popupWindow->EndButtons();
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin_js.php");
-?>

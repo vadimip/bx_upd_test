@@ -276,12 +276,14 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      main_core.Dom.addClass(_this.layout, 'landing-ui-panel-content-with-subtitle');
 	    }
 
+	    if (_this.data.showFromRight === true) {
+	      _this.setLayoutClass('landing-ui-panel-show-from-right');
+	    }
+
 	    _this.init();
 
 	    main_core.Event.bind(window.top, 'keydown', _this.onKeyDown.bind(babelHelpers.assertThisInitialized(_this)));
-	    BX.Landing.PageObject.getInstance().view().then(function (frame) {
-	      void (!!frame && main_core.Event.bind(frame.contentWindow, 'keydown', _this.onKeyDown.bind(babelHelpers.assertThisInitialized(_this))));
-	    }, console.warn);
+	    BX.Landing.PageObject.getEditorWindow();
 
 	    if (_this.data.scrollAnimation) {
 	      _this.scrollObserver = new IntersectionObserver(_this.onIntersecting.bind(babelHelpers.assertThisInitialized(_this)));

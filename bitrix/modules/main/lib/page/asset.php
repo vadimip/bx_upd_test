@@ -47,6 +47,7 @@ class Asset
 	private $bodyScript = false;
 	private $moveJsToBody = null;
 
+	private $templateExists = false;
 	private $siteTemplateID = '';
 	private $templatePath = '';
 	private $documentRoot = '';
@@ -295,6 +296,11 @@ class Asset
 			return false;
 		}
 
+		if ($id == 'TEMPLATE')
+		{
+			$this->templateExists = true;
+		}
+
 		if (
 			($this->target['NAME'] == 'TEMPLATE' || $this->target['NAME'] == 'PAGE')
 			&& ($id == 'TEMPLATE' || $id == 'PAGE')
@@ -523,9 +529,9 @@ class Asset
 					'NAME' => $targetName,
 					'PARENT_NAME' => $targetName,
 					'UNIQUE' => $targetInfo['UNIQUE'],
-					'PREFIX' => $targetInfo['PREFIX'],
+					'PREFIX' => ($targetInfo['PREFIX'] ?? ''),
 					'MODE' => $targetInfo['MODE'],
-					'MODULE_NAME' => $targetInfo['MODULE_NAME'],
+					'MODULE_NAME' => ($targetInfo['MODULE_NAME'] ?? ''),
 				];
 
 				if (!empty($targetInfo[$key]))
@@ -535,10 +541,10 @@ class Asset
 						$res[$key][] = [
 							'NAME' => $subSetName,
 							'PARENT_NAME' => $targetName,
-							'UNIQUE' => $val['UNIQUE'],
-							'PREFIX' => $val['PREFIX'],
-							'MODE' => $val['MODE'],
-							'MODULE_NAME' => $val['MODULE_NAME'],
+							'UNIQUE' => ($val['UNIQUE'] ?? ''),
+							'PREFIX' => ($val['PREFIX'] ?? ''),
+							'MODE' => ($val['MODE'] ?? 0),
+							'MODULE_NAME' => ($val['MODULE_NAME'] ?? ''),
 						];
 					}
 				}
@@ -1126,13 +1132,17 @@ class Asset
 	 */
 	private function addTemplateCss()
 	{
-		if (!$this->ajax && (!defined("ADMIN_SECTION") || ADMIN_SECTION !== true))
+		if (
+			!$this->ajax
+			&& (!defined("ADMIN_SECTION") || ADMIN_SECTION !== true)
+			&& $this->templateExists
+		)
 		{
-			$this->css[$this->templatePath.'/styles.css']['TARGET'][] = 'TEMPLATE';
-			$this->css[$this->templatePath.'/styles.css']['ADDITIONAL'] = false;
+			$this->css[$this->templatePath . '/styles.css']['TARGET'][] = 'TEMPLATE';
+			$this->css[$this->templatePath . '/styles.css']['ADDITIONAL'] = false;
 
-			$this->css[$this->templatePath.'/template_styles.css']['TARGET'][] = 'TEMPLATE';
-			$this->css[$this->templatePath.'/template_styles.css']['ADDITIONAL'] = false;
+			$this->css[$this->templatePath . '/template_styles.css']['TARGET'][] = 'TEMPLATE';
+			$this->css[$this->templatePath . '/template_styles.css']['ADDITIONAL'] = false;
 		}
 	}
 
@@ -1278,10 +1288,11 @@ class Asset
 					continue;
 				}
 
-				if ($moduleInfo = $this->isKernelCSS($cssInfo['PATH']))
+				$moduleInfo = $this->isKernelCSS($cssInfo['PATH']);
+				if ($moduleInfo)
 				{
 					$cssInfo['TARGET'] = 'KERNEL';
-					if ($this->sliceKernel() && $this->optimizeCss())
+					if ($this->sliceKernel() && $this->optimizeCss() && is_array($moduleInfo))
 					{
 						$cssInfo['MODULE_ID'] = $moduleInfo['MODULE_ID'];
 						$cssInfo['TARGET'] = 'KERNEL_'.$moduleInfo['MODULE_ID'];
@@ -1312,7 +1323,10 @@ class Asset
 						];
 					}
 
-					$this->targetList['KERNEL']['CSS_LIST'][$cssInfo['TARGET']]['MODULE_NAME'] = $moduleInfo['MODULE_ID'];
+					if (is_array($moduleInfo))
+					{
+						$this->targetList['KERNEL']['CSS_LIST'][$cssInfo['TARGET']]['MODULE_NAME'] = $moduleInfo['MODULE_ID'];
+					}
 
 					// Add information about sets where used
 					foreach ($set['TARGET'] as $setID)
@@ -1597,7 +1611,7 @@ class Asset
 				else
 				{
 					$this->assetList['CSS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = $optimizedAsset['FILES'];
-					$this->assetList['SOURCE_CSS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = $optimizedAsset['SOURCE_FILES'];
+					$this->assetList['SOURCE_CSS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = ($optimizedAsset['SOURCE_FILES'] ?? []);
 					$this->targetList[$setInfo['PARENT_NAME']]['CSS_RES'][$setInfo['NAME']][] = $resCss;
 				}
 			}
@@ -1716,7 +1730,7 @@ class Asset
 				}
 				$optAsset = $this->optimizeAsset($listAsset, $setInfo['UNIQUE'], $setInfo['PREFIX'], $setInfo['NAME'], 'js', $data);
 				$this->assetList['JS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = $optAsset['FILES'];
-				$this->assetList['SOURCE_JS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = $optAsset['SOURCE_FILES'];
+				$this->assetList['SOURCE_JS'][$setInfo['PARENT_NAME']][$setInfo['NAME']] = ($optAsset['SOURCE_FILES'] ?? []);
 				$this->targetList[$setInfo['PARENT_NAME']]['JS_RES'][$setInfo['NAME']][] = $optAsset['RESULT'].$resJs;
 			}
 			unset($optAsset, $resJs, $listAsset);
@@ -2443,7 +2457,7 @@ class Asset
 				}
 
 				$startData = $offset + strlen(self::HEADER_START_TAG);
-				$data = unserialize(substr($content, $startData, $endingPos - $startData));
+				$data = unserialize(substr($content, $startData, $endingPos - $startData), ['allowed_classes' => false]);
 
 				if (is_array($data))
 				{

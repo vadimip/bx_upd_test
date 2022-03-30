@@ -1,10 +1,12 @@
 <?php
 $MESS["BLOG_C_BUTTON_MORE"] = "More";
 $MESS["BLOG_C_HIDE"] = "Hide comments";
+$MESS["BLOG_C_LOADING"] = "Loading&hellip;";
 $MESS["BLOG_C_REPLY"] = "Reply";
 $MESS["BLOG_C_VIEW"] = "View older comments";
 $MESS["BLOG_C_VIEW1"] = "More comments";
 $MESS["BLOG_C_VIEW2"] = "Previous comments";
+$MESS["BPC_MES_CREATE_SUBTASK"] = "Create subtask";
 $MESS["BPC_MES_CREATE_TASK"] = "Create task";
 $MESS["BPC_MES_DELETE"] = "Delete";
 $MESS["BPC_MES_DELETE_POST_CONFIRM"] = "Are you sure you want to delete the comment?";

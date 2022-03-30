@@ -66,9 +66,9 @@ return array (
       array (
         'className' => '\\Bitrix\\Main\\DB\\MysqliConnection',
         'host' => 'localhost',
-        'database' => 'sitemanager',
-        'login'    => 'bitrix0',
-        'password' => 'Npwa?mS%7RUrcOGw8aMe',
+        'database' => 'db683101-advds',
+        'login'    => 'db683101-advds',
+        'password' => '03021991',
         'options' => 2,
       ),
     ),

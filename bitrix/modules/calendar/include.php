@@ -1,9 +1,7 @@
-<?
+<?php
 /*patchlimitationmutatormark1*/
 IncludeModuleLangFile(__FILE__);
 
-
-global $DBType;
 CModule::AddAutoloadClasses(
 	"calendar",
 	array(
@@ -56,11 +54,6 @@ CJSCore::RegisterExt('event_calendar', array(
 		$basePath.'calendar-entry.js',
 		$basePath.'calendar-section.js',
 		$basePath.'calendar-controls.js',
-		$basePath.'calendar-dialogs.js',
-		$basePath.'calendar-section-slider.js',
-		$basePath.'calendar-settings-slider.js',
-		$basePath.'calendar-view-entry-slider.js',
-		$basePath.'calendar-sync-slider.js',
 		$basePath.'calendar-util.js',
 		$basePath.'calendar-search.js'
 	),
@@ -80,4 +73,3 @@ CJSCore::RegisterExt('calendar_planner', array(
 	'lang' => '/bitrix/modules/calendar/classes/general/calendar_planner.php',
 	'rel' => array('date', 'dnd', 'helper')
 ));
-?>

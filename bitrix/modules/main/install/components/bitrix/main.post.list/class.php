@@ -513,7 +513,8 @@ HTML;
 					"ENTITY_ID" => $result["ID"],
 					"OWNER_ID" => $result["AUTHOR"]["ID"],
 					"PATH_TO_USER_PROFILE" => $this->arParams["AUTHOR_URL"],
-					"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : "")
+					"VOTE_ID" => (!empty($res["RATING_VOTE_ID"]) ? $res["RATING_VOTE_ID"] : ""),
+					'CURRENT_USER_ID' => (isset($this->arParams['CURRENT_USER_ID']) ? (int)$this->arParams['CURRENT_USER_ID'] : 0),
 				) + $ratingValues,
 				$this,
 				array("HIDE_ICONS" => "Y")
@@ -551,9 +552,13 @@ HTML;
 					array_key_exists("SRC", $file))
 				{
 					if (CFile::IsImage($file["ORIGINAL_NAME"], $file["CONTENT_TYPE"]))
+					{
 						$images[] = $file;
+					}
 					else
+					{
 						$files[] = $file;
+					}
 				}
 			}
 			if (!empty($images))
@@ -568,6 +573,14 @@ HTML;
 					?><span class="feed-com-files-photo">
 						<img src="<?=$thumbnail?>" data-bx-src="<?=$file["SRC"]?>" <?
 							?>border="0" data-bx-viewer="image" <?
+							if (!empty($file["RESIZED_WIDTH"]))
+							{
+								?>width="<?= (int)$file["RESIZED_WIDTH"] ?>" <?
+							}
+							if (!empty($file["RESIZED_HEIGHT"]))
+							{
+								?>height="<?= (int)$file["RESIZED_HEIGHT"] ?>" <?
+							 }
 							?>data-bx-width="<?=$file["WIDTH"]?>" <?
 							?>data-bx-height="<?=$file["HEIGHT"]?>" <?
 							?>data-bx-title="<?=($file["FILE_NAME"])?>" <?
@@ -836,6 +849,12 @@ HTML;
 					? "Y"
 					: "N"
 			),
+			"#CREATESUBTASK_SHOW#" => (
+				empty($res['AUX'])
+				&& $arParams['RIGHTS']['CREATESUBTASK'] === 'Y'
+					? 'Y'
+					: 'N'
+			),
 			"#POST_ENTITY_TYPE#" => (!empty($arParams["POST_CONTENT_TYPE_ID"]) ? $arParams["POST_CONTENT_TYPE_ID"] : ''),
 			"#COMMENT_ENTITY_TYPE#" => (!empty($arParams["COMMENT_CONTENT_TYPE_ID"]) ? $arParams["COMMENT_CONTENT_TYPE_ID"] : ''),
 			"#BEFORE_HEADER#" => $res["BEFORE_HEADER"],
@@ -853,7 +872,7 @@ HTML;
 				(empty($res["AUTHOR"]["AVATAR"]) ? "N" : "Y"),
 			"#AUTHOR_AVATAR#" => (
 				!empty($res["AUTHOR"]["AVATAR"])
-					? \CHTTP::urnEncode($res["AUTHOR"]["AVATAR"])
+					? $res['AUTHOR']['AVATAR']
 					: (
 						!empty($arParams["AVATAR_DEFAULT"])
 							? \CHTTP::urnEncode($arParams["AVATAR_DEFAULT"])
@@ -862,10 +881,10 @@ HTML;
 			),
 			"#AUTHOR_AVATAR_BG#" => (
 				!empty($res["AUTHOR"]["AVATAR"])
-					? "background-image:url('".\CHTTP::urnEncode($res["AUTHOR"]["AVATAR"])."')"
+					? "background-image:url('" . $res["AUTHOR"]["AVATAR"] . "')"
 					: (
 						!empty($arParams["AVATAR_DEFAULT"])
-							? "background-image:url('".\CHTTP::urnEncode($arParams["AVATAR_DEFAULT"])."')"
+							? "background-image:url('" . $arParams["AVATAR_DEFAULT"] . "')"
 							: ""
 					)
 				),
@@ -1291,11 +1310,13 @@ HTML;
 			}
 
 			$JSResult += array(
+				'warningCode' => ($arParams["WARNING_CODE"] ?? ''),
+				'warningMessage' => ($arParams["~WARNING_MESSAGE"] ?? ''),
 				'errorMessage' => (isset($arParams["~ERROR_MESSAGE"]) ? $arParams["~ERROR_MESSAGE"] : (isset($arParams["ERROR_MESSAGE"]) ? $arParams["ERROR_MESSAGE"] : '')),
 				'okMessage' => (isset($arParams["~OK_MESSAGE"]) ? $arParams["~OK_MESSAGE"] : (isset($arParams["OK_MESSAGE"]) ? $arParams["OK_MESSAGE"] : '')),
 				'status' => "success",
 			);
-			if ($mode == "RECORDS")
+			if ($mode === "RECORDS")
 			{
 				$JSResult["messageList"] = $records;
 			}

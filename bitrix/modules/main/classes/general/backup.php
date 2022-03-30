@@ -214,7 +214,7 @@ class CBackup
 		elseif (!($k xor $p))
 			$arc_name .= '_'.($b ? '' : 'no').'sql';
 
-		$arc_name .= '_'.mb_substr(md5(uniqid(rand(), true)), 0, 8);
+		$arc_name .= '_' . \Bitrix\Main\Security\Random::getString(16);
 		return $arc_name;
 	}
 
@@ -432,7 +432,7 @@ class CBackup
 		return true;
 	}
 
-	public function QueryUnbuffered($q)
+	public static function QueryUnbuffered($q)
 	{
 		global $DB;
 		if (defined('BX_USE_MYSQLI') && BX_USE_MYSQLI === true)
@@ -444,7 +444,7 @@ class CBackup
 		return $rsSource;
 	}
 
-	public function FreeResult()
+	public static function FreeResult()
 	{
 		global $DB;
 		if (defined('BX_USE_MYSQLI') && BX_USE_MYSQLI === true)
@@ -754,9 +754,7 @@ class CPasswordStorage
 
 	public static function Init()
 	{
-		if (!function_exists('mcrypt_encrypt') && !function_exists('openssl_encrypt'))
-			return false;
-		return true;
+		return function_exists('openssl_encrypt');
 	}
 
 	public static function getEncryptKey()
@@ -965,10 +963,12 @@ class CTar
 
 
 		$data = unpack("a100filename/a8mode/a8uid/a8gid/a12size/a12mtime/a8checksum/a1type/a100link/a6magic/a2version/a32uname/a32gname/a8devmajor/a8devminor/a155prefix", $str);
-		$chk = $data['devmajor'].$data['devminor'];
+		$chk = trim($data['devmajor'].$data['devminor']);
 
-		if (!is_numeric(trim($data['checksum'])) || $chk!='' && $chk!=0)
+		if (!is_numeric(trim($data['checksum'])) || !empty($chk))
+		{
 			return $this->Error('Archive is corrupted, wrong block: '.($this->Block-1).', file: '.$this->file.', md5sum: '.md5_file($this->file));
+		}
 
 		$header['filename'] = trim(trim($data['prefix'], "\x00").'/'.trim($data['filename'], "\x00"),'/');
 		$header['mode'] = OctDec($data['mode']);
@@ -1154,7 +1154,9 @@ class CTar
 
 		$size = 0;
 		if (file_exists($file) && !$size = $this->getDataSize($file))
+		{
 			return $this->Error('Can\'t get data size: '.$file);
+		}
 
 		$this->Block += $size / 512;
 		if ($size >= $this->ArchiveSizeLimit) // если последний архив полон
@@ -1171,7 +1173,9 @@ class CTar
 			$enc = pack("a100a90a10a56",md5(uniqid(rand(), true)), self::BX_SIGNATURE, $ver, "");
 			$enc .= $this->encrypt($enc, $key);
 			if (!($this->gzip ? gzwrite($this->res, $enc) : fwrite($this->res, $enc)))
+			{
 				return $this->Error('Error writing to file');
+			}
 			$this->Block = 1;
 			$this->ArchiveSizeCurrent = 512;
 		}
@@ -1182,23 +1186,26 @@ class CTar
 	function createEmptyGzipExtra($file)
 	{
 		if (file_exists($file))
+		{
 			return $this->Error('File already exists: '.$file);
+		}
 
 		if (!($f = gzopen($file,'wb')))
+		{
 			return $this->Error('Can\'t open file: '.$file);
+		}
+
 		gzwrite($f,'');
 		gzclose($f);
 
-		// $data = file_get_contents($file);
 		$data = "\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\xff\xff\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00"; // buggy zlib 1.2.7
 
-
 		if (!($f = fopen($file, 'w')))
+		{
 			return $this->Error('Can\'t open file for writing: '.$file);
+		}
 
-		$ar = unpack('A3bin0/A1FLG/A6bin1', substr($data,0,10));
-		if ($ar['FLG'] != 0)
-			return $this->Error('Error writing extra field: already exists');
+		$ar = unpack('A3bin0/c1FLG/A6bin1', substr($data,0,10));
 
 		$EXTRA = "\x00\x00\x00\x00".self::BX_EXTRA; // 10 байт
 		fwrite($f,$ar['bin0']."\x04".$ar['bin1'].chr(strlen($EXTRA))."\x00".$EXTRA.substr($data,10));
@@ -1343,8 +1350,8 @@ class CTar
 		if (is_dir($file))
 			return $this->Error('File is directory: '.$file);
 
-		if ($this->EncryptKey && !function_exists('mcrypt_encrypt') && !function_exists('openssl_encrypt'))
-			return $this->Error('Function mcrypt_encrypt/openssl_encrypt is not available');
+		if ($this->EncryptKey && !function_exists('openssl_encrypt'))
+			return $this->Error('Function openssl_encrypt is not available');
 		
 		if ($mode == 'r' && !file_exists($file))
 			return $this->Error('File does not exist: '.$file);
@@ -1352,16 +1359,22 @@ class CTar
 		if ($this->gzip)
 		{
 			if(!function_exists('gzopen'))
+			{
 				return $this->Error('Function &quot;gzopen&quot; is not available');
+			}
 			else
 			{
 				if ($mode == 'a' && !file_exists($file) && !$this->createEmptyGzipExtra($file))
+				{
 					return false;
+				}
 				$this->res = gzopen($file,$mode."b");
 			}
 		}
 		else
+		{
 			$this->res = fopen($file,$mode."b");
+		}
 
 		return $this->res;
 	}
@@ -1570,19 +1583,13 @@ class CTar
 	{
 		if ($m = strlen($data)%8)
 			$data .= str_repeat("\x00",  8 - $m);
-		if (function_exists('openssl_encrypt'))
-			return openssl_encrypt($data, 'BF-ECB', $md5_key, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING);
-		else
-			return mcrypt_encrypt(MCRYPT_BLOWFISH, $md5_key, $data, MCRYPT_MODE_ECB);
+
+		return openssl_encrypt($data, 'BF-ECB', $md5_key, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING);
 	}
 
 	public static function decrypt($data, $md5_key)
 	{
-		if (function_exists('openssl_decrypt'))
-			$val = openssl_decrypt($data, 'BF-ECB', $md5_key, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING);
-		else
-			$val = mcrypt_decrypt(MCRYPT_BLOWFISH, $md5_key, $data, MCRYPT_MODE_ECB);
-		return $val;
+		return openssl_decrypt($data, 'BF-ECB', $md5_key, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING);
 	}
 
 	# }

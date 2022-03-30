@@ -18,16 +18,26 @@
 		this.newEntryName = config.newEntryName || null;
 		this.collapsedLabelMessage = config.collapsedLabelMessage || BX.message('EC_COLLAPSED_MESSAGE');
 		this.viewOption = 'view' + (this.entityType ? '_' + this.entityType : '');
-		this.sectionController = new window.BXEventCalendar.SectionController(this, data, config);
+		// TODO: replace it with sectionManager
+		// this.sectionController = new window.BXEventCalendar.SectionController(this, data, config);
+
+		BX.Calendar.Util.setCalendarContext(this);
+
+		this.sectionManager = new BX.Calendar.SectionManager(data, config);
+		this.entryManager = new BX.Calendar.EntryManager(data, config);
+		this.roomsManager = new BX.Calendar.RoomsManager(data, config);
+		if (BX.Calendar.Controls && BX.Calendar.Controls.Location)
+		{
+			BX.Calendar.Controls.Location.setLocationList(additionalParams.locationList);
+		}
+
 		this.entryController = new window.BXEventCalendar.EntryController(this, data);
 		this.currentViewName = this.util.getUserOption(this.viewOption) || this.DEFAULT_VIEW;
 
-		BX.Calendar.CalendarSectionManager.setNewEntrySectionId(this.sectionController.getCurrentSection().id);
 		BX.Calendar.Util.setUserSettings(config.userSettings);
+		BX.Calendar.Util.setAccessNames(config.accessNames);
 		BX.Calendar.Util.setEventWithEmailGuestAmount(config.countEventWithEmailGuestAmount);
 		BX.Calendar.Util.setEventWithEmailGuestLimit(config.eventWithEmailGuestLimit);
-
-		BX.Calendar.Util.setCalendarContext(this);
 
 		this.requests = {};
 		this.currentUser = config.user;
@@ -35,27 +45,24 @@
 		this.viewRangeDate = new Date();
 		this.keyHandlerEnabled = true;
 
-		// build basic dom structure
+		// build basic DOM structure
 		this.build();
 
-		if (!this.externalMode)
+		if (!this.isExternalMode())
 		{
 			if (config.startupEvent)
 			{
 				this.showStartUpEntry(config.startupEvent);
 			}
 
-			if (config.showNewEventDialog && !this.util.readOnlyMode() && this.entryController.canDo(true, 'add_event'))
+			if (config.showAfterSyncAccent)
 			{
-				setTimeout(BX.delegate(function(){
-					this.getView().showEditSlider();
-				}, this), 1000);
+				this.showAfterSyncAccent(config.showAfterSyncAccent);
 			}
 		}
 
-		BX.addCustomEvent("onPullEvent-calendar", function(command, params)
-		{
-		});
+		BX.addCustomEvent('onPullEvent-calendar', this.handlePullEvent.bind(this));
+		BX.addCustomEvent('onPullEvent-tasks', this.handlePullEventTasks.bind(this))
 	}
 
 	Calendar.prototype = {
@@ -85,10 +92,18 @@
 				{
 					this.currentViewName = 'list';
 				}
+
+				if (this.isLocationViewDisabled())
+				{
+					this.currentViewName = 'month';
+				}
 				this.buildViews();
 
 				// Build switch view control
-				this.buildViewSwitcher();
+				if (!this.isLocationViewDisabled())
+				{
+					this.buildViewSwitcher();
+				}
 
 				// Search & counters
 				if (this.util.isFilterEnabled())
@@ -106,7 +121,7 @@
 				}
 
 				// Top button container
-				if (!this.isExternalMode())
+				if (!this.isExternalMode() && !this.isLocationViewDisabled())
 				{
 					this.buildTopButtons();
 				}
@@ -116,10 +131,22 @@
 
 				BX.bind(document.body, "keyup", BX.proxy(this.keyUpHandler, this));
 				BX.addCustomEvent(this, 'doRefresh', BX.proxy(this.refresh, this));
+				BX.bind(window, "beforeunload", BX.Calendar.EntryManager.doDelayedActions);
+				BX.addCustomEvent(this, 'changeViewRange', BX.Calendar.EntryManager.doDelayedActions);
 
 				this.topBlock.appendChild(BX.create('DIV', {style: {clear: 'both'}}));
 
 				top.BX.addCustomEvent(top, 'onCalendarBeforeCustomSliderCreate', BX.proxy(this.loadCssList, this));
+
+				top.BX.Event.EventEmitter.subscribe(
+					'BX.Calendar:doRefresh',
+					this.refresh.bind(this)
+				);
+
+				top.BX.Event.EventEmitter.subscribe(
+					'BX.Calendar:doReloadCounters',
+					top.BX.Runtime.debounce(this.updateCounters, 5000, this)
+				);
 
 				if (top !== window)
 				{
@@ -135,15 +162,15 @@
 
 				if (this.util.userIsOwner())
 				{
-					this.syncInterface = new BX.Calendar.Sync.Interface.SyncInterfaceManager({
+					this.syncInterface = new BX.Calendar.Sync.Manager.Manager({
 						wrapper: document.getElementById(this.id + '-sync-container'),
-						syncInfo: this.syncSlider.syncInfo,
+						syncInfo: this.util.config.syncInfo,
 						userId: this.currentUser.id,
-						syncLinks: this.syncSlider.config.syncLinks,
-						isSetSyncCaldavSettings: this.syncSlider.config.isSetSyncCaldavSettings,
-						sections: this.sectionController.sections,
-						portalAddress: this.syncSlider.config.caldav_link_all,
-						isRuZone: this.syncSlider.config.isRuZone,
+						syncLinks: this.util.config.syncLinks,
+						isSetSyncCaldavSettings: this.util.config.isSetSyncCaldavSettings,
+						sections: this.sectionManager.getSections(),
+						portalAddress: this.util.config.caldav_link_all,
+						isRuZone: this.util.config.isRuZone,
 						calendar: this,
 					});
 					this.syncInterface.showSyncButton();
@@ -187,7 +214,12 @@
 				{
 					if (event instanceof BX.Event.BaseEvent)
 					{
-						//var data = event.getData();
+						var data = event.getData();
+						if (BX.Type.isObjectLike(data.counters) && this.search)
+						{
+							this.search.setCountersValue(data.counters);
+						}
+
 						this.reload();
 					}
 				}.bind(this));
@@ -196,8 +228,19 @@
 				{
 					this.refresh();
 				}.bind(this));
-			}
 
+				if (this.isLocationViewDisabled())
+				{
+					this.buildLockView();
+
+					BX.addClass(this.mainCont, '--lock');
+
+					if (this.lockView)
+					{
+						this.mainCont.appendChild(this.lockView);
+					}
+				}
+			}
 			if (this.util.config.displayMobileBanner)
 			{
 				new BX.Calendar.Sync.Interface.MobileSyncBanner().showInPopup();
@@ -242,7 +285,7 @@
 					this.views.forEach(function(view){
 						if (view.getHotkey() && BX.Calendar.Util.getKeyCode(view.getHotkey()) === params.keyCode)
 						{
-							BX.Calendar.Util.sendAnalyticLabel({viewMode:'hotkey', viewType:view.getName()});
+							BX.Calendar.Util.sendAnalyticLabel({calendarAction: 'viewChange', viewMode:'hotkey', viewType:view.getName()});
 							this.setView(view.getName(), {animation: true});
 						}
 					}, this);
@@ -361,7 +404,7 @@
 					if (data.type === 'base')
 					{
 						this.setView(data.name, {animation: true});
-						BX.Calendar.Util.sendAnalyticLabel({viewMode:'selector',viewType:data.name});
+						BX.Calendar.Util.sendAnalyticLabel({calendarAction: 'viewChange', viewMode:'selector',viewType:data.name});
 					}
 					else if (data.type === 'additional')
 					{
@@ -390,11 +433,36 @@
 						if (data.type === 'base')
 						{
 							this.setView(data.name, {animation: true});
-							BX.Calendar.Util.sendAnalyticLabel({viewMode:'topmenu', viewType:data.name});
+							BX.Calendar.Util.sendAnalyticLabel({calendarAction: 'viewChange', viewMode:'topmenu', viewType:data.name});
 						}
 					}
 				}.bind(this));
 			}
+		},
+
+		buildLockView: function()
+		{
+			this.lockView = this.mainCont.appendChild(BX.create('DIV', {
+				props: {className: 'calendar-view-locker'}
+			}));
+			this.lockViewContainer = this.lockView.appendChild(BX.create('DIV', {
+				props: {className: 'calendar-view-locker-container'}
+			}));
+			this.lockViewContainer.appendChild(BX.create('DIV', {
+				props: {className: 'calendar-view-locker-top'},
+				html: '<div class="calendar-view-locker-icon"></div>'
+					+ '<div class="calendar-view-locker-text">'
+					+ BX.message('EC_LOCATION_VIEW_LOCKED')
+					+ '</div>'
+			}));
+			this.lockViewContainer.appendChild(BX.create('DIV', {
+				props: {className: 'calendar-view-locker-button'},
+				html: '<a href="javascript:void(0)" '
+					+ 'onclick="top.BX.UI.InfoHelper.show(\'limit_office_calendar_location\');" '
+					+ 'class="ui-btn ui-btn-sm ui-btn-light-border ui-btn-round">'
+					+ BX.message('EC_LOCATION_VIEW_UNLOCK_FEATURE')
+					+ '</a>'
+			}));
 		},
 
 		setView: function(view, params)
@@ -425,7 +493,7 @@
 				if (newView && (view !== this.currentViewName || !currentView.getIsBuilt()))
 				{
 					params.currentViewDate = this.getViewRangeDate();
-					if (newView === 'day' && BX.type.isDate(params.date))
+					if (BX.type.isDate(params.date))
 					{
 						params.newViewDate = params.date;
 					}
@@ -443,6 +511,15 @@
 					if (currentView.type === 'custom' || newView.type === 'custom')
 					{
 						params.animation = false;
+					}
+
+					if (this.rightBlock && (view === 'month' || view === 'week'))
+					{
+						this.rightBlock.style.display = 'none';
+					}
+					else if (this.rightBlock)
+					{
+						this.rightBlock.style.display = '';
 					}
 
 					if (params.animation)
@@ -476,15 +553,6 @@
 					BX.Calendar.Util.setCurrentView(view);
 				}
 			}
-		},
-
-		buildCounters: function()
-		{
-		},
-
-		registerEventHandlers: function()
-		{
-
 		},
 
 		request : function(params)
@@ -744,28 +812,12 @@
 		{
 			if (this.isKeyHandlerEnabled(e))
 			{
-				var
-					KEY_CODES = this.util.getKeyCodes(),
-					keyCode = e.keyCode;
-
-				if (keyCode === KEY_CODES['escape'])
-				{
-					this.getView().deselectEntry();
-				}
-				else if (keyCode === KEY_CODES['delete'])
-				{
-					var selectedEntry = this.getView().getSelectedEntry();
-					if (selectedEntry)
-					{
-						this.entryController.deleteEntry(selectedEntry);
-					}
-				}
-
-				if (keyCode === KEY_CODES['left'])
+				var keyCode = e.keyCode;
+				if (keyCode === BX.Calendar.Util.getKeyCode('left'))
 				{
 					this.showPrevious();
 				}
-				else if (keyCode === KEY_CODES['right'])
+				else if (keyCode === BX.Calendar.Util.getKeyCode('right'))
 				{
 					this.showNext();
 				}
@@ -791,6 +843,18 @@
 
 		buildTopButtons:  function()
 		{
+			if (this.util.type === 'location')
+			{
+				this.buildingTopButtonsRooms();
+			}
+			else
+			{
+				this.buildingTopButtonsCalendar();
+			}
+		},
+
+		buildingTopButtonsCalendar: function()
+		{
 			this.buttonsCont = BX(this.id + '-buttons-container');
 			if (this.buttonsCont)
 			{
@@ -798,28 +862,52 @@
 					props: {className: "ui-btn ui-btn-light-border ui-btn-themes", type: "button"},
 					text: BX.message('EC_SECTION_BUTTON')
 				}));
-				new window.BXEventCalendar.SectionSlider({
-					calendar: this,
-					button: this.sectionButton
-				});
 
-				if (this.util.userIsOwner())
-				{
-					this.syncSlider = new window.BXEventCalendar.SyncSlider({
-						calendar: this,
-						button: this.syncButton
-					});
-				}
+				BX.Event.bind(this.sectionButton, 'click', function(){
+					this.getSectionInterface()
+						.then(function(SectionInterface){
+							if (!this.sectionInterface)
+							{
+								this.sectionInterface = new SectionInterface(
+									{
+										calendarContext: this,
+										readonly: this.util.readOnlyMode(),
+										sectionManager: this.sectionManager
+									}
+								);
+							}
+							this.sectionInterface.show();
+						}.bind(this));
+				}.bind(this));
 
 				if (this.util.userIsOwner() || this.util.config.TYPE_ACCESS)
 				{
-					this.addButton = new window.BXEventCalendar.SettingsMenu(
+					this.settingsButton = this.buttonsCont.appendChild(BX.create(
+						"button",
 						{
-							calendar: this,
-							wrap: this.buttonsCont,
-							showMarketPlace: false
+							props: {
+								className: "ui-btn ui-btn-icon-setting ui-btn-light-border ui-btn-themes",
+							}
 						}
-					);
+					));
+
+					BX.Event.bind(this.settingsButton, 'click', function(){
+						this.getSettingsInterface()
+							.then(function(SettingsInterface){
+								if (!this.settingsInterface)
+								{
+									this.settingsInterface = new SettingsInterface(
+										{
+											calendarContext: this,
+											showPersonalSettings: this.util.userIsOwner(),
+											showGeneralSettings: !!(this.util.config.perm && this.util.config.perm.access),
+											settings: this.util.config.settings
+										}
+									);
+								}
+								this.settingsInterface.show();
+							}.bind(this));
+					}.bind(this));
 				}
 
 				var addButtonWrap = BX(this.id + '-add-button-container');
@@ -829,6 +917,8 @@
 						addEntry: function(){
 							BX.Calendar.EntryManager.openEditSlider({
 								type: this.util.type,
+								isLocationCalendar: false,
+								locationAccess: this.util.config.locationAccess,
 								ownerId: this.util.ownerId,
 								userId: parseInt(this.currentUser.id)
 							});
@@ -843,23 +933,100 @@
 			}
 		},
 
+		buildingTopButtonsRooms: function()
+		{
+			this.buttonsCont = BX(this.id + '-buttons-container');
+			if (this.buttonsCont)
+			{
+				this.roomsButton = this.buttonsCont.appendChild(BX.create("button", {
+					props: { className: "ui-btn ui-btn-light-border ui-btn-themes", type: "button" },
+					text: BX.message('EC_SECTION_ROOMS_LIST')
+				}));
+				BX.Event.bind(this.roomsButton, 'click', function() {
+					this.getRoomsInterface()
+						.then(function(RoomsInterface) {
+							if (!this.roomsInterface)
+							{
+								this.roomsInterface = new RoomsInterface(
+									{
+										calendarContext: this,
+										readonly: this.util.readOnlyMode(),
+										roomsManager: this.roomsManager
+									}
+								);
+							}
+
+							this.roomsInterface.show();
+						}.bind(this));
+				}.bind(this));
+				if (this.util.userIsOwner() || this.util.config.TYPE_ACCESS)
+				{
+					this.settingsButton = this.buttonsCont.appendChild(BX.create(
+						"button",
+						{
+							props: {
+								className: "ui-btn ui-btn-icon-setting ui-btn-light-border ui-btn-themes",
+							}
+						}
+					));
+
+					BX.Event.bind(this.settingsButton, 'click', function(){
+						this.getSettingsInterface()
+							.then(function(SettingsInterface){
+								if (!this.settingsInterface)
+								{
+									this.settingsInterface = new SettingsInterface(
+										{
+											calendarContext: this,
+											showPersonalSettings: this.util.userIsOwner(),
+											showGeneralSettings: false,
+											showAccessControll: true,
+											settings: this.util.config.settings
+										}
+									);
+								}
+								this.settingsInterface.show();
+							}.bind(this));
+					}.bind(this));
+				}
+
+				var addButtonWrap = BX(this.id + '-add-button-container');
+				if (this.util.type === 'location' && BX.Type.isDomNode(addButtonWrap))
+				{
+					addButtonWrap.appendChild(new BX.Calendar.Rooms.ReserveButton({
+						addEntry: function() {
+							BX.Calendar.EntryManager.openEditSlider({
+								roomsManager: this.roomsManager,
+								type: 'user',
+								isLocationCalendar: true,
+								locationAccess: this.util.config.locationAccess,
+								ownerId: this.util.ownerId,
+								userId: parseInt(this.currentUser.id)
+							});
+						}.bind(this),
+						addTask: this.showTasks ?
+							function() {
+								BX.SidePanel.Instance.open(this.util.getEditTaskPath(), { loader: "task-new-loader" });
+							}.bind(this)
+							: null
+					}).getWrap());
+				}
+			}
+		},
+
 		refresh: function ()
 		{
-			this.triggerEvent('beforeRefresh');
-			this.getView().refresh();
-			this.triggerEvent('afterRefresh');
+			this.getView().redraw();
 		},
 
 		reload: function (params)
 		{
-			this.triggerEvent('beforeReload');
 			if (params && params.syncGoogle)
 			{
 				this.reloadGoogle = true;
 			}
 			this.entryController.clearLoadIndexCache();
 			this.refresh();
-			this.triggerEvent('afterReload');
 		},
 
 		showStartUpEntry: function(startupEntry)
@@ -917,6 +1084,208 @@
 					'/bitrix/js/calendar/cal-style.css'
 				]);
 			}
+		},
+
+		handlePullEvent: function(command, params)
+		{
+			params = BX.Type.isObjectLike(params) ? params : {};
+			params.command = command;
+			switch(command)
+			{
+				case 'edit_event':
+				case 'delete_event':
+					if (BX.Calendar.Util.checkRequestId(params.requestUid))
+					{
+						this.entryManager.handlePullChanges(params);
+						this.reload();
+					}
+					break;
+				case 'set_meeting_status':
+					if (BX.Calendar.Util.checkRequestId(params.requestUid))
+					{
+						this.entryManager.handlePullChanges(params);
+						this.reload();
+					}
+					break;
+				case 'edit_section':
+				case 'delete_section':
+				case 'change_section_subscription':
+					this.sectionManager.handlePullChanges(params);
+					break;
+				case 'delete_room':
+				case 'create_room':
+				case 'update_room':
+					this.roomsManager.handlePullRoomChanges(params);
+					break;
+				case 'change_section_customization':
+					BX.reload();
+					break;
+				case 'refresh_sync_status':
+					this.syncInterface.updateSyncStatus(params);
+					break;
+				case 'add_sync_connection':
+					this.syncInterface.addSyncConnection(params);
+					break;
+				case 'delete_sync_connection':
+					this.syncInterface.deleteSyncConnection(params);
+					break;
+			}
+		},
+
+		handlePullEventTasks: function(command, params)
+		{
+			params = BX.Type.isObjectLike(params) ? params : {};
+			params.command = command;
+			switch (command)
+			{
+				case 'task_remove':
+				case 'task_add':
+				case 'task_update':
+					this.reload()
+			}
+		},
+
+		getCalendarType: function()
+		{
+			return this.util.type;
+		},
+
+		getOwnerId: function()
+		{
+			return parseInt(this.util.ownerId);
+		},
+
+		getUserId: function()
+		{
+			return parseInt(this.util.userId);
+		},
+
+		getSectionInterface: function()
+		{
+			return new Promise(function(reslve){
+				var bx = BX.Calendar.Util.getBX();
+				if (bx.Calendar.SectionInterface)
+				{
+					reslve(bx.Calendar.SectionInterface);
+				}
+				else
+				{
+					var extensionName = 'calendar.sectioninterface';
+					bx.Runtime.loadExtension(extensionName)
+						.then(function(exports)
+						{
+							if (bx.Calendar.SectionInterface)
+							{
+								reslve(bx.Calendar.SectionInterface);
+							}
+							else
+							{
+								console.error('Extension ' + extensionName + ' not found');
+							}
+						}
+					);
+				}
+
+			}.bind(this));
+		},
+
+		getSettingsInterface: function()
+		{
+			return new Promise(function(reslve){
+				var bx = BX.Calendar.Util.getBX();
+				if (bx.Calendar.SettingsInterface)
+				{
+					reslve(bx.Calendar.SettingsInterface);
+				}
+				else
+				{
+					var extensionName = 'calendar.settingsinterface';
+					bx.Runtime.loadExtension(extensionName)
+						.then(function(exports)
+						{
+							if (bx.Calendar.SettingsInterface)
+							{
+								reslve(bx.Calendar.SettingsInterface);
+							}
+							else
+							{
+								console.error('Extension ' + extensionName + ' not found');
+							}
+						}
+					);
+				}
+
+			}.bind(this));
+		},
+
+		getRoomsInterface: function()
+		{
+			return new Promise(function(reslve){
+				var bx = BX.Calendar.Util.getBX();
+				if (bx.Calendar.Rooms.RoomsInterface)
+				{
+					reslve(bx.Calendar.Rooms.RoomsInterface);
+				}
+				else
+				{
+					var extensionName = 'calendar.rooms';
+					bx.Runtime.loadExtension(extensionName)
+						.then(function(exports)
+							{
+								if (bx.Calendar.Rooms.RoomsInterface)
+								{
+									reslve(bx.Calendar.Rooms.RoomsInterface);
+								}
+								else
+								{
+									console.error('Extension ' + extensionName + ' not found');
+								}
+							}
+						);
+				}
+
+			}.bind(this));
+		},
+
+		updateCounters: function()
+		{
+			return new Promise(
+				function(resolve)
+				{
+					BX.ajax.runAction('calendar.api.calendarajax.updateCounters', {
+						data: {}
+					}).then(function(response)
+						{
+							if (BX.Type.isObjectLike(response.data.counters) && this.search)
+							{
+								this.search.setCountersValue(response.data.counters);
+							}
+							resolve();
+						}.bind(this),
+						function (response)
+						{
+							BX.Calendar.Util.displayError(response.errors);
+							resolve(response);
+						}.bind(this));
+				}.bind(this)
+			);
+		},
+
+		showAfterSyncAccent: function(showAfterSyncAccent)
+		{
+			return;
+			BX.Calendar.Sync.Interface.AfterSyncTour.createInstance(
+				{
+					showAfterSyncAccent: showAfterSyncAccent,
+					view: this.getView()
+				})
+				.show();
+		},
+
+		isLocationViewDisabled: function()
+		{
+			return !this.util.config.locationFeatureEnabled
+				&& this.util.config.type === 'location';
 		}
 	};
 

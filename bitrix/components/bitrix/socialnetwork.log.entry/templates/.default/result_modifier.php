@@ -1,9 +1,15 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
 
-if (!empty($arParams['TOP_RATING_DATA']))
+if (is_array($arParams['TOP_RATING_DATA']))
 {
 	$arResult['TOP_RATING_DATA'] = $arParams['TOP_RATING_DATA'];
 }
@@ -23,4 +29,12 @@ elseif (
 	{
 		$arResult['TOP_RATING_DATA'] = $ratingData[$arParams["LOG_ID"]];
 	}
+}
+
+if (
+	!isset($arResult['PUSH&PULL_ACTION'])
+	&& !empty($_REQUEST['REVIEW_ACTION'])
+)
+{
+	$arResult['PUSH&PULL_ACTION'] = $_REQUEST['REVIEW_ACTION'];
 }

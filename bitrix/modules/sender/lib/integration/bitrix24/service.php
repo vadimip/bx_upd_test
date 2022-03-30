@@ -45,14 +45,18 @@ class Service
 	public static function isAvailable()
 	{
 		return
+			self::isRcAvailable()
+			||
 			self::isMailingsAvailable()
 			||
 			self::isAdAvailable()
 			||
-			self::isRcAvailable()
-			||
 			self::isEmailAvailable()
-			;
+			||
+			self::isTolokaAvailable()
+			||
+			self::isFbAdAvailable()
+		;
 	}
 
 	/**
@@ -63,6 +67,26 @@ class Service
 	public static function isAdAvailable()
 	{
 		return !self::isCloud() || Feature::isFeatureEnabled('sender_ad');
+	}
+
+	/**
+	 * Return true if Fb Ad is available.
+	 *
+	 * @return bool
+	 */
+	public static function isFbAdAvailable()
+	{
+		return !self::isCloud() || Feature::isFeatureEnabled('sender_fb_ads');
+	}
+
+	/**
+	 * Return true if Toloka is available.
+	 *
+	 * @return bool
+	 */
+	public static function isTolokaAvailable()
+	{
+		return !self::isCloud() || Feature::isFeatureEnabled('sender_toloka');
 	}
 
 	/**
@@ -96,6 +120,24 @@ class Service
 	}
 
 	/**
+	 * Return true if region of cloud portal is Russian.
+	 *
+	 * @return bool
+	 */
+	public static function isCloudRegionMayTrackMails()
+	{
+		return self::isCloud() && in_array(
+			\CBitrix24::getPortalZone(), [
+					'de',
+					'eu',
+					'it',
+					'pl',
+					'fr',
+				]
+			);
+	}
+
+	/**
 	 * Return true if Ad provider is available in region.
 	 *
 	 * @param string $code Service message code.
@@ -119,14 +161,14 @@ class Service
 
 		return true;
 	}
-
+	
 	/**
 	 * Return true if toloka is available.
 	 *
-	 * @param string $code Service message code.
 	 * @return bool
+	 * @throws \Bitrix\Main\LoaderException
 	 */
-	public static function isTolokaVisibleInRegion()
+	public static function isTolokaVisibleInRegion(): bool
 	{
 		if (self::isCloud())
 		{
@@ -207,11 +249,11 @@ class Service
 	 * Return tracking uri.
 	 *
 	 * @param int $type Tracker type.
-	 * @param null|String $siteId Site id.
-	 * @return bool
+	 * @param null|string $siteId Site id.
+	 * @return string|null
 	 * @throws \Bitrix\Main\LoaderException
 	 */
-	public static function getTrackingUri($type, $siteId = null)
+	public static function getTrackingUri(int $type, ?string $siteId = null): ?string
 	{
 		switch ($type)
 		{

@@ -1,40 +1,49 @@
 "use strict";
 
-import {Util} from "calendar.util";
-import {Type, Event, Loc, Tag, Dom} from 'main.core';
-import {Entry, EntryManager} from "calendar.entry";
-import {MeetingStatusControl, Reminder} from "calendar.controls";
-import {BaseEvent} from 'main.core.events';
+import { Util } from 'calendar.util';
+import { Type, Event, Loc, Tag, Dom, Runtime, Text } from 'main.core';
+import { Entry, EntryManager } from 'calendar.entry';
+import { MeetingStatusControl, Reminder } from 'calendar.controls';
+import { BaseEvent, EventEmitter } from 'main.core.events';
+import { Planner } from 'calendar.planner';
+import { ControlButton } from 'intranet.control-button';
 
 export class EventViewForm {
 	permissions = {};
 	name = 'eventviewform';
 	uid = null;
 	DOM = {};
+	RELOAD_REQUESTED = 'RELOAD_REQUESTED';
+	RELOAD_FINISHED = 'RELOAD_FINISHED';
+	reloadStatus = null;
+	entityChanged = false;
 
 	constructor(options = {})
 	{
 		this.type = options.type || 'user';
 		this.ownerId = options.ownerId || 0;
 		this.userId = options.userId || 0;
-		this.sliderId = "calendar:view-entry-slider";
 		this.zIndex = 3100;
 		this.entryId = options.entryId || null;
+		this.calendarContext = options.calendarContext || null;
 		this.entryDateFrom = options.entryDateFrom || null;
 		this.timezoneOffset = options.timezoneOffset || null;
 		this.BX = Util.getBX();
 
-		this.sliderOnClose = this.hide.bind(this);
 		this.sliderOnLoad = this.onLoadSlider.bind(this);
+		this.handlePullBind = this.handlePull.bind(this);
+		this.keyHandlerBind = this.keyHandler.bind(this);
+		this.destroyBind = this.destroy.bind(this);
 	}
 
 	initInSlider(slider, promiseResolve)
 	{
-		this.BX.addCustomEvent(slider, "SidePanel.Slider:onLoad", this.sliderOnLoad);
-		this.BX.addCustomEvent(slider, "SidePanel.Slider:onClose", this.sliderOnClose);
-		this.BX.addCustomEvent(slider, "SidePanel.Slider:onCloseComplete", this.BX.proxy(this.destroy, this));
+		this.slider = slider;
+		EventEmitter.subscribe(slider, "SidePanel.Slider:onLoad", this.sliderOnLoad);
+		EventEmitter.subscribe(slider, "SidePanel.Slider:onCloseComplete", this.destroyBind);
 
-		//this.BX.removeCustomEvent(slider, "SidePanel.Slider:onBeforeCloseComplete", this.destroy.bind(this));
+		Event.bind(document, 'keydown', this.keyHandlerBind);
+		EventEmitter.subscribe('onPullEvent-calendar', this.handlePullBind);
 
 		this.createContent(slider).then(function(html)
 			{
@@ -48,58 +57,47 @@ export class EventViewForm {
 		this.opened = true;
 	}
 
-	show(params = {})
-	{
-		if (params.entryId)
-		{
-			this.entryId = params.entryId;
-		}
-
-		this.BX.SidePanel.Instance.open(this.sliderId, {
-			contentCallback: this.createContent.bind(this),
-			label: {
-				text: Loc.getMessage('CALENDAR_EVENT'),
-				bgColor: "#55D0E0"
-			},
-			events: {
-				onClose: this.sliderOnClose,
-				onCloseComplete: this.destroy.bind(this),
-				onLoad: this.sliderOnLoad
-			}
-		});
-		this.opened = true;
-	}
-
 	isOpened()
 	{
 		return this.opened;
 	}
 
-	hide(event)
+	destroy()
 	{
-		if (event && event.getSliderPage && event.getSliderPage().getUrl() === this.sliderId)
-		{
-			this.BX.removeCustomEvent("SidePanel.Slider::onClose", this.sliderOnClose);
-		}
-	}
+		EventEmitter.unsubscribe(this.slider, "SidePanel.Slider:onLoad", this.sliderOnLoad);
+		EventEmitter.unsubscribe(this.slider, "SidePanel.Slider:onCloseComplete", this.destroyBind);
+		EventEmitter.unsubscribe('onPullEvent-calendar', this.handlePullBind);
+		Event.unbind(document, 'keydown', this.keyHandlerBind);
 
-	destroy(event)
-	{
-		this.BX.removeCustomEvent("SidePanel.Slider:onCloseComplete", this.BX.proxy(this.destroy, this));
-		Event.unbind(document, "click", Util.applyHacksForPopupzIndex);
-		this.BX.SidePanel.Instance.destroy(this.sliderId);
+		if (this.intranetControllButton && this.intranetControllButton.destroy)
+		{
+			this.intranetControllButton.destroy();
+		}
+
+		// this.BX.SidePanel.Instance.destroy(this.sliderId);
 		Util.closeAllPopups();
 		this.opened = false;
 	}
 
 	onLoadSlider(event)
 	{
-		let slider = event.getSlider();
+		if (!event instanceof BaseEvent)
+		{
+			return;
+		}
+		const data = event.getData();
+		const slider = data[0]?.slider;
+
 		this.DOM.content = slider.layout.content;
 
 		// Used to execute javasctipt and attach CSS from ajax responce
 		this.BX.html(slider.layout.content, slider.getData().get("sliderContent"));
-		this.initControls(this.uid);
+		if (!Type.isNull(this.uid))
+		{
+			this.initControls(this.uid);
+		}
+
+		this.reloadStatus = this.RELOAD_FINISHED;
 	}
 
 	createContent(slider)
@@ -112,22 +110,43 @@ export class EventViewForm {
 					dateFrom: Util.formatDate(this.entryDateFrom),
 					timezoneOffset: this.timezoneOffset
 				}
-			}).then((response) => {
+			}).then(
+				response => {
 					let html = '';
 					if ((Type.isFunction(slider.isOpen) && slider.isOpen()) || slider.isOpen === true)
 					{
-						html = this.BX.util.trim(response.data.html);
+						html = response.data.html;
 						slider.getData().set("sliderContent", html);
 						let params = response.data.additionalParams;
 
 						this.userId = params.userId;
 						this.uid = params.uniqueId;
 						this.entryUrl = params.entryUrl;
+						this.userTimezone = params.userTimezone;
+						this.plannerFeatureEnabled = !!params.plannerFeatureEnabled;
+						if (this.planner && !this.plannerFeatureEnabled)
+						{
+							this.planner.lock();
+						}
+
 						this.handleEntryData(params.entry, params.userIndex, params.section);
 					}
 					resolve(html);
 				},
-				(response) => {
+				response => {
+					if (response.errors && response.errors.length)
+					{
+						slider.getData().set(
+							"sliderContent",
+							'<div class="calendar-slider-alert">'
+								+ '<div class="calendar-slider-alert-inner">'
+									+ '<div class="calendar-slider-alert-img"></div>'
+									+ '<h1 class="calendar-slider-alert-text">' + Text.encode(response.errors[0].message) + '</h1>'
+								+ '</div>'
+							+ '</div>'
+						);
+					}
+
 					this.displayError(response.errors);
 					resolve(response);
 				});
@@ -137,23 +156,10 @@ export class EventViewForm {
 	initControls(uid)
 	{
 		this.DOM.title = this.DOM.content.querySelector(`#${uid}_title`);
-		this.DOM.formWrap = this.DOM.content.querySelector(`#${uid}_form_wrap`);
-		this.DOM.form = this.DOM.content.querySelector(`#${uid}_form`);
 		this.DOM.buttonSet = this.DOM.content.querySelector(`#${uid}_buttonset`);
 		this.DOM.editButton = this.DOM.content.querySelector(`#${uid}_but_edit`);
 		this.DOM.delButton = this.DOM.content.querySelector(`#${uid}_but_del`);
 		this.DOM.sidebarInner = this.DOM.content.querySelector(`#${uid}_sidebar_inner`);
-		this.DOM.chatLink = this.DOM.content.querySelector(`#${uid}_but_chat`);
-
-		if (this.DOM.chatLink)
-		{
-			Event.bind(this.DOM.chatLink, 'click', () => {
-				EntryManager.openChatForEntry({
-					entryId: this.entry.parentId,
-					entry: this.entry
-				});
-			});
-		}
 
 		if (this.DOM.buttonSet)
 		{
@@ -161,9 +167,10 @@ export class EventViewForm {
 			this.initUserListControl(uid);
 		}
 
-		if (this.DOM.content.querySelector(`#${uid}_time_inner_wrap`).offsetHeight > 50)
+		const innerTimeWrap = this.DOM.content.querySelector(`#${uid}_time_inner_wrap`);
+		if (Type.isElementNode(innerTimeWrap) && innerTimeWrap.offsetHeight > 50)
 		{
-			this.BX.addClass(this.DOM.content.querySelector(`#${uid}_time_wrap`), 'calendar-slider-sidebar-head-long-time');
+			Dom.addClass(this.DOM.content.querySelector(`#${uid}_time_wrap`), 'calendar-slider-sidebar-head-long-time');
 		}
 
 		if (this.canDo(this.entry, 'edit') && this.DOM.editButton)
@@ -194,7 +201,7 @@ export class EventViewForm {
 				let viewMode = !this.canDo(this.entry, 'edit')
 					&& this.entry.getCurrentStatus() === false;
 
-				this.reminderControl = new Reminder({
+				this.reminderControl = new this.BX.Calendar.Controls.Reminder({
 					wrap: this.DOM.reminderWrap,
 					zIndex: this.zIndex,
 					viewMode: viewMode
@@ -203,9 +210,10 @@ export class EventViewForm {
 
 				if (!viewMode)
 				{
-					this.reminderControl.subscribe('onChange', function (event) {
+					this.reminderControl.subscribe('onChange', (event) => {
 						if (event instanceof BaseEvent)
 						{
+							this.handleEntityChanges();
 							this.reminderValues = event.getData().values;
 							this.BX.ajax.runAction('calendar.api.calendarajax.updateReminders', {
 								data: {
@@ -215,7 +223,7 @@ export class EventViewForm {
 								}
 							});
 						}
-					}.bind(this));
+					});
 				}
 			}
 
@@ -225,11 +233,13 @@ export class EventViewForm {
 				this.BX.removeClass(items[items.length - 1], 'calendar-slider-sidebar-border-bottom');
 			}
 		}
-		//this.DOM.reminderInputsWrap = this.DOM.reminderWrap.appendChild(Tag.render`<span></span>`);
 		if (this.canDo(this.entry, 'delete'))
 		{
 			Event.bind(this.DOM.delButton, 'click', ()=>{
-				EntryManager.deleteEntry(this.entry);
+				EventEmitter.subscribeOnce('BX.Calendar.Entry:beforeDelete', ()=>{
+					this.BX.SidePanel.Instance.close();
+				});
+				EntryManager.deleteEntry(this.entry, this.calendarContext);
 			});
 		}
 		else
@@ -251,19 +261,6 @@ export class EventViewForm {
 		if (this.entry && this.entry.isMeeting())
 		{
 			this.initAcceptMeetingControl(uid);
-
-			const attendees = this.entry.getAttendees();
-			if (Type.isArray(attendees))
-			{
-				if (window.location.host === 'cp.bitrix.ru'
-					&& this.DOM.chatLink
-					&& attendees.length > 1
-					&& attendees.find((user)=>{return user.STATUS !== 'N' && parseInt(user.ID) === parseInt(this.userId);})
-				)
-				{
-					this.DOM.chatLink.style.display = '';
-				}
-			}
 		}
 
 		if (this.DOM.sidebarInner)
@@ -281,8 +278,28 @@ export class EventViewForm {
 			Event.bind(this.DOM.copyButton, 'click', this.copyEventUrl.bind(this));
 		}
 
-		Event.unbind(document, "click", Util.applyHacksForPopupzIndex);
-		Event.bind(document, "click", Util.applyHacksForPopupzIndex);
+		// Init "Videocall" control
+		this.DOM.videoCall = this.DOM.sidebarInner.querySelector('.calendar-slider-sidebar-videocall');
+		if (
+			BX?.Intranet?.ControlButton
+			&& Type.isElementNode(this.DOM.videoCall)
+			&& this.entry.getCurrentStatus() !== false
+		)
+		{
+			this.DOM.videoCall.style.display = '';
+			this.intranetControllButton = new ControlButton({
+				container: this.DOM.videoCall,
+				entityType: 'calendar_event',
+				entityId: this.entry.parentId,
+				entityData: {
+					dateFrom: Util.formatDate(this.entry.from),
+					parentId: this.entry.parentId
+				},
+				analyticsLabel: {
+					formType: 'full'
+				}
+			});
+		}
 	}
 
 	handleEntryData(entryData, userIndex, sectionData)
@@ -293,46 +310,35 @@ export class EventViewForm {
 		{
 			this.permissions = sectionData.PERM;
 		}
+
+		EntryManager.registerEntrySlider(this.entry, this);
 	}
 
 	initPlannerControl(uid)
 	{
 		this.plannerId = uid + '_view_slider_planner';
-		this.DOM.plannerWrap = this.DOM.content.querySelector(`#${uid}_view_planner_wrap`);
+		this.DOM.plannerWrapOuter = this.DOM.content.querySelector(`.calendar-slider-detail-timeline`);
+		this.DOM.plannerWrap = this.DOM.plannerWrapOuter.querySelector(`.calendar-view-planner-wrap`);
 
-		setTimeout(function()
-		{
-			if (this.DOM.plannerWrap)
-			{
-				this.BX.removeClass(this.DOM.plannerWrap, 'hidden');
-			}
-		}.bind(this), 500);
-
-		setTimeout(()=>{
-			if (this.DOM.plannerWrap && this.DOM.plannerWrap.offsetWidth)
-			{
-				this.BX.onCustomEvent('OnCalendarPlannerDoResize', [
-					{
-						plannerId: this.plannerId,
-						timeoutCheck: true,
-						width: this.DOM.plannerWrap.offsetWidth
-					}
-				]);
-			}
-		}, 200);
-
-		Event.bind(window, 'resize', ()=>{
-			if (this.DOM.plannerWrap && this.DOM.plannerWrap.offsetWidth)
-			{
-				this.BX.onCustomEvent('OnCalendarPlannerDoResize', [
-					{
-						plannerId: this.plannerId,
-						timeoutCheck: true,
-						width: this.DOM.plannerWrap.offsetWidth
-					}
-				]);
-			}
+		this.planner = new Planner({
+			wrap: this.DOM.plannerWrap,
+			minWidth: parseInt(this.DOM.plannerWrap.offsetWidth),
+			solidStatus: true,
+			readonly: true,
+			locked: !this.plannerFeatureEnabled
 		});
+
+		this.planner.show();
+		this.planner.showLoader();
+
+		setTimeout(() => {
+			if (this.DOM.plannerWrapOuter)
+			{
+				Dom.removeClass(this.DOM.plannerWrapOuter, 'hidden');
+			}
+		}, 500);
+
+		this.loadPlannerData().then(()=>{});
 	}
 
 	initUserListControl(uid)
@@ -383,22 +389,14 @@ export class EventViewForm {
 					.appendChild(this.BX.create('DIV', {props: {className: 'calendar-slider-sidebar-user-block-item'}}))
 					.appendChild(this.BX.create('IMG', {props: {width: 34, height: 34, src: user.AVATAR}}));
 
-				if (user.EMAIL_USER)
-				{
-					userWrap.appendChild(this.BX.create("DIV", {props: {className: 'calendar-slider-sidebar-user-info'}}))
-						.appendChild(this.BX.create("span", {
-							text: user.DISPLAY_NAME
-						}));
-				}
-				else
-				{
-					userWrap.appendChild(this.BX.create("DIV", {props: {className: 'calendar-slider-sidebar-user-info'}}))
-						.appendChild(this.BX.create("A", {
-							props: {
-								href: user.URL ? user.URL : '#', className: 'calendar-slider-sidebar-user-info-name'
-							}, text: user.DISPLAY_NAME
-						}));
-				}
+				userWrap.appendChild(this.BX.create("DIV", {props: {className: 'calendar-slider-sidebar-user-info'}}))
+					.appendChild(this.BX.create("A", {
+						props: {
+							href: user.URL ? user.URL : '#',
+							className: 'calendar-slider-sidebar-user-info-name'
+						},
+						text: user.DISPLAY_NAME
+					}));
 			}, this);
 
 			this.userListPopup = this.BX.PopupWindowManager.create("user-list-popup-" + Math.random(), node, {
@@ -436,17 +434,17 @@ export class EventViewForm {
 				currentStatus: this.DOM.content.querySelector(`#${uid}_current_status`).value || this.entry.getCurrentStatus()
 			});
 
-			this.statusControl.subscribe('onSetStatus', function(event)
-				{
+			this.statusControl.subscribe('onSetStatus', (event) => {
 					if (event instanceof BaseEvent)
 					{
-						const result = EntryManager.setMeetingStatus(this.entry, event.getData().status);
-						if (!result)
-						{
-							this.statusControl.setStatus(this.entry.getCurrentStatus(), false);
-						}
+						this.handleEntityChanges();
+						EntryManager.setMeetingStatus(this.entry, event.getData().status)
+							.then(() => {
+								this.statusControl.setStatus(this.entry.getCurrentStatus(), false);
+								this.statusControl.updateStatus();
+							});
 					}
-				}.bind(this)
+				}
 			);
 		}
 	}
@@ -491,11 +489,10 @@ export class EventViewForm {
 	{
 		if ((action === 'edit' || action === 'delete'))
 		{
-			// if ((entry.isMeeting() && entry.id !== entry.parentId)
-			// 	|| entry.isResourcebooking())
-			// {
-			// 	return false;
-			// }
+			if (entry.isResourcebooking())
+			{
+				return false;
+			}
 
 			return this.permissions.edit;
 		}
@@ -506,5 +503,142 @@ export class EventViewForm {
 		}
 
 		return false;
+	}
+
+	plannerIsShown()
+	{
+		return this.DOM.plannerWrap && Dom.hasClass(this.DOM.plannerWrap, 'calendar-edit-planner-wrap-shown');
+	}
+
+	loadPlannerData()
+	{
+		this.planner.showLoader();
+		return new Promise((resolve) => {
+			this.BX.ajax.runAction('calendar.api.calendarajax.updatePlanner', {
+					data: {
+						entryId: this.entry.id || 0,
+						entryLocation: this.entry.data.LOCATION || '',
+						ownerId: this.ownerId,
+						hostId: this.entry.getMeetingHost(),
+						type: this.type,
+						entityList: this.entry.getAttendeesEntityList(),
+						dateFrom: Util.formatDate(this.entry.from.getTime() - Util.getDayLength() * 3),
+						dateTo: Util.formatDate(this.entry.to.getTime() + Util.getDayLength() * 10),
+						timezone: this.userTimezone,
+						location: this.entry.getLocation(),
+					}
+				})
+				.then((response) => {
+						this.planner.hideLoader();
+						this.planner.update(
+							response.data.entries,
+							response.data.accessibility
+						);
+
+						this.planner.updateSelector(
+							Util.adjustDateForTimezoneOffset(
+								this.entry.from,
+								this.entry.userTimezoneOffsetFrom,
+								this.entry.fullDay),
+							Util.adjustDateForTimezoneOffset(
+								this.entry.to,
+								this.entry.userTimezoneOffsetTo,
+								this.entry.fullDay
+							),
+							this.entry.fullDay
+
+						);
+						resolve(response);
+					},
+					(response) => {resolve(response);}
+				);
+
+		});
+	}
+
+	keyHandler(e)
+	{
+		if(
+			(
+				e.keyCode === Util.getKeyCode('delete')
+				// || e.keyCode === Util.getKeyCode('backspace')
+			)
+			&& this.canDo(this.entry, 'delete'))
+		{
+			const target = event.target || event.srcElement;
+			const tagName = Type.isElementNode(target) ? target.tagName.toLowerCase() : null;
+			if (tagName && !['input', 'textarea'].includes(tagName))
+			{
+				EventEmitter.subscribeOnce('BX.Calendar.Entry:beforeDelete', ()=>{
+					this.BX.SidePanel.Instance.close();
+				});
+				EntryManager.deleteEntry(this.entry, this.calendarContext);
+			}
+		}
+	}
+
+	handlePull(event: BaseEvent): void
+	{
+		if (!event instanceof BaseEvent)
+		{
+			return;
+		}
+
+		const data = event.getData();
+		const command = data[0];
+		switch(command)
+		{
+			case 'edit_event':
+			case 'delete_event':
+			case 'set_meeting_status':
+				const calendarContext = Util.getCalendarContext();
+				if (calendarContext)
+				{
+					if (this.planner && this.reloadStatus === this.RELOAD_FINISHED)
+					{
+						this.loadPlannerData().then(()=>{});
+					}
+				}
+				else
+				{
+					this.reloadSlider();
+				}
+				break;
+		}
+	}
+
+	handleEntityChanges()
+	{
+		this.entityChanged = true;
+	}
+
+	reloadSlider(): void
+	{
+		if (this.reloadStatus === this.RELOAD_FINISHED)
+		{
+			const activeElement = document.activeElement
+			if (['IFRAME', 'TEXTAREA'].includes(activeElement.tagName.toUpperCase()))
+			{
+				return;
+			}
+
+			// Protection from reloading same page during changes (status or reminder)
+			if (this.entityChanged)
+			{
+				setTimeout(() => {
+					this.entityChanged = false;
+				}, 500);
+				return;
+			}
+
+			EventEmitter.unsubscribe(this.slider, "SidePanel.Slider:onLoad", this.sliderOnLoad);
+			EventEmitter.unsubscribe(this.slider, "SidePanel.Slider:onCloseComplete", this.destroyBind);
+			EventEmitter.unsubscribe('onPullEvent-calendar', this.handlePullBind);
+			Event.unbind(document, 'keydown', this.keyHandlerBind);
+
+			this.reloadStatus = this.RELOAD_REQUESTED;
+
+			this.slider.reload();
+		}
 	}
 }

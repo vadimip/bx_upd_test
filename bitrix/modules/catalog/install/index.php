@@ -1,7 +1,6 @@
 <?php
 use Bitrix\Main,
 	Bitrix\Main\EventManager,
-	Bitrix\Main\Loader,
 	Bitrix\Main\Localization\Loc,
 	Bitrix\Main\ModuleManager,
 	Bitrix\Main\Localization\LanguageTable;
@@ -194,14 +193,23 @@ class catalog extends CModule
 			'iblock',
 			'onGetUrlBuilders',
 			'catalog',
-			'\Bitrix\Catalog\Url\AdminPage\Registry',
+			'\Bitrix\Catalog\Url\Registry',
 			'getBuilderList'
 		);
 
-		if (!$this->bitrix24mode)
+		if ($this->bitrix24mode)
 		{
-			CAgent::AddAgent('\Bitrix\Catalog\CatalogViewedProductTable::clearAgent();', 'catalog', 'N', (int)COption::GetOptionString("catalog", "viewed_period") * 24 * 3600);
+			Main\Config\Option::set('catalog', 'enable_viewed_products', 'Y');
+			Main\Config\Option::set('catalog', 'viewed_time', '2');
+			Main\Config\Option::set('catalog', 'viewed_count', '10');
+			Main\Config\Option::set('catalog', 'viewed_period', '1');
 		}
+		CAgent::AddAgent(
+			'\Bitrix\Catalog\CatalogViewedProductTable::clearAgent();',
+			'catalog',
+			'N',
+			(int)COption::GetOptionString("catalog", "viewed_period") * 86400
+		);
 
 		Main\Config\Option::set('catalog', 'subscribe_repeated_notify', 'Y', '');
 		if ($this->bitrix24mode)
@@ -219,11 +227,44 @@ class catalog extends CModule
 			}
 			else
 			{
-				Main\Update\Stepper::bindClass('\Bitrix\Catalog\Compatible\EventCompatibility', 'catalog', 1);
+				\CTimeZone::Disable();
+				\CAgent::AddAgent(
+					'\Bitrix\Catalog\Compatible\EventCompatibility::execAgent();',
+					'catalog',
+					'Y',
+					1,
+					'',
+					'Y',
+					\ConvertTimeStamp(time()+ 1, 'FULL'),
+					100,
+					false,
+					false
+				);
+				\CTimeZone::Enable();
+			}
+		}
+		else
+		{
+			if (Main\Config\Option::get('catalog', 'enable_processing_deprecated_events') === 'Y')
+			{
+				\Bitrix\Catalog\Compatible\EventCompatibility::registerEvents();
 			}
 		}
 
-		Main\Update\Stepper::bindClass('\Bitrix\Catalog\Product\SystemField', 'catalog', 60);
+		\CTimeZone::Disable();
+		\CAgent::AddAgent(
+			'\Bitrix\Catalog\Product\SystemField::execAgent();',
+			'catalog',
+			'Y',
+			1,
+			'',
+			'Y',
+			\ConvertTimeStamp(time()+ 60, 'FULL'),
+			100,
+			false,
+			false
+		);
+		\CTimeZone::Enable();
 
 		$this->InstallTasks();
 
@@ -286,10 +327,12 @@ class catalog extends CModule
 	function UnInstallDB($arParams = array())
 	{
 		global $APPLICATION, $DB, $errors;
+		global $USER_FIELD_MANAGER;
 
 		if (!defined('BX_CATALOG_UNINSTALLED'))
 			define('BX_CATALOG_UNINSTALLED', true);
 
+		$enableDeprecatedEvents = Main\Config\Option::get('catalog', 'enable_processing_deprecated_events') === 'Y';
 		if (!isset($arParams["savedata"]) || $arParams["savedata"] != "Y")
 		{
 			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/catalog/install/db/".mb_strtolower($DB->type)."/uninstall.sql");
@@ -298,6 +341,7 @@ class catalog extends CModule
 				$APPLICATION->ThrowException(implode("", $errors));
 				return false;
 			}
+			$USER_FIELD_MANAGER->OnEntityDelete('PRODUCT');
 			$this->UnInstallTasks();
 			COption::RemoveOption("catalog");
 		}
@@ -394,13 +438,20 @@ class catalog extends CModule
 			'iblock',
 			'onGetUrlBuilders',
 			'catalog',
-			'\Bitrix\Catalog\Url\AdminPage\Registry',
+			'\Bitrix\Catalog\Url\Registry',
 			'getBuilderList'
 		);
 
 		if ($this->bitrix24mode)
 		{
 			\Bitrix\Catalog\Compatible\EventCompatibility::unRegisterEvents();
+		}
+		else
+		{
+			if ($enableDeprecatedEvents)
+			{
+				\Bitrix\Catalog\Compatible\EventCompatibility::unRegisterEvents();
+			}
 		}
 
 		CAgent::RemoveModuleAgents('catalog');

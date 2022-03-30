@@ -63,13 +63,6 @@
 	}
 
 	Util.prototype = {
-		getEventPath: function(entry)
-		{
-			var url = this.config.path;
-			url += (url.indexOf('?') === -1 ? '?' : '&') + 'EVENT_ID=' + entry.id + '&EVENT_DATE=' + this.formatDate(entry.from);
-			return url;
-		},
-
 		getWeekDays: function()
 		{
 			return this.config.weekDays;
@@ -519,63 +512,39 @@
 
 		getScrollbarWidth: function()
 		{
-			// add outer div
-			var
-				outer = this.calendar.mainCont.appendChild(BX.create('DIV', {props: {className: 'calendar-tmp-outer'}})),
-				widthNoScroll = outer.offsetWidth;
+			if (BX.browser.IsMac())
+			{
+				result = 17;
+			}
+			else
+			{
+				// add outer div
+				var
+					outer = this.calendar.mainCont.appendChild(BX.create('DIV', {props: {className: 'calendar-tmp-outer'}})),
+					widthNoScroll = outer.offsetWidth;
 
-			// force scrollbars
-			outer.style.overflow = "scroll";
+				// force scrollbars
+				outer.style.overflow = "scroll";
 
-			// add inner div
-			var
-				inner = outer.appendChild(BX.create('DIV', {props: {className: 'calendar-tmp-inner'}})),
-				widthWithScroll = inner.offsetWidth,
-				result = widthNoScroll - widthWithScroll;
+				// add inner div
+				var
+					inner = outer.appendChild(BX.create('DIV', {props: {className: 'calendar-tmp-inner'}})),
+					widthWithScroll = inner.offsetWidth,
+					result = widthNoScroll - widthWithScroll;
 
-			BX.cleanNode(outer, true);
+				BX.cleanNode(outer, true);
+			}
 
 			this.getScrollbarWidth = function(){return result;};
 			return result;
 		},
 
+		/**
+		 * @deprecated
+		 */
 		getMessagePlural: function(messageId, number)
 		{
-			var pluralForm, langId;
-
-			langId = BX.message('LANGUAGE_ID') || 'en';
-			number = parseInt(number);
-
-			if (number < 0)
-			{
-				number = -1*number;
-			}
-
-			if (langId)
-			{
-				switch (langId)
-				{
-					case 'de':
-					case 'en':
-						pluralForm = ((number !== 1) ? 1 : 0);
-						break;
-
-					case 'ru':
-					case 'ua':
-						pluralForm = (((number%10 === 1) && (number%100 !== 11)) ? 0 : (((number%10 >= 2) && (number%10 <= 4) && ((number%100 < 10) || (number%100 >= 20))) ? 1 : 2));
-						break;
-
-					default:
-						pluralForm = 1;
-						break;
-				}
-			}
-			else
-			{
-				pluralForm = 1;
-			}
-
-			return BX.message(messageId + '_PLURAL_' + pluralForm);
+			return BX.Loc.getMessagePlural(messageId, number);
 		},
 
 		getUserOption: function(name, defaultValue)
@@ -730,16 +699,6 @@
 			return this.config.meetingRooms || [];
 		},
 
-		getLocationList: function()
-		{
-			return this.additionalParams.locationList || [];
-		},
-
-		setLocationList: function(locationList)
-		{
-			this.additionalParams.locationList = locationList;
-		},
-
 		mergeSocnetDestinationConfig: function(socnetDestination)
 		{
 			if (socnetDestination.USERS)
@@ -872,7 +831,10 @@
 			var taskId, accessTasks = this.getSectionAccessTasks();
 			for(taskId in accessTasks)
 			{
-				if (accessTasks.hasOwnProperty(taskId) && accessTasks[taskId].name == 'calendar_view')
+				if (
+					accessTasks.hasOwnProperty(taskId)
+					&& accessTasks[taskId].name === 'calendar_view'
+				)
 				{
 					break;
 				}
@@ -989,6 +951,7 @@
 
 			if (value.type == 'mr')
 			{
+				str = BX.message('EC_LOCATION_EMPTY');
 				var meetingRooms = this.calendar.util.getMeetingRoomList();
 				for (i = 0; i < meetingRooms.length; i++)
 				{
@@ -1002,7 +965,8 @@
 
 			if (value.type == 'calendar')
 			{
-				var locationList = this.calendar.util.getLocationList();
+				str = BX.message('EC_LOCATION_EMPTY');
+				var locationList = BX.Calendar.Controls.Location.getLocationList();
 
 				for (i = 0; i < locationList.length; i++)
 				{
@@ -1039,14 +1003,12 @@
 		readOnlyMode: function()
 		{
 			this.readOnly = this.config.readOnly;
-
 			if (this.readOnly === undefined)
 			{
 				var sectionList = this.calendar.sectionController.getSectionListForEdit();
 				if (!sectionList || !sectionList.length)
 					this.readOnly = true;
 			}
-
 			this.readOnlyMode = BX.proxy(function(){return this.readOnly;}, this);
 			return this.readOnly;
 		},
@@ -1059,26 +1021,6 @@
 			'<circle class="calendar-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>' +
 			'<circle class="calendar-loader-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>' +
 			'</svg>'});
-		},
-
-		applyHacksForPopupzIndex: function()
-		{
-			var zIndex = 3200;
-			if (BX.PopupMenu && BX.PopupMenu.Data)
-			{
-				for(var id in BX.PopupMenu.Data)
-				{
-					if (BX.PopupMenu.Data.hasOwnProperty(id)
-						&& BX.type.isObject(BX.PopupMenu.Data[id])
-						&& BX.PopupMenu.Data[id].popupWindow
-						&& BX.PopupMenu.Data[id].popupWindow.isShown()
-					)
-					{
-						BX.PopupMenu.Data[id].popupWindow.params.zIndex = zIndex;
-						BX.PopupMenu.Data[id].popupWindow.popupContainer.style.zIndex = zIndex;
-					}
-				}
-			}
 		},
 
 		isFilterEnabled: function()

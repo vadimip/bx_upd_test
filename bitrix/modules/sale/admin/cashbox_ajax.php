@@ -160,7 +160,7 @@ if($arResult["ERROR"] === '' && $saleModulePermissions >= "W" && check_bitrix_se
 				}
 				else
 				{
-					$arResult['STATUS'] = implode($result->getErrorMessages(), "\n");
+					$arResult['STATUS'] = implode("\n", $result->getErrorMessages());
 				}
 			}
 
@@ -179,15 +179,12 @@ if($arResult["ERROR"] === '' && $saleModulePermissions >= "W" && check_bitrix_se
 			$handler = $cashbox['HANDLER'];
 			if (is_subclass_of($handler, Cashbox\Cashbox::class))
 			{
-				if ($handler === '\\'.Cashbox\CashboxOrangeData::class)
+				if (is_a($handler, Cashbox\CashboxOrangeData::class, true))
 				{
 					$arResult['OFD'] = '\\'.Cashbox\TaxcomOfd::class;
 				}
 
-				if ($handler === '\Bitrix\Sale\Cashbox\CashboxCheckbox')
-				{
-					$arResult['SHOW_UA_HINT'] = 'Y';
-				}
+				$arResult['HANDLER_CODE'] = $handler::getCode();
 
 				ob_start();
 				require_once($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/sale/admin/cashbox_settings.php");

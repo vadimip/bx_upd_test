@@ -4,13 +4,14 @@ namespace Bitrix\Main\UrlPreview;
 
 use Bitrix\Main\Context;
 use Bitrix\Main\Text\Encoding;
+use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Uri;
 
 class HtmlDocument
 {
 	const MAX_IMAGES = 4;
-	const MAX_IMAGE_URL_LENGTH = 255;
+	const MAX_IMAGE_URL_LENGTH = 2000;
 
 	/** @var \Bitrix\Main\Web\Uri */
 	protected $uri;
@@ -28,7 +29,8 @@ class HtmlDocument
 		"TITLE" => null,
 		"DESCRIPTION" => null,
 		"IMAGE" => null,
-		"EMBED" => null
+		"EMBED" => null,
+		"DATE_EXPIRE" => null,
 	);
 
 	/** @var array  */
@@ -236,6 +238,29 @@ class HtmlDocument
 	public function getExtraField($fieldName)
 	{
 		return isset($this->metadata['EXTRA'][$fieldName]) ? $this->metadata['EXTRA'][$fieldName] : null;
+	}
+
+	/**
+	 * Sets Expire date for the metadata.
+	 *
+	 * @param DateTime $dateExpire
+	 */
+	public function setDateExpire(DateTime $dateExpire)
+	{
+		if (!isset($this->metadata['DATE_EXPIRE']) || $this->metadata['DATE_EXPIRE']->getTimestamp() > $dateExpire->getTimestamp())
+		{
+			$this->metadata['DATE_EXPIRE'] = $dateExpire;
+		}
+	}
+
+	/**
+	 * Returns expire date for the metadata.
+	 *
+	 * @return DateTime|null
+	 */
+	public function getDateExpire(): ?DateTime
+	{
+		return $this->metadata['DATE_EXPIRE'];
 	}
 
 	/**
@@ -452,11 +477,13 @@ class HtmlDocument
 	 * @param string $url Image's URL.
 	 * @return string|null Absolute image's URL, or null if URL is incorrect or too long.
 	 */
-	protected function normalizeImageUrl($url)
+	protected function normalizeImageUrl($url): ?string
 	{
 		$url = $this->convertRelativeUriToAbsolute($url);
 		if(mb_strlen($url) > self::MAX_IMAGE_URL_LENGTH)
+		{
 			$url = null;
+		}
 		return $url;
 	}
 

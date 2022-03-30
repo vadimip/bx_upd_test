@@ -8,6 +8,7 @@ use \Bitrix\Landing\Binding;
 use \Bitrix\Landing\Rights;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\Site;
+use \Bitrix\Landing\Restriction;
 
 Loc::loadMessages(__FILE__);
 
@@ -75,6 +76,23 @@ class SocialNetwork
 		if (Option::get(Group::MODULE_ID, Group::CHECKER_OPTION . $groupId, '') == 'Y')
 		{
 			return '';
+		}
+
+		// tariff limits
+		if (!Restriction\Manager::isAllowed('limit_crm_free_knowledge_base_project'))
+		{
+			$asset = \Bitrix\Main\Page\Asset::getInstance();
+			$asset->addString(
+				$asset->insertJs(
+					'var KnowledgeCreate = function() 
+						{
+							' . Restriction\Manager::getActionCode('limit_crm_free_knowledge_base_project') . '
+						};',
+					'',
+					true
+				)
+			);
+			return 'javascript:void(KnowledgeCreate());';
 		}
 
 		$link = '';
@@ -227,10 +245,11 @@ class SocialNetwork
 	/**
 	 * Returns group path by id.
 	 * @param int $groupId Group id.
-	 * @param string $pagePath Page of landing.
+	 * @param string|null $pagePath Page of landing.
+	 * @param bool $generalPath Returns only general path of group.
 	 * @return string
 	 */
-	public static function getTabUrl($groupId, $pagePath = null)
+	public static function getTabUrl(int $groupId, ?string $pagePath = null, bool $generalPath = false): ?string
 	{
 		static $groupPath = null;
 
@@ -243,10 +262,18 @@ class SocialNetwork
 			}
 		}
 
-		$groupId = intval($groupId);
 		if ($groupId && $groupPath)
 		{
 			$groupPath = str_replace('#group_id#', $groupId, $groupPath);
+		}
+
+		if ($generalPath)
+		{
+			return $groupPath;
+		}
+
+		if ($groupId && $groupPath)
+		{
 			$uri = new \Bitrix\Main\Web\Uri($groupPath);
 			$uri->addParams([
 				'tab' => self::SETTINGS_CODE_SHORT

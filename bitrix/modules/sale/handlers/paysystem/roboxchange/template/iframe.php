@@ -17,8 +17,7 @@ Loc::loadMessages(__FILE__);
 			<a class="btn btn-lg btn-success pl-4 pr-4" style="border-radius: 32px;" id="paysystem-roboxchange-button-pay" href="#"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_TEMPLATE_ROBOXCHANGE_IFRAME_BUTTON_PAID') ?></a>
 		</div>
 	</div>
-
-	<p><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_TEMPLATE_ROBOXCHANGE_IFRAME_WARNING_RETURN') ?></p>
+	<div class="alert alert-info"><?= Loc::getMessage('SALE_HANDLERS_PAY_SYSTEM_TEMPLATE_ROBOXCHANGE_IFRAME_WARNING_RETURN') ?></div>
 </div>
 
 <script type="text/javascript" src="https://auth.robokassa.ru/Merchant/bundle/robokassa_iframe.js"></script>
@@ -39,8 +38,16 @@ Loc::loadMessages(__FILE__);
 			SignatureValue: "<?= CUtil::JSEscape($params['SIGNATURE_VALUE']) ?>",
 		}
 
+		<?php if (!empty($params['OUT_SUM_CURRENCY'])):?>
+			params.OutSumCurrency = "<?= CUtil::JSEscape($params['OUT_SUM_CURRENCY']) ?>";
+		<?php endif; ?>
+
 		<?php if ($params['PS_MODE']):?>
 			params.IncCurrLabel = "<?= CUtil::JSEscape($params['PS_MODE']) ?>";
+		<?php endif; ?>
+
+		<?php if ($params['RECEIPT']):?>
+			params.Receipt = "<?= CUtil::JSEscape($params['RECEIPT']) ?>";
 		<?php endif; ?>
 
 		var email = "<?= CUtil::JSEscape($params['BUYER_PERSON_EMAIL']) ?>";

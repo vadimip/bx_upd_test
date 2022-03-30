@@ -2,6 +2,7 @@
 $MESS["EC_LOCATION"] = "Место";
 $MESS["EC_LOCATION_LABEL"] = "Место проведения";
 $MESS["EC_LOCATION_404"] = "нет данных";
+$MESS["EC_LOCATION_PLACEHOLDER"] = "Выберите или введите переговорную";
 $MESS["EC_MEETING_ROOM_PLACEHOLDER"] = "Название";
 $MESS["EC_ADD_LOCATION"] = "Добавить переговорную";
 $MESS["EC_LOCATION_MEETING_ROOM_SET"] = "Настроить список";
@@ -12,6 +13,17 @@ $MESS["EC_SEC_SLIDER_SAVE"] = "Сохранить";
 $MESS["EC_SEC_SLIDER_CANCEL"] = "Отменить";
 $MESS["EC_SEC_SLIDER_CLOSE"] = "Закрыть";
 
+$MESS["EC_LOCATION_CAPACITY_1"] = "#NUM# место";
+$MESS["EC_LOCATION_CAPACITY_2"] = "#NUM# места";
+$MESS["EC_LOCATION_CAPACITY_3"] = "#NUM# места";
+$MESS["EC_LOCATION_CAPACITY_4"] = "#NUM# места";
+$MESS["EC_LOCATION_CAPACITY_5"] = "#NUM# мест";
+$MESS["EC_LOCATION_CAPACITY_6"] = "#NUM# мест";
+$MESS["EC_LOCATION_CAPACITY_7"] = "#NUM# мест";
+$MESS["EC_LOCATION_CAPACITY_8"] = "#NUM# мест";
+$MESS["EC_LOCATION_CAPACITY_9"] = "#NUM# мест";
+$MESS["EC_LOCATION_CAPACITY_0"] = "#NUM# мест";
+
 $MESS["EC_DEL_REC_EVENT"] = "Удалить повторяющееся событие";
 $MESS["EC_EDIT_REC_EVENT"] = "Изменить повторяющееся событие";
 $MESS["EC_REC_EV_ONLY_THIS_EVENT"] = "Только это";
@@ -19,8 +31,10 @@ $MESS["EC_REC_EV_NEXT"] = "Это и все следующие";
 $MESS["EC_REC_EV_ALL"] = "Все повторения";
 $MESS["EC_TIMEZONE"] = "Часовой пояс";
 $MESS["EC_CALENDAR_SECTION_TITLE"] = "Календарь:";
+$MESS["EC_CALENDAR_LOCATION_TITLE"] = "Переговорная:";
 
 $MESS["EC_NOTIFY_OPTION"] = "Оповещать о решении";
+$MESS["EC_DONT_NOTIFY_OPTION"] = "Не оповещать о решении";
 $MESS["EC_NOTIFY_OPTION_OFF_TITLE"] = "Кликните, чтобы включать оповещения о решении пользователей";
 $MESS["EC_NOTIFY_OPTION_ON_TITLE"] = "Кликните, чтобы отключить оповещения о решении пользователей";
 
@@ -44,7 +58,7 @@ $MESS["EC_NO_VALUE"] = "не указан";
 $MESS["EC_ADD_NEW"] = "Добавить новый e-mail";
 
 $MESS["EC_CONFIRMED_EMAIL_TITLE"] = "Укажите адрес электронной почты";
-$MESS["EC_CONFIRMED_EMAIL_TEXT"] = "Укажите адрес электронной почты для отправки приглашения участникам по email";
+$MESS["EC_CONFIRMED_EMAIL_TEXT_1"] = "С этого адреса будут отправлены приглашения участникам по email";
 $MESS["EC_CONFIRMED_EMAIL_HELP_LINK"] = "Подробнее для чего нужен емейл";
 
 $MESS["EC_CONFIRMED_EMAIL_SEND"] = "Продолжить";
@@ -60,4 +74,7 @@ $MESS["EC_EMAIL_LIMIT_9"] = "На вашем тарифе вы можете бе
 $MESS["EC_EMAIL_LIMIT_DENY"] = "Вы создали максимальное количество встреч с приглашенными по e-mail гостями в вашем Битрикс24";
 $MESS["EC_EMAIL_LIMIT_EXPAND_PLAN"] = "Расширить тариф";
 $MESS["EC_EMAIL_LIMIT_SAVE_WITHOUT"] = "Сохранить без внешних гостей";
+$MESS["EC_HIDE_GUEST_NAMES"] = "Скрывать список участников от гостей";
+$MESS["EC_SHOW_GUEST_NAMES"] = "Показывать список участников гостям";
+$MESS["EC_HIDE_GUEST_NAMES_HINT"] = "Вы можете скрыть от гостей список участников события. Гостю придет персональное приглашение с информацией о встрече без указания участников.";
 ?>

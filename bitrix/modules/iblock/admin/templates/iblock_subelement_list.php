@@ -5,7 +5,7 @@
 /** @global string $strSubIBlockType */
 /** @global int $intSubPropValue */
 /** @global int $strSubTMP_ID */
-/** @global array $arCatalog */
+/** @global array $arSubCatalog */
 /** @global array $arSubIBlock */
 /** @global string $by */
 /** @global string $order */
@@ -88,7 +88,7 @@ $basePriceTypeId = 0;
 if ($boolSubCatalog)
 {
 	$useStoreControl = Catalog\Config\State::isUsedInventoryManagement();
-	$strSaveWithoutPrice = (string)Main\Config\Option::get('catalog','save_product_without_price');
+	$strSaveWithoutPrice = Main\Config\Option::get('catalog','save_product_without_price');
 	$boolCatalogRead = $USER->CanDoOperation('catalog_read');
 	$boolCatalogPrice = $USER->CanDoOperation('catalog_price');
 	$boolCatalogPurchasInfo = $USER->CanDoOperation('catalog_purchas_info');
@@ -100,10 +100,10 @@ if ($boolSubCatalog)
 	if (!empty($basePriceType))
 		$basePriceTypeId = $basePriceType['ID'];
 }
-$changeUserByActive = (string)Main\Config\Option::get('iblock', 'change_user_by_group_active_modify') === 'Y';
+$changeUserByActive = Main\Config\Option::get('iblock', 'change_user_by_group_active_modify') === 'Y';
 
-define("MODULE_ID", "iblock");
-define("ENTITY", "CIBlockDocument");
+const MODULE_ID = "iblock";
+const ENTITY = "CIBlockDocument";
 define("DOCUMENT_TYPE", "iblock_".$intSubIBlockID);
 
 $currentUser = array(
@@ -134,7 +134,7 @@ $maxImageSize = array(
 	"H" => $listImageSize,
 );
 unset($listImageSize);
-$useCalendarTime = (string)Main\Config\Option::get('iblock', 'list_full_date_edit') == 'Y';
+$useCalendarTime = Main\Config\Option::get('iblock', 'list_full_date_edit') == 'Y';
 
 $arProps = array();
 $iterator = Iblock\PropertyTable::getList([
@@ -153,7 +153,7 @@ while($arProp = $iterator->fetch())
 
 $sTableID = "tbl_iblock_sub_element_".md5($strSubIBlockType.".".$intSubIBlockID);
 
-$arHideFields = array('PROPERTY_'.$arCatalog['SKU_PROPERTY_ID']);
+$arHideFields = array('PROPERTY_'.$arSubCatalog['SKU_PROPERTY_ID']);
 $lAdmin = new CAdminSubList($sTableID,false,$strSubElementAjaxPath,$arHideFields);
 
 $groupParams = array(
@@ -174,7 +174,7 @@ if ($by == 'CATALOG_TYPE')
 
 // only sku property filter
 $arFilterFields = array(
-	"find_el_property_".$arCatalog['SKU_PROPERTY_ID'],
+	"find_el_property_".$arSubCatalog['SKU_PROPERTY_ID'],
 );
 
 $find_section_section = -1;
@@ -1393,7 +1393,7 @@ if (true == B_ADMIN_SUBELEMENTS_LIST)
 
 if (!(false == B_ADMIN_SUBELEMENTS_LIST && $bCopy))
 {
-	if(isset($_REQUEST["mode"]) && $_REQUEST["mode"] == "excel")
+	if ($lAdmin->isExportMode())
 	{
 		$arNavParams = false;
 	}
@@ -2069,10 +2069,11 @@ if (!(false == B_ADMIN_SUBELEMENTS_LIST && $bCopy))
 			$row->AddViewField("BIZPROC", $str);
 		}
 	}
+	unset($row);
 
 	$boolIBlockElementAdd = CIBlockSectionRights::UserHasRightTo($intSubIBlockID, $find_section_section, "section_element_bind");
 
-$defaultQuantityTrace = ((string)Main\Config\Option::get("catalog", "default_quantity_trace") == 'Y'
+$defaultQuantityTrace = (Main\Config\Option::get("catalog", "default_quantity_trace") == 'Y'
 	? Loc::getMessage("IBEL_YES_VALUE")
 	: Loc::getMessage("IBEL_NO_VALUE")
 );
@@ -2081,7 +2082,7 @@ $quantityTraceStatus = array(
 	Catalog\ProductTable::STATUS_YES => Loc::getMessage("IBEL_YES_VALUE"),
 	Catalog\ProductTable::STATUS_NO => Loc::getMessage("IBEL_NO_VALUE"),
 );
-$defaultCanBuyZero = ((string)Main\Config\Option::get('catalog', 'default_can_buy_zero') == 'Y'
+$defaultCanBuyZero = (Main\Config\Option::get('catalog', 'default_can_buy_zero') == 'Y'
 	? Loc::getMessage("IBEL_YES_VALUE")
 	: Loc::getMessage("IBEL_NO_VALUE")
 );
@@ -2657,6 +2658,7 @@ if (!empty($arRows))
 		if (!empty($arActions))
 			$row->AddActions($arActions);
 	}
+	unset($row);
 
 	if (!empty($priceTypeIndex) && !empty($productShowPrices))
 	{
@@ -3152,7 +3154,7 @@ function ShowSkuGenerator(id)
 		);
 	}
 
-	$excelExport = ((string)Main\Config\Option::get("iblock", "excel_export_rights") == "Y"
+	$excelExport = (Main\Config\Option::get("iblock", "excel_export_rights") == "Y"
 		? CIBlockRights::UserHasRightTo($intSubIBlockID, $intSubIBlockID, "iblock_export")
 		: true
 	);

@@ -1,4 +1,10 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponent $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -9,15 +15,18 @@
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Socialnetwork\ComponentHelper;
+
 if (!CModule::IncludeModule("socialnetwork"))
 {
-	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
+	ShowError(Loc::getMessage('SONET_MODULE_NOT_INSTALL'));
 	return;
 }
 
 if (!CBXFeatures::IsFeatureEnabled("Workgroups"))
 {
-	ShowError(GetMessage("SONET_WORKGROUPS_FEATURE_DISABLED"));
+	ShowError(Loc::getMessage('SONET_WORKGROUPS_FEATURE_DISABLED'));
 	return;
 }
 
@@ -144,7 +153,7 @@ if ($bExtranetEnabled)
 	{
 		$bExtranetEnabled = false;
 	}
-	elseif ($arParams["SEF_MODE"] == "Y")
+	elseif ($arParams["SEF_MODE"] === "Y")
 	{
 		$arRedirectSite = CSocNetLogComponent::getExtranetRedirectSite($extranetSiteId);
 	}
@@ -281,7 +290,7 @@ $componentPage = "";
 $arComponentVariables = array("user_id", "group_id", "page", "message_id", "subject_id", "path", "section_id", "element_id", "action", "post_id", "category", "topic_id", "task_id", "view_id", "type", "report_id", "placement_id");
 
 if (
-	$_REQUEST["auth"]=="Y" 
+	$_REQUEST["auth"] === "Y"
 	&& $USER->IsAuthorized()
 )
 {
@@ -292,8 +301,8 @@ if (!array_key_exists("SET_NAV_CHAIN", $arParams))
 {
 	$arParams["SET_NAV_CHAIN"] = $arParams["SET_NAVCHAIN"];
 }
-$arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
-$arParams["HIDE_OWNER_IN_TITLE"] = ($arParams["HIDE_OWNER_IN_TITLE"] == "Y" ? "Y" : "N");
+$arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] === "N" ? "N" : "Y");
+$arParams["HIDE_OWNER_IN_TITLE"] = ($arParams["HIDE_OWNER_IN_TITLE"] === "Y" ? "Y" : "N");
 
 if (!array_key_exists("PATH_TO_USER_CALENDAR", $arParams))
 {
@@ -313,53 +322,17 @@ if (!array_key_exists("PATH_TO_USER_LOG_ENTRY", $arParams))
 		$arParams["PATH_TO_USER_LOG_ENTRY"] = $arParams["~PATH_TO_USER_LOG_ENTRY"] = SITE_DIR."company/personal/log/#log_id#/";
 	}
 }
-	
+
 if (!is_array($arParams["VARIABLE_ALIASES"]))
 {
 	$arParams["VARIABLE_ALIASES"] = array();
 }
 
-if ($arParams["USE_KEYWORDS"] != "N") $arParams["USE_KEYWORDS"] = "Y";
-// for bitrix:main.user.link
-if (IsModuleInstalled('intranet'))
-{
-	$arTooltipFieldsDefault	= serialize(array(
-		"EMAIL",
-		"PERSONAL_MOBILE",
-		"WORK_PHONE",
-		"PERSONAL_ICQ",
-		"PERSONAL_PHOTO",
-		"PERSONAL_CITY",
-		"WORK_COMPANY",
-		"WORK_POSITION",
-	));
-	$arTooltipPropertiesDefault = serialize(array(
-		"UF_DEPARTMENT",
-		"UF_PHONE_INNER",
-	));
-}
-else
-{
-	$arTooltipFieldsDefault = serialize(array(
-		"PERSONAL_ICQ",
-		"PERSONAL_BIRTHDAY",
-		"PERSONAL_PHOTO",
-		"PERSONAL_CITY",
-		"WORK_COMPANY",
-		"WORK_POSITION"
-	));
-	$arTooltipPropertiesDefault = serialize(array());
-}
+if ($arParams["USE_KEYWORDS"] !== "N") $arParams["USE_KEYWORDS"] = "Y";
 
-if (!array_key_exists("SHOW_FIELDS_TOOLTIP", $arParams))
-{
-	$arParams["SHOW_FIELDS_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_fields", $arTooltipFieldsDefault));
-}
-
-if (!array_key_exists("USER_PROPERTY_TOOLTIP", $arParams))
-{
-	$arParams["USER_PROPERTY_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_properties", $arTooltipPropertiesDefault));
-}
+$tooltipParams = ComponentHelper::checkTooltipComponentParams($arParams);
+$arParams['SHOW_FIELDS_TOOLTIP'] = $tooltipParams['SHOW_FIELDS_TOOLTIP'];
+$arParams['USER_PROPERTY_TOOLTIP'] = $tooltipParams['USER_PROPERTY_TOOLTIP'];
 
 if (
 	IsModuleInstalled('intranet')
@@ -382,12 +355,12 @@ if (trim($arParams["NAME_TEMPLATE"]) == '')
 	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
 }
 
-$arParams['SHOW_LOGIN'] = $arParams['SHOW_LOGIN'] != "N" ? "Y" : "N";
+$arParams['SHOW_LOGIN'] = $arParams['SHOW_LOGIN'] !== "N" ? "Y" : "N";
 
 $arParams['CAN_OWNER_EDIT_DESKTOP'] = (
 	IsModuleInstalled("intranet")
-		? ($arParams['CAN_OWNER_EDIT_DESKTOP'] != "Y" ? "N" : "Y")
-		: ($arParams['CAN_OWNER_EDIT_DESKTOP'] != "N" ? "Y" : "N")
+		? ($arParams['CAN_OWNER_EDIT_DESKTOP'] !== "Y" ? "N" : "Y")
+		: ($arParams['CAN_OWNER_EDIT_DESKTOP'] !== "N" ? "Y" : "N")
 );
 
 if (intval(trim($arParams["SEARCH_PAGE_RESULT_COUNT"])) <= 0)
@@ -413,18 +386,18 @@ if (IsModuleInstalled("blog"))
 		$arParams["BLOG_ALLOW_POST_CODE"] = "Y";
 }
 
-$arParams["USE_MAIN_MENU"] = (isset($arParams["USE_MAIN_MENU"]) && $arParams["USE_MAIN_MENU"] == "Y" ? $arParams["USE_MAIN_MENU"] : false);
+$arParams["USE_MAIN_MENU"] = (isset($arParams["USE_MAIN_MENU"]) && $arParams["USE_MAIN_MENU"] === "Y" ? $arParams["USE_MAIN_MENU"] : false);
 
-if ($arParams["USE_MAIN_MENU"] == "Y" && !array_key_exists("MAIN_MENU_TYPE", $arParams))
+if ($arParams["USE_MAIN_MENU"] === "Y" && !array_key_exists("MAIN_MENU_TYPE", $arParams))
 	$arParams["MAIN_MENU_TYPE"] = "left";
 
-$arParams["LOG_SUBSCRIBE_ONLY"] = (isset($arParams["LOG_SUBSCRIBE_ONLY"]) && $arParams["LOG_SUBSCRIBE_ONLY"] == "Y" ? "Y" : "N");
+$arParams["LOG_SUBSCRIBE_ONLY"] = (isset($arParams["LOG_SUBSCRIBE_ONLY"]) && $arParams["LOG_SUBSCRIBE_ONLY"] === "Y" ? "Y" : "N");
 
 $arParams["LOG_RSS_TTL"] = (isset($arParams["LOG_RSS_TTL"]) && intval($arParams["LOG_RSS_TTL"]) > 0 ? $arParams["LOG_RSS_TTL"] : "60");
 
-$arParams["GROUP_USE_BAN"] = $arParams["GROUP_USE_BAN"] != "N" ? "Y" : "N";
+$arParams["GROUP_USE_BAN"] = $arParams["GROUP_USE_BAN"] !== "N" ? "Y" : "N";
 
-$arParams["ALLOW_RATING_SORT"] = $arParams["ALLOW_RATING_SORT"] != "Y" ? "N" : "Y";
+$arParams["ALLOW_RATING_SORT"] = $arParams["ALLOW_RATING_SORT"] !== "Y" ? "N" : "Y";
 
 // activation rating
 CRatingsComponentsMain::GetShowRating($arParams);
@@ -438,7 +411,7 @@ if (IsModuleInstalled("search"))
 
 $arCustomPagesPath = array();
 
-if ($arParams["SEF_MODE"] == "Y")
+if ($arParams["SEF_MODE"] === "Y")
 {
 	$arVariables = array();
 
@@ -487,7 +460,7 @@ if ($arParams["SEF_MODE"] == "Y")
 		$arResult["PATH_TO_".mb_strtoupper($url)] = $arParams["SEF_FOLDER"].$value;
 	}
 
-	if ($_REQUEST["auth"] == "Y")
+	if ($_REQUEST["auth"] === "Y")
 	{
 		$componentPage = "auth";
 	}
@@ -537,7 +510,7 @@ if ($arParams["SEF_MODE"] == "Y")
 		$arParams["PATH_TO_VIDEO_CALL"] = $userPage."video/#user_id#/";
 	}
 
-	\Bitrix\Socialnetwork\ComponentHelper::setComponentOption(
+	ComponentHelper::setComponentOption(
 		array(
 			array(
 				'CHECK_SEF_FOLDER' => true,
@@ -630,7 +603,7 @@ else
 	{
 		$componentPage = "index";
 	}
-	if ($_REQUEST["auth"] == "Y")
+	if ($_REQUEST["auth"] === "Y")
 		$componentPage = "auth";
 
 	$arResult["PATH_TO_GROUP_LOG_RSS_MASK"] = $arResult["~PATH_TO_GROUP_LOG_RSS_MASK"] = $APPLICATION->GetCurPage(true)."?page=group_log_rss&group_id=".$arVariables["group_id"];
@@ -638,12 +611,12 @@ else
 
 if ($arParams["PATH_TO_USER_BLOG_POST"] == '')
 {
-	$arParams["PATH_TO_USER_BLOG_POST"] = COption::GetOptionString("socialnetwork", "userblogpost_page", false, SITE_ID);
+	$arParams["PATH_TO_USER_BLOG_POST"] = \Bitrix\Socialnetwork\Helper\Path::get('userblogpost_page');
 }
 
 if (
 	$arRedirectSite
-	&& $arParams["SEF_MODE"] == "Y"
+	&& $arParams["SEF_MODE"] === "Y"
 )
 {
 	if(is_array($arVariables))
@@ -666,7 +639,7 @@ $arResult = array_merge(
 		"SEF_MODE" => $arParams["SEF_MODE"],
 		"SEF_FOLDER" => $arParams["SEF_FOLDER"],
 		"VARIABLES" => $arVariables,
-		"ALIASES" => $arParams["SEF_MODE"] == "Y"? array(): $arVariableAliases,
+		"ALIASES" => $arParams["SEF_MODE"] === "Y"? array(): $arVariableAliases,
 		"SET_TITLE" => $arParams["SET_TITLE"],
 		"PATH_TO_SMILE" => $arParams["PATH_TO_SMILE"],
 		"CACHE_TYPE" => $arParams["CACHE_TYPE"],
@@ -700,6 +673,22 @@ if (!empty($arParams["PATH_TO_USER_BLOG_POST_IMPORTANT"]))
 
 $arParams["ERROR_MESSAGE"] = "";
 $arParams["NOTE_MESSAGE"] = "";
+
+$arResult['groupFields'] = [];
+$arResult['PAGES_TITLE_TEMPLATE'] = '';
+if ((int)$arResult['VARIABLES']['group_id'] > 0)
+{
+	$groupFields = CSocNetGroup::getById((int)$arResult['VARIABLES']['group_id']);
+	if (!empty($groupFields))
+	{
+		$arResult['groupFields'] = $groupFields;
+		$arResult['PAGES_TITLE_TEMPLATE'] = Loc::getMessage('SONET_GROUP_PAGES_TITLE_TEMPLATE', [
+			'#GROUP_NAME#' => htmlspecialcharsback($groupFields['NAME']),
+		]);
+	}
+}
+
+
 /********************************************************************
 				WebDav
 ********************************************************************/
@@ -711,7 +700,7 @@ if (mb_strpos($componentPage, "user_files") === false && mb_strpos($componentPag
 		"user" => $arParams["FILES_USER_BASE_URL"],
 		"group" => $arParams["FILES_GROUP_BASE_URL"]);
 
-	if ($arParams["SEF_MODE"] == "Y" )
+	if ($arParams["SEF_MODE"] === "Y" )
 	{
 		$arBaseUrl = array(
 			"user" => $arResult["PATH_TO_USER_FILES"],
@@ -743,7 +732,7 @@ if (mb_strpos($componentPage, "user_files") === false && mb_strpos($componentPag
 /********************************************************************
 				Search Index
 ********************************************************************/
-if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
+if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] === "PUT")
 {
 	global $bxSocNetSearch;
 	if(!is_object($bxSocNetSearch))
@@ -807,7 +796,7 @@ if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 		}
 
 		$bxSocNetSearch = new CSocNetSearch(
-			$arResult["VARIABLES"]["user_id"], 
+			$arResult["VARIABLES"]["user_id"],
 			$arResult["VARIABLES"]["group_id"],
 			$arSocNetSearchParams
 		);
@@ -851,7 +840,7 @@ if(mb_strpos($componentPage, 'group_disk') !== false)
 {
 	if(!CSocNetFeatures::isActiveFeature(SONET_ENTITY_GROUP, $arResult["VARIABLES"]["group_id"], "files"))
 	{
-		ShowError(GetMessage("SONET_FILES_IS_NOT_ACTIVE"));
+		ShowError(Loc::getMessage('SONET_FILES_IS_NOT_ACTIVE'));
 		return 0;
 	}
 }
@@ -859,7 +848,7 @@ elseif (mb_strpos($componentPage, 'group_app') !== false)
 {
 	if(!CSocNetFeatures::isActiveFeature(SONET_ENTITY_GROUP, $arResult["VARIABLES"]["group_id"], "placement_".$arResult["VARIABLES"]["placement_id"]))
 	{
-		ShowError(GetMessage("SONET_APP_IS_NOT_ACTIVE"));
+		ShowError(Loc::getMessage('SONET_APP_IS_NOT_ACTIVE'));
 		return 0;
 	}
 }
@@ -875,7 +864,7 @@ if (
 		mb_strpos($componentPage, "group_files") !== false
 		|| mb_strpos($componentPage, "group_blog") !== false
 		|| mb_strpos($componentPage, "group_log") !== false
-		|| $componentPage == "group"
+		|| $componentPage === "group"
 	)
 )
 {
@@ -985,13 +974,13 @@ if (
 			if (
 				($arIBlockElement = $rsIBlockElement->Fetch())
 				&& array_key_exists("PROPERTY_FORUM_TOPIC_ID_VALUE", $arIBlockElement)
-				&& intval($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"] > 0)
+				&& intval($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"]) > 0
 			)
 			{
 				$arForumTopic = CForumTopic::GetByID($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"]);
 				$arParams["FILES_FORUM_ID"] = $arForumTopic["FORUM_ID"];
 			}
-			
+
 			if (is_object($cache))
 			{
 				$arCacheData = Array(
@@ -1003,13 +992,13 @@ if (
 	}
 }
 
-$path2 = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/webdav_2.php");
+$path2 = str_replace(array("\\", "//"), "/", __DIR__."/include/webdav_2.php");
 if (file_exists($path2))
 	include_once($path2);
 
 if (mb_strpos($componentPage, "user_files") !== false || mb_strpos($componentPage, "group_files") !== false)
 {
-	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/webdav.php");
+	$path = str_replace(array("\\", "//"), "/", __DIR__."/include/webdav.php");
 	if (!file_exists($path))
 	{
 		$arParams["ERROR_MESSAGE"] = "WebDAV file is not exist.";
@@ -1041,7 +1030,7 @@ elseif (mb_strpos($componentPage, "user_photo") !== false || mb_strpos($componen
 	if (mb_strpos($componentPage, "user_photofull") !== false || mb_strpos($componentPage, "group_photofull") !== false)
 		$componentPage = str_replace("_photofull", "_photo", $componentPage);
 
-	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/photogallery.php");
+	$path = str_replace(array("\\", "//"), "/", __DIR__."/include/photogallery.php");
 	if (!file_exists($path))
 	{
 		$arParams["ERROR_MESSAGE"] = "Photogallery file is not exist.";
@@ -1075,7 +1064,7 @@ elseif (mb_strpos($componentPage, "user_photo") !== false || mb_strpos($componen
 				if (
 					intval($_GET["ELEMENT_ID"]) > 0
 					&& intval($arParams["PHOTO"]["ALL"]["FORUM_ID"]) > 0
-					&& $arParams["PHOTO"]["ALL"]["COMMENTS_TYPE"] == "FORUM"
+					&& $arParams["PHOTO"]["ALL"]["COMMENTS_TYPE"] === "FORUM"
 					&& CModule::IncludeModule("forum")
 				)
 				{
@@ -1137,9 +1126,9 @@ elseif (mb_strpos($componentPage, "group_calendar") !== false && CModule::Includ
 				Forum
 ********************************************************************/
 elseif (mb_strpos($componentPage, "user_forum") !== false || mb_strpos($componentPage, "group_forum") !== false ||
-	$componentPage == "user" || $componentPage == "group" || $componentPage == "index")
+	$componentPage === "user" || $componentPage === "group" || $componentPage === "index")
 {
-	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/forum.php");
+	$path = str_replace(array("\\", "//"), "/", __DIR__."/include/forum.php");
 	if (!file_exists($path))
 	{
 		$arParams["ERROR_MESSAGE"] = "Forum file is not exist.";
@@ -1158,7 +1147,7 @@ elseif (mb_strpos($componentPage, "user_forum") !== false || mb_strpos($componen
 ********************************************************************/
 elseif (mb_strpos($componentPage, "user_content_search") !== false || mb_strpos($componentPage, "group_content_search") !== false)
 {
-	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/search.php");
+	$path = str_replace(array("\\", "//"), "/", __DIR__."/include/search.php");
 	if (!file_exists($path))
 	{
 		$arParams["ERROR_MESSAGE"] = "Content search file is not exist.";
@@ -1190,21 +1179,22 @@ if(\Bitrix\Main\ModuleManager::isModuleInstalled('tasks'))
 	);
 }
 
-CUtil::InitJSCore(array("window", "ajax"));
-\Bitrix\Main\UI\Extension::load("socialnetwork.slider");
+CUtil::InitJSCore([ 'window', 'ajax' ]);
+\Bitrix\Main\UI\Extension::load('socialnetwork.slider');
 
-$this->IncludeComponentTemplate($componentPage, array_key_exists($componentPage, $arCustomPagesPath) ? $arCustomPagesPath[$componentPage] : "");
+$arResult['componentPage'] = $componentPage;
+
+$this->IncludeComponentTemplate($componentPage, array_key_exists($componentPage, $arCustomPagesPath) ? $arCustomPagesPath[$componentPage] : '');
 
 //top panel button to reindex
 if($USER->IsAdmin())
 {
-	$APPLICATION->AddPanelButton(array(
-		"HREF"=> $arResult["PATH_TO_GROUP_REINDEX"],
-		"ICON"=>"bx-panel-reindex-icon",
-		"ALT"=>GetMessage('SONET_PANEL_REINDEX_TITLE'),
-		"TEXT"=>GetMessage('SONET_PANEL_REINDEX'),
-		"MAIN_SORT"=>"1000",
-		"SORT"=>100
-	));
+	$APPLICATION->AddPanelButton([
+		'HREF' => $arResult["PATH_TO_GROUP_REINDEX"],
+		'ICON' => 'bx-panel-reindex-icon',
+		'ALT' => Loc::getMessage('SONET_PANEL_REINDEX_TITLE'),
+		'TEXT' => Loc::getMessage('SONET_PANEL_REINDEX'),
+		'MAIN_SORT' => "1000",
+		'SORT' => 100
+	]);
 }
-?>

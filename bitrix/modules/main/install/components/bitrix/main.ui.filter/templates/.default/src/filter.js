@@ -1,5 +1,3 @@
-import {Type} from "main.core";
-
 ;(function() {
 	'use strict';
 
@@ -18,6 +16,7 @@ import {Type} from "main.core";
 	 * @param types.MULTI_SELECT
 	 * @param types.NUMBER
 	 * @param types.DEST_SELECTOR
+	 * @param types.ENTITY_SELECTOR
 	 * @param types.CUSTOM_ENTITY
 	 * @param types.CHECKBOX
 	 * @param types.CUSTOM
@@ -73,6 +72,8 @@ import {Type} from "main.core";
 				listener
 			);
 		}.bind(this);
+		this.enableFieldsSearch = null;
+		this.enableHeadersSections = null;
 
 		this.init();
 	};
@@ -106,6 +107,9 @@ import {Type} from "main.core";
 			BX.addCustomEvent('Grid::ready', BX.delegate(this._onGridReady, this));
 
 			this.getSearch().updatePreset(this.getParam('CURRENT_PRESET'));
+
+			this.enableFieldsSearch = this.getParam('ENABLE_FIELDS_SEARCH', false);
+			this.enableHeadersSections = this.getParam('HEADERS_SECTIONS', false);
 		},
 
 		getEmitter: function()
@@ -371,7 +375,9 @@ import {Type} from "main.core";
 						break;
 					}
 
-					case this.types.CUSTOM_ENTITY : {
+					case this.types.DEST_SELECTOR:
+					case this.types.ENTITY_SELECTOR:
+					case this.types.CUSTOM_ENTITY: {
 						if (BX.type.isPlainObject(current.VALUES))
 						{
 							result[current.NAME] = current.VALUES._value;
@@ -627,99 +633,96 @@ import {Type} from "main.core";
 				fieldKeys.forEach(function(current) {
 					current = current
 						.replace('_datesel', '')
-						.replace('_numsel', '');
+						.replace('_numsel', '')
+						.replace('_' + BX.Filter.AdditionalFilter.Type.IS_EMPTY, '')
+						.replace('_' + BX.Filter.AdditionalFilter.Type.HAS_ANY_VALUE, '');
 					field = BX.clone(this.getFieldByName(current));
 
 					if (BX.type.isPlainObject(field))
 					{
-						if (field.TYPE === this.types.STRING)
+						field.ADDITIONAL_FILTER = BX.Filter.AdditionalFilter.fetchAdditionalFilter(current, dataFields);
+						if (!BX.Type.isStringFilled(field.ADDITIONAL_FILTER))
 						{
-							field.VALUE = dataFields[current];
-						}
-
-						if (field.TYPE === this.types.TEXTAREA)
-						{
-							field.VALUE = dataFields[current];
-						}
-
-						if (field.TYPE === this.types.MULTI_SELECT)
-						{
-							field.VALUE = this.prepareMultiSelectValue(dataFields[current], field.ITEMS);
-						}
-
-						if (field.TYPE === this.types.SELECT || field.TYPE === this.types.CHECKBOX)
-						{
-							field.VALUE = this.prepareSelectValue(dataFields[current], field.ITEMS);
-						}
-
-						if (field.TYPE === this.types.DATE)
-						{
-							field.SUB_TYPE = this.prepareSelectValue(dataFields[current + '_datesel'], field.SUB_TYPES);
-
-							field.VALUES = {
-								'_from': dataFields[current + '_from'],
-								'_to': dataFields[current + '_to'],
-								'_days': dataFields[current + '_days'],
-								'_month': dataFields[current + '_month'],
-								'_quarter': dataFields[current + '_quarter'],
-								'_year': dataFields[current + '_year'],
-								'_allow_year': dataFields[current + '_allow_year']
-							};
-						}
-
-						if (field.TYPE === this.types.CUSTOM_DATE)
-						{
-							field.VALUE = {
-								'days': Object.keys(dataFields[current + '_days'] || {}).map(function(index) {
-									return dataFields[current + '_days'][index];
-								}),
-								'months': Object.keys(dataFields[current + '_months'] || {}).map(function(index) {
-									return dataFields[current + '_months'][index];
-								}),
-								'years': Object.keys(dataFields[current + '_years'] || {}).map(function(index) {
-									return dataFields[current + '_years'][index];
-								})
-							};
-						}
-
-						if (field.TYPE === this.types.NUMBER)
-						{
-							field.SUB_TYPE = this.prepareSelectValue(dataFields[current + '_numsel'], field.SUB_TYPES);
-							field.VALUES = {
-								'_from': dataFields[current + '_from'],
-								'_to': dataFields[current + '_to']
-							};
-						}
-
-						if (field.TYPE === this.types.DEST_SELECTOR)
-						{
-							if (typeof dataFields[current + '_label'] !== 'undefined')
+							if (field.TYPE === this.types.STRING)
 							{
-								field.VALUES._label = dataFields[current + '_label'];
+								field.VALUE = dataFields[current];
 							}
 
-							if (typeof dataFields[current] !== 'undefined')
+							if (field.TYPE === this.types.TEXTAREA)
 							{
-								field.VALUES._value = dataFields[current];
-							}
-						}
-
-						if (field.TYPE === this.types.CUSTOM_ENTITY)
-						{
-							if (typeof dataFields[current + '_label'] !== 'undefined')
-							{
-								field.VALUES._label = dataFields[current + '_label'];
+								field.VALUE = dataFields[current];
 							}
 
-							if (typeof dataFields[current] !== 'undefined')
+							if (field.TYPE === this.types.MULTI_SELECT)
 							{
-								field.VALUES._value = dataFields[current];
+								field.VALUE = this.prepareMultiSelectValue(dataFields[current], field.ITEMS);
 							}
-						}
 
-						if (field.TYPE === this.types.CUSTOM)
-						{
-							field._VALUE = dataFields[current];
+							if (field.TYPE === this.types.SELECT || field.TYPE === this.types.CHECKBOX)
+							{
+								field.VALUE = this.prepareSelectValue(dataFields[current], field.ITEMS);
+							}
+
+							if (field.TYPE === this.types.DATE)
+							{
+								field.SUB_TYPE = this.prepareSelectValue(dataFields[current + '_datesel'], field.SUB_TYPES);
+
+								field.VALUES = {
+									'_from': dataFields[current + '_from'],
+									'_to': dataFields[current + '_to'],
+									'_days': dataFields[current + '_days'],
+									'_month': dataFields[current + '_month'],
+									'_quarter': dataFields[current + '_quarter'],
+									'_year': dataFields[current + '_year'],
+									'_allow_year': dataFields[current + '_allow_year']
+								};
+							}
+
+							if (field.TYPE === this.types.CUSTOM_DATE)
+							{
+								field.VALUE = {
+									'days': Object.keys(dataFields[current + '_days'] || {}).map(function(index) {
+										return dataFields[current + '_days'][index];
+									}),
+									'months': Object.keys(dataFields[current + '_months'] || {}).map(function(index) {
+										return dataFields[current + '_months'][index];
+									}),
+									'years': Object.keys(dataFields[current + '_years'] || {}).map(function(index) {
+										return dataFields[current + '_years'][index];
+									})
+								};
+							}
+
+							if (field.TYPE === this.types.NUMBER)
+							{
+								field.SUB_TYPE = this.prepareSelectValue(dataFields[current + '_numsel'], field.SUB_TYPES);
+								field.VALUES = {
+									'_from': dataFields[current + '_from'],
+									'_to': dataFields[current + '_to']
+								};
+							}
+
+							if (
+								field.TYPE === this.types.DEST_SELECTOR
+								|| field.TYPE === this.types.ENTITY_SELECTOR
+								||field.TYPE === this.types.CUSTOM_ENTITY
+							)
+							{
+								if (typeof dataFields[current + '_label'] !== 'undefined')
+								{
+									field.VALUES._label = dataFields[current + '_label'];
+								}
+
+								if (typeof dataFields[current] !== 'undefined')
+								{
+									field.VALUES._value = dataFields[current];
+								}
+							}
+
+							if (field.TYPE === this.types.CUSTOM)
+							{
+								field._VALUE = dataFields[current];
+							}
 						}
 
 						fields.push(field);
@@ -900,7 +903,7 @@ import {Type} from "main.core";
 						FIND: data['data'].hasOwnProperty('fields')
 							&& data['data']['fields'].hasOwnProperty('FIND')
 							&& !!data['data']['fields']['FIND'] ? "Y" : "N",
-						ROWS: Type.isObject(data['data']['additional'])
+						ROWS: BX.Type.isObject(data['data']['additional'])
 							&& Object.keys(data['data']['additional']).length == 0 ? "N" : "Y",
 						...analyticsLabel
 					}
@@ -1007,7 +1010,8 @@ import {Type} from "main.core";
 						BX.hasClass(current, this.settings.classFilterContainer) ||
 						BX.hasClass(current, this.settings.classSearchContainer) ||
 						BX.hasClass(current, this.settings.classDefaultPopup) ||
-						BX.hasClass(current, this.settings.classPopupOverlay)
+						BX.hasClass(current, this.settings.classPopupOverlay) ||
+						BX.hasClass(current, this.settings.classSidePanelContainer)
 					)
 				);
 			}, this);
@@ -1111,6 +1115,8 @@ import {Type} from "main.core";
 				{
 					this.fieldsPopupItems = BX.Filter.Utils.getByClass(popup.contentContainer, this.settings.classMenuItem, true);
 				}
+
+				this.prepareAnimation();
 			}
 
 			return this.fieldsPopupItems;
@@ -1124,6 +1130,12 @@ import {Type} from "main.core";
 		 */
 		getFieldListContainerClassName: function(itemsCount)
 		{
+			var popupColumnsCount = parseInt(this.settings.get('popupColumnsCount', 0), 10);
+			if (popupColumnsCount > 0 && popupColumnsCount <= this.settings.maxPopupColumnCount)
+			{
+				return this.settings.get('classPopupFieldList' + popupColumnsCount + 'Column');
+			}
+
 			var containerClass = this.settings.classPopupFieldList1Column;
 
 			if (itemsCount > 6 && itemsCount < 12)
@@ -1154,6 +1166,7 @@ import {Type} from "main.core";
 					id: 'ID' in item ? item.ID : '',
 					name: 'NAME' in item ? item.NAME : '',
 					item: item,
+					sectionId: 'SECTION_ID' in item ? item.SECTION_ID : '',
 					onClick: BX.delegate(this._clickOnFieldListItem, this)
 				};
 			}, this);
@@ -1193,15 +1206,12 @@ import {Type} from "main.core";
 
 			if (this.getParam('LAZY_LOAD'))
 			{
-				var callback = function(response) {
-
-					var containerDecl = {
-						block: this.settings.classPopupFieldList,
-						mix: this.getFieldListContainerClassName(response.length),
-						content: this.prepareFieldsDecl(response)
-					};
-
-					p.fulfill(BX.decl(containerDecl));
+				const callback = function(response) {
+					p.fulfill(this.getPopupContent(
+						this.settings.classPopupFieldList,
+						this.getFieldListContainerClassName(response.length),
+						this.prepareFieldsDecl(response)
+					));
 				}.bind(this);
 
 				if (BX.type.isNotEmptyObject(this.getParam('LAZY_LOAD')['CONTROLLER']))
@@ -1228,16 +1238,272 @@ import {Type} from "main.core";
 				return p;
 			}
 
-			var containerDecl = {
-				block: this.settings.classPopupFieldList,
-				mix: this.getFieldListContainerClassName(fieldsCount),
-				content: this.prepareFieldsDecl(fields)
-			};
-
-			p.fulfill(BX.decl(containerDecl));
+			p.fulfill(this.getPopupContent(
+				this.settings.classPopupFieldList,
+				this.getFieldListContainerClassName(fieldsCount),
+				this.prepareFieldsDecl(fields)
+			));
 			return p;
 		},
 
+		getPopupContent: function(block: string, mix: string, content: Object[]): HTMLElement
+		{
+			const wrapper = BX.Tag.render`<div></div>`;
+			if (!this.enableHeadersSections)
+			{
+				const fieldsContent = BX.decl({
+					content: content,
+					block: block,
+					mix: mix,
+				});
+				this.setPopupElementWidthFromSettings(fieldsContent);
+				wrapper.appendChild(fieldsContent);
+
+				if (this.enableFieldsSearch)
+				{
+					this.preparePopupContentHeader(wrapper);
+				}
+
+				return wrapper;
+			}
+
+			const defaultHeaderSection = this.getDefaultHeaderSection();
+			const sections = {};
+
+			content.forEach((item: Object) => {
+				const sectionId = (item.sectionId.length ? item.sectionId : defaultHeaderSection.id);
+				if (sections[sectionId] === undefined)
+				{
+					sections[sectionId] = [];
+				}
+				sections[sectionId].push(item);
+			});
+
+			this.preparePopupContentHeader(wrapper);
+			this.preparePopupContentFields(wrapper, sections, block, mix);
+
+			return wrapper;
+		},
+
+		preparePopupContentHeader: function(wrapper: HTMLElement): void
+		{
+			const headerWrapper = BX.Tag.render`
+				<div class="main-ui-filter-popup-search-header-wrapper">
+					<div class="ui-form-row-inline"></div>
+				</div>
+			`;
+
+			wrapper.prepend(headerWrapper);
+
+			this.preparePopupContentHeaderSections(headerWrapper);
+			this.preparePopupContentHeaderSearch(headerWrapper);
+		},
+
+		preparePopupContentHeaderSections: function(headerWrapper): void
+		{
+			if (!this.enableHeadersSections)
+			{
+				return;
+			}
+
+			const headerSectionsWrapper = BX.Tag.render`
+				<div class="ui-form-row">
+					<div class="ui-form-content main-ui-filter-popup-search-section-wrapper"></div>
+				</div>
+			`;
+
+			headerWrapper.firstElementChild.appendChild(headerSectionsWrapper);
+
+			const headersSections = this.getHeadersSections();
+			for (let key in headersSections)
+			{
+				const itemClass = this.settings.classPopupSearchSectionItemIcon
+				 + (headersSections[key].selected ? ` ${this.settings.classPopupSearchSectionItemIconActive}` : '');
+
+				const headerSectionItem = BX.Tag.render`
+					<div class="main-ui-filter-popup-search-section-item" data-ui-popup-filter-section-button="${key}">
+						<div class="${itemClass}">
+							${BX.Text.encode(headersSections[key].name)}
+						</div>
+					</div>
+				`;
+				BX.bind(headerSectionItem, 'click', this.onFilterSectionClick.bind(this, headerSectionItem));
+
+				headerSectionsWrapper.firstElementChild.appendChild(headerSectionItem);
+			}
+		},
+
+		onFilterSectionClick: function(item: HTMLElement): void
+		{
+			const activeClass = this.settings.classPopupSearchSectionItemIconActive;
+			const sectionId = item.dataset.uiPopupFilterSectionButton;
+			const section = document.querySelectorAll("[data-ui-popup-filter-section='"+sectionId+"']");
+			if (BX.Dom.hasClass(item.firstElementChild, activeClass))
+			{
+				BX.Dom.removeClass(item.firstElementChild, activeClass);
+				BX.Dom.hide(section[0]);
+			}
+			else
+			{
+				BX.Dom.addClass(item.firstElementChild, activeClass);
+				BX.Dom.show(section[0]);
+			}
+		},
+
+		preparePopupContentHeaderSearch: function(headerWrapper: HTMLElement): void
+		{
+			if (!this.enableFieldsSearch)
+			{
+				return;
+			}
+
+			const searchForm = BX.Tag.render`
+				<div class="ui-form-row">
+					<div class="ui-form-content main-ui-filter-popup-search-input-wrapper">
+						<div class="ui-ctl ui-ctl-textbox ui-ctl-before-icon ui-ctl-after-icon">
+							<div class="ui-ctl-before ui-ctl-icon-search"></div>
+							<button class="ui-ctl-after ui-ctl-icon-clear"></button>
+							<input type="text" class="ui-ctl-element ${this.settings.classPopupSearchSectionItem}">
+						</div>
+					</div>
+				</div>
+			`;
+			headerWrapper.firstElementChild.appendChild(searchForm);
+			const inputs = searchForm.getElementsByClassName(this.settings.classPopupSearchSectionItem);
+			if (inputs.length)
+			{
+				const input = inputs[0];
+				BX.bind(input, 'input', this.onFilterSectionSearchInput.bind(this, input));
+				BX.bind(input.previousElementSibling, 'click', this.onFilterSectionSearchInputClear.bind(this, input));
+			}
+		},
+
+		preparePopupContentFields: function(wrapper: HTMLElement, sections, block: string, mix): void
+		{
+			if (!this.enableHeadersSections)
+			{
+				return;
+			}
+
+			const sectionsWrapper = BX.Tag.render`<div class="main-ui-filter-popup-search-sections-wrapper"></div>`;
+			wrapper.appendChild(sectionsWrapper);
+
+			for (let key in sections)
+			{
+				const sectionWrapper = BX.Tag.render`
+					<div class="main-ui-filter-popup-section-wrapper" data-ui-popup-filter-section="${key}"></div>
+				`;
+				this.setPopupElementWidthFromSettings(sectionWrapper);
+
+				if (!this.getHeadersSectionParam(key, 'selected'))
+				{
+					sectionWrapper.setAttribute('hidden', '');
+				}
+
+				const sectionTitle = BX.Tag.render`
+					<h3 class="main-ui-filter-popup-title">
+						${BX.Text.encode(this.getHeadersSectionParam(key, 'name'))}
+					</h3>
+				`;
+
+				const fieldsBlock = BX.decl({
+					block: block,
+					mix: mix,
+					content: sections[key]
+				});
+
+				sectionWrapper.appendChild(sectionTitle);
+				sectionWrapper.appendChild(fieldsBlock);
+
+				sectionsWrapper.appendChild(sectionWrapper);
+			}
+		},
+
+		prepareAnimation: function(): void
+		{
+			if (this.enableFieldsSearch)
+			{
+				this.fieldsPopupItems.forEach(item =>
+				{
+					BX.bind(item, 'animationend', this.onAnimationEnd.bind(this, item));
+				});
+			}
+		},
+
+		onAnimationEnd: function(item: HTMLElement): void
+		{
+			item.style.display = (
+				BX.Dom.hasClass(item, this.settings.classPopupSearchFieldListItemHidden)
+				? 'none'
+				: 'inline-block'
+			);
+		},
+
+		onFilterSectionSearchInput: function(input: HTMLElement): void
+		{
+			let search = input.value;
+			if (search.length)
+			{
+				search = search.toLowerCase();
+			}
+
+			this.getFieldsPopupItems().forEach(function (item){
+				const title = item.innerText.toLowerCase();
+
+				if (search.length && title.indexOf(search) === -1)
+				{
+					BX.Dom.removeClass(item,this.settings.classPopupSearchFieldListItemVisible);
+					BX.Dom.addClass(item,this.settings.classPopupSearchFieldListItemHidden);
+				}
+				else
+				{
+					BX.Dom.removeClass(item, this.settings.classPopupSearchFieldListItemHidden);
+					BX.Dom.addClass(item, this.settings.classPopupSearchFieldListItemVisible);
+					item.style.display = 'inline-block';
+				}
+			}.bind(this));
+		},
+
+		onFilterSectionSearchInputClear: function(input: HTMLElement): void
+		{
+			if (input.value.length)
+			{
+				input.value = '';
+				this.onFilterSectionSearchInput(input);
+			}
+		},
+
+		getDefaultHeaderSection: function(): Object|null
+		{
+			const headersSections = this.getHeadersSections();
+
+			for (let key in headersSections)
+			{
+				if ('selected' in headersSections[key] && headersSections[key].selected)
+				{
+					return headersSections[key];
+				}
+			}
+
+			return null;
+		},
+
+		getHeadersSections: function(): Array
+		{
+			return this.getParam('HEADERS_SECTIONS');
+		},
+
+		getHeadersSectionParam: function(sectionId: string, paramName: string, defaultValue: any): any
+		{
+			if (
+				this.getHeadersSections()[sectionId] !== undefined
+				&& this.getHeadersSections()[sectionId][paramName] !== undefined
+			)
+			{
+				return this.getHeadersSections()[sectionId][paramName];
+			}
+			return defaultValue;
+		},
 
 		/**
 		 * Gets field loader
@@ -1268,6 +1534,23 @@ import {Type} from "main.core";
 				try {
 					data = JSON.parse(BX.data(target, 'item'));
 				} catch (err) {}
+
+				let isChecked = BX.hasClass(target, this.settings.classMenuItemChecked);
+				let event = new BX.Event.BaseEvent({
+					data
+				});
+				this.emitter.emit(
+					isChecked
+						? 'onBeforeRemoveFilterItem'
+						: 'onBeforeAddFilterItem'
+					,
+					event
+				);
+
+				if (event.isDefaultPrevented())
+				{
+					return;
+				}
 
 				var p = new BX.Promise();
 
@@ -1420,20 +1703,20 @@ import {Type} from "main.core";
 		 */
 		getFieldsPopup: function()
 		{
-			var addFiledButton = this.getAddField();
+			var bindElement = (this.settings.get('showPopupInCenter', false) ? null : this.getAddField());
 
 			if (!this.fieldsPopup)
 			{
 				this.fieldsPopup = new BX.PopupWindow(
 					this.getParam('FILTER_ID') + '_fields_popup',
-					addFiledButton,
+					bindElement,
 					{
 						autoHide : true,
 						offsetTop : 4,
 						offsetLeft : 0,
 						lightShadow : true,
-						closeIcon : false,
-						closeByEsc : false,
+						closeIcon : (bindElement === null),
+						closeByEsc : (bindElement === null),
 						noAllPaddings: true,
 						zIndex: 13
 					}
@@ -1441,17 +1724,23 @@ import {Type} from "main.core";
 
 				this.fieldsPopupLoader = new BX.Loader({target: this.fieldsPopup.contentContainer});
 				this.fieldsPopupLoader.show();
-				this.fieldsPopup.contentContainer.style.width = "630px";
+				this.setPopupElementWidthFromSettings(this.fieldsPopup.contentContainer);
 				this.fieldsPopup.contentContainer.style.height = "330px";
 				this.getFieldsListPopupContent().then(function(res) {
 					this.fieldsPopup.contentContainer.removeAttribute("style");
 					this.fieldsPopupLoader.hide();
 					this.fieldsPopup.setContent(res);
 					this.syncFields({cache: false});
+					this.adjustFieldListPopupPosition();
 				}.bind(this));
 			}
 
 			return this.fieldsPopup;
+		},
+
+		setPopupElementWidthFromSettings: function(element: HTMLElement): void
+		{
+			element.style.width = this.settings.popupWidth + 'px';
 		},
 
 		_onAddPresetClick: function()
@@ -1785,6 +2074,13 @@ import {Type} from "main.core";
 			if (BX.type.isArray(fields) && fields.length)
 			{
 				fields.forEach(function(current) {
+					var additionalFilter = BX.Filter.AdditionalFilter.getInstance().getFilter(current);
+					if (additionalFilter)
+					{
+						Object.assign(values, additionalFilter);
+						return;
+					}
+
 					type = BX.data(current, 'type');
 					name = BX.data(current, 'name');
 
@@ -1824,18 +2120,15 @@ import {Type} from "main.core";
 							break;
 						}
 
-						case this.types.DEST_SELECTOR : {
+						case this.types.DEST_SELECTOR:
+						case this.types.CUSTOM_ENTITY:
+						case this.types.ENTITY_SELECTOR: {
 							this.prepareControlCustomEntityValue(values, name, current);
 							break;
 						}
 
 						case this.types.CUSTOM : {
 							this.prepareControlCustomValue(values, name, current);
-							break;
-						}
-
-						case this.types.CUSTOM_ENTITY : {
-							this.prepareControlCustomEntityValue(values, name, current);
 							break;
 						}
 
@@ -2273,6 +2566,44 @@ import {Type} from "main.core";
 			return presetId;
 		},
 
+		isAppliedUserFilter: function()
+		{
+			const presetOptions = this.getPreset().getCurrentPresetData();
+			if (BX.Type.isPlainObject(presetOptions))
+			{
+				const hasFields = (
+					BX.Type.isArrayFilled(presetOptions.FIELDS)
+					&& presetOptions.FIELDS.some((field) => {
+						return !this.getPreset().isEmptyField(field);
+					})
+				);
+
+				const hasAdditional = (
+					BX.Type.isArrayFilled(presetOptions.ADDITIONAL)
+					&& presetOptions.ADDITIONAL.some((field) => {
+						return !this.getPreset().isEmptyField(field);
+					})
+				);
+
+				return (
+					(
+						!presetOptions.IS_PINNED
+						&& (
+							hasFields
+							|| hasAdditional
+						)
+					)
+					|| (
+						presetOptions.IS_PINNED
+						&& BX.Type.isArrayFilled(presetOptions.ADDITIONAL)
+					)
+					|| BX.Type.isStringFilled(this.getSearch().getSearchString())
+				);
+			}
+
+			return false;
+		},
+
 		/**
 		 * Applies filter
 		 * @param {?Boolean} [clear] - is need reset filter
@@ -2288,6 +2619,15 @@ import {Type} from "main.core";
 			var Search = this.getSearch();
 			var applyParams = {autoResolve: !this.grid};
 			var self = this;
+
+			if (this.isAppliedUserFilter())
+			{
+				BX.Dom.addClass(this.getSearch().container, 'main-ui-filter-search--active');
+			}
+			else
+			{
+				BX.Dom.removeClass(this.getSearch().container, 'main-ui-filter-search--active');
+			}
 
 			this.clearGet();
 			this.showGridAnimation();
@@ -2417,15 +2757,9 @@ import {Type} from "main.core";
 						break;
 					}
 
-					case this.types.DEST_SELECTOR : {
-						controlData.VALUES = {
-							'_label': '',
-							'_value': ''
-						};
-						break;
-					}
-
-					case this.types.CUSTOM_ENTITY : {
+					case this.types.DEST_SELECTOR:
+					case this.types.ENTITY_SELECTOR:
+					case this.types.CUSTOM_ENTITY: {
 						controlData.VALUES = {
 							'_label': '',
 							'_value': ''
@@ -2510,6 +2844,8 @@ import {Type} from "main.core";
 			var configCloseDelay = this.settings.get('FILTER_CLOSE_DELAY');
 			var closeDelay;
 
+			BX.Dom.removeClass(this.getSearch().container, 'main-ui-filter-search--showed');
+
 			setTimeout(BX.delegate(function() {
 
 				if (!this.isIe())
@@ -2554,6 +2890,8 @@ import {Type} from "main.core";
 
 			if (!popup.isShown())
 			{
+				BX.Dom.addClass(this.getSearch().container, 'main-ui-filter-search--showed');
+
 				this.isOpened = true;
 				var showDelay = this.settings.get('FILTER_SHOW_DELAY');
 
@@ -2795,9 +3133,9 @@ import {Type} from "main.core";
 
 					if (defPreset.ID !== 'default_filter')
 					{
-						this.addSidebarItem(defPreset.ID, defPreset.TITLE, defPreset.PINNED);
+						this.addSidebarItem(defPreset.ID, defPreset.TITLE, defPreset.IS_PINNED);
 
-						if (defPreset.PINNED)
+						if (defPreset.IS_PINNED)
 						{
 							applyPresetId = defPreset.ID;
 						}
@@ -2901,13 +3239,11 @@ import {Type} from "main.core";
 						}
 					}
 
-					if (current.TYPE === this.types.DEST_SELECTOR)
-					{
-						result[current.NAME + '_label'] = current.VALUES._label;
-						result[current.NAME + '_value'] = current.VALUES._value;
-					}
-
-					if (current.TYPE === this.types.CUSTOM_ENTITY)
+					if (
+						current.TYPE === this.types.DEST_SELECTOR
+						|| current.TYPE === this.types.ENTITY_SELECTOR
+						|| current.TYPE === this.types.CUSTOM_ENTITY
+					)
 					{
 						result[current.NAME + '_label'] = current.VALUES._label;
 						result[current.NAME + '_value'] = current.VALUES._value;

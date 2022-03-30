@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -6,10 +12,19 @@
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
 
+use Bitrix\Bitrix24\Feature;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Loader;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Page\Asset;
+use Bitrix\Main\Page\FrameStatic;
+use Bitrix\Main\Security\Random;
 use Bitrix\Main\UI;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ModuleManager;
 use Bitrix\Socialnetwork\Integration\Calendar\ApiVersion;
+use Bitrix\Main\Web\Json;
+
+$request = \Bitrix\Main\Context::getCurrent()->getRequest();
 
 $APPLICATION->SetAdditionalCSS('/bitrix/components/bitrix/socialnetwork.log.ex/templates/.default/style.css');
 $APPLICATION->SetAdditionalCSS('/bitrix/components/bitrix/socialnetwork.blog.blog/templates/.default/style.css');
@@ -17,109 +32,115 @@ $arParams["FORM_ID"] = "blogPostForm";
 $jsObjName = "oPostFormLHE_".$arParams["FORM_ID"];
 $id = "idPostFormLHE_".$arParams["FORM_ID"];
 
-UI\Extension::load(["ui.buttons", "sidepanel"]);
+$extensionsList = [
+	'main.popup',
+	'sidepanel',
+	'videorecorder',
+	'ui.entity-selector',
+	'ui.buttons',
+	'ui.alerts',
+	'ui_date',
+	'ui.notification',
+	'ui.info-helper',
+];
 
-if (in_array('tasks', $arResult['tabs']))
+if (in_array('tasks', $arResult['tabs'], true))
 {
-	CModule::IncludeModule('tasks');
-	CJSCore::Init(array('tasks_component', 'tasks_integration_socialnetwork'));
+	Loader::includeModule('tasks');
+	$extensionsList[] = 'tasks_component';
+	$extensionsList[] = 'tasks_integration_socialnetwork';
 }
 
-if (in_array('lists', $arResult['tabs']))
+if (in_array('lists', $arResult['tabs'], true))
 {
-	CJSCore::Init(array('lists'));
+	$extensionsList[] = 'lists';
 }
 
-CJSCore::Init(array('videorecorder', 'ui_date'));
+UI\Extension::load($extensionsList);
 
-if($arResult["delete_blog_post"] == "Y")
+if ($arResult["delete_blog_post"] === "Y")
 {
 	$APPLICATION->RestartBuffer();
 	if (!empty($arResult["ERROR_MESSAGE"]))
 	{
 		?>
-		<script bxrunfirst="yes">
-			top.deletePostEr = 'Y';
-		</script>
 		<div class="feed-add-error">
 			<span class="feed-add-info-icon"></span><span class="feed-add-info-text"><?=$arResult["ERROR_MESSAGE"]?></span>
 		</div>
-		<?
+		<?php
 	}
-	if(!empty($arResult["OK_MESSAGE"]))
+
+	if (!empty($arResult["OK_MESSAGE"]))
 	{
 		?><div class="feed-add-successfully">
 			<span class="feed-add-info-text"><span class="feed-add-info-icon"></span><?=$arResult["OK_MESSAGE"]?></span>
-		</div><?
+		</div><?php
 	}
 	die();
 }
 
-if(!empty($arResult["FATAL_MESSAGE"]))
+if (!empty($arResult["FATAL_MESSAGE"]))
 {
 	ob_start();
 
 	?><div class="feed-add-error">
 		<span class="feed-add-info-text"><span class="feed-add-info-icon"></span><?=$arResult["FATAL_MESSAGE"]?></span>
-	</div><?
+	</div><?php
 
-	$strFullForm = ob_get_contents();
-	ob_end_clean();
+	$strFullForm = ob_get_clean();
 
-	if ($_POST["action"] == "SBPE_get_full_form")
+	if ($_POST["action"] === "SBPE_get_full_form")
 	{
-		while (ob_end_clean());
+		while (ob_end_clean()) {}
 
-		echo CUtil::PhpToJSObject(array(
-			"PROPS" => array(
+		echo CUtil::PhpToJSObject([
+			"PROPS" => [
 				"CONTENT" => $strFullForm,
-				"STRINGS" => array(),
-				"JS" => array(),
-				"CSS" => array()
-			),
+				"STRINGS" => [],
+				"JS" => [],
+				"CSS" => []
+			],
 			"success" => true
-		));
+		]);
 		die();
 	}
-	else
-	{
-		echo $strFullForm;
-	}
+
+	echo $strFullForm;
 
 	return false;
 }
 
 ?><div class="feed-wrap">
-	<div id="feed-add-post-block<?=$arParams["FORM_ID"]?>" class="feed-add-post-block blog-post-edit"><?
+	<div id="feed-add-post-block<?=$arParams["FORM_ID"]?>" class="feed-add-post-block blog-post-edit"><?php
 if (!empty($arResult["OK_MESSAGE"]) || !empty($arResult["ERROR_MESSAGE"]))
 {
-	?><div id="feed-add-post-form-notice-block<?=$arParams["FORM_ID"]?>" class="feed-notice-block" style="display:none;"><?
-	if(!empty($arResult["OK_MESSAGE"]))
+	?><div id="feed-add-post-form-notice-block<?=$arParams["FORM_ID"]?>" class="feed-notice-block" style="display:none;"><?php
+	if (!empty($arResult["OK_MESSAGE"]))
 	{
 		?><div class="feed-add-successfully">
 			<span class="feed-add-info-icon"></span><span class="feed-add-info-text"><?=$arResult["OK_MESSAGE"]?></span>
-		</div><?
+		</div><?php
 	}
-	if(!empty($arResult["ERROR_MESSAGE"]))
+	if (!empty($arResult["ERROR_MESSAGE"]))
 	{
 		?><div class="feed-add-error">
 			<span class="feed-add-info-icon"></span><span class="feed-add-info-text"><?=$arResult["ERROR_MESSAGE"]?></span>
-		</div><?
+		</div><?php
 	}
-	?></div><?
+	?></div><?php
 }
-if(!empty($arResult["UTIL_MESSAGE"]))
+if (!empty($arResult["UTIL_MESSAGE"]))
 {
 	?>
 	<div class="feed-add-successfully">
 		<span class="feed-add-info-icon"></span><span class="feed-add-info-text"><?=$arResult["UTIL_MESSAGE"]?></span>
 	</div>
-	<?
+	<?php
 }
-else if($arResult["imageUploadFrame"] == "Y") // Frame with file input to ajax uploading in WYSIWYG editor dialog
+elseif ($arResult["imageUploadFrame"] === "Y") // Frame with file input to ajax uploading in WYSIWYG editor dialog
 {
-	?><script type="text/javascript"><?
-	if(!empty($arResult["Image"]))
+	?><script><?php
+	if (!empty($arResult["Image"]))
 	{
 		?>
 		var imgTable = top.BX('blog-post-image');
@@ -129,90 +150,125 @@ else if($arResult["imageUploadFrame"] == "Y") // Frame with file input to ajax u
 			imgTable.parentNode.parentNode.style.display = 'block';
 		}
 
-		top.bxPostFileId = '<?=$arResult["Image"]["ID"]?>';
-		top.bxPostFileIdSrc = '<?=CUtil::JSEscape($arResult["Image"]["source"]["src"])?>';
-		top.bxPostFileIdWidth = '<?=CUtil::JSEscape($arResult["Image"]["source"]["width"])?>';
-		<?
+		top.bxPostFileId = '<?= $arResult["Image"]["ID"] ?>';
+		top.bxPostFileIdSrc = '<?= CUtil::JSEscape($arResult["Image"]["source"]["src"]) ?>';
+		top.bxPostFileIdWidth = '<?= CUtil::JSEscape($arResult["Image"]["source"]["width"]) ?>';
+		<?php
 	}
-	elseif($arResult["ERROR_MESSAGE"] <> '')
+	elseif ((string)$arResult["ERROR_MESSAGE"] !== '')
 	{
 		?>
 		window.bxPostFileError = top.bxPostFileError = '<?=CUtil::JSEscape($arResult["ERROR_MESSAGE"])?>';
-		<?
+		<?php
 	}
-	?></script><?
+	?></script><?php
 	die();
 }
 else
 {
 	$userOption = CUserOptions::GetOption("socialnetwork", "postEdit");
-	$bShowTitle = (($arResult["PostToShow"]["MICRO"] != "Y" && !empty($arResult["PostToShow"]["TITLE"])) ||
-			(isset($userOption["showTitle"]) && $userOption["showTitle"] == "Y" && $arResult["PostToShow"]["MICRO"] != "Y"));
-
-	ob_start();
-
-	$arTabs = array(
-		array(
-			"ID" => "message",
-			"NAME" => GetMessage("BLOG_TAB_POST")
+	$bShowTitle = (
+		(
+			$arResult["PostToShow"]["MICRO"] !== "Y"
+			&& !empty($arResult["PostToShow"]["TITLE"])
+		)
+		|| (
+			isset($userOption["showTitle"])
+			&& $userOption["showTitle"] === "Y"
+			&& $arResult["PostToShow"]["MICRO"] !== "Y"
 		)
 	);
 
-	if(in_array('tasks', $arResult['tabs']))
+	ob_start();
+
+	$arTabs = [
+		[
+			"ID" => "message",
+			"NAME" => Loc::getMessage("BLOG_TAB_POST")
+		]
+	];
+
+	if (in_array('tasks', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$arTabs[] = [
 			"ID" => "tasks",
-			"NAME" => GetMessage("BLOG_TAB_TASK"),
-			"ONCLICK" => "window.SBPETabs.getInstance().getTaskForm();"
-		);
+			"NAME" => Loc::getMessage("BLOG_TAB_TASK"),
+			"ONCLICK" => "BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().getTaskForm();"
+		];
 	}
 
-	if (in_array('calendar', $arResult['tabs']))
+	if (in_array('calendar', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$arTabs[] = [
 			"ID" => "calendar",
-			"NAME" => GetMessage("SBPE_CALENDAR_EVENT"),
+			"NAME" => Loc::getMessage("SBPE_CALENDAR_EVENT"),
 			(ApiVersion::isEventEditFormAvailable() ? "ONCLICK_SLIDER" : "ONCLICK") => ApiVersion::getAddEventInLivefeedJs()
-		);
+		];
 	}
 
-	if (in_array('vote', $arResult['tabs']))
+	if (in_array('vote', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$limited = (
+			Loader::includeModule('bitrix24')
+			&& !Feature::isFeatureEnabled('socialnetwork_livefeed_vote')
+		);
+
+		$arTabs[] = [
 			"ID" => "vote",
-			"NAME" => GetMessage("BLOG_TAB_VOTE"),
-			"ICON" => "feed-add-post-form-polls-link-icon"
-		);
+			"NAME" => Loc::getMessage("BLOG_TAB_VOTE"),
+			"ICON" => "feed-add-post-form-polls-link-icon",
+			"ONCLICK" => (
+			$limited
+				? "BX.UI.InfoHelper.show('limit_crm_interview');"
+				: ""
+			),
+			"LIMITED" => $limited ? 'Y' : 'N',
+		];
 	}
 
-	if (in_array('file', $arResult['tabs']))
+	if (in_array('file', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$arTabs[] = [
 			"ID" => "file",
-			"NAME" => GetMessage("BLOG_TAB_FILE")
-		);
+			"NAME" => Loc::getMessage("BLOG_TAB_FILE")
+		];
 	}
 
-	if (in_array('grat', $arResult['tabs']))
+	if (in_array('grat', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$arTabs[] = [
 			"ID" => "grat",
-			"NAME" => GetMessage("BLOG_TAB_GRAT")
-		);
+			"NAME" => Loc::getMessage("BLOG_TAB_GRAT")
+		];
 	}
 
-	$arTabs[] = array(
-		"ID" => "important",
-		"NAME" => GetMessage("SBPE_IMPORTANT_MESSAGE")
+	$limited = (
+		Loader::includeModule('bitrix24')
+		&& !Feature::isFeatureEnabled('socialnetwork_livefeed_important')
 	);
 
-	if(in_array('lists', $arResult['tabs']))
+	$arTabs[] = [
+		"ID" => "important",
+		"NAME" => Loc::getMessage("SBPE_IMPORTANT_MESSAGE"),
+		"ONCLICK" => (
+			$limited
+				? "BX.UI.InfoHelper.show('limit_crm_important_message');"
+				: ""
+		),
+		"LIMITED" => $limited ? 'Y' : 'N',
+	];
+
+	if (in_array('lists', $arResult['tabs'], true))
 	{
-		$arTabs[] = array(
+		$arTabs[] = [
 			"ID" => "lists",
-			"NAME" => GetMessage("BLOG_TAB_LISTS"),
-			"ONCLICK" => "window.SBPETabs.getInstance().getLists();"
-		);
+			"NAME" => Loc::getMessage("BLOG_TAB_LISTS"),
+			"ONCLICK" => (
+				!CLists::isFeatureEnabled()
+					? "BX.UI.InfoHelper.show('limit_office_bp_stream');"
+					: "BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().getLists();"
+			)
+		];
 	}
 
 	$maxTabs = 4;
@@ -222,50 +278,54 @@ else
 	{
 		$arTab = $arTabs[$i];
 		$moreClass = ($arResult['tabActive'] == $arTab["ID"] ? " feed-add-post-form-link-active" : "");
-		if($arTab["ID"] == "lists")
+		if ($arTab["ID"] === "lists")
 		{
-			?><span class="feed-add-post-form-link<?=$moreClass?>" id="feed-add-post-form-tab-<?=$arTab["ID"]?>"><?
-				?><span id="feed-add-post-form-tab-lists" class="feed-add-post-form-link-text"><?=$arTab["NAME"]?></span><?
-				?><span class="feed-add-post-more-icon-lists"></span><?
-			?></span><?
+			?><span class="feed-add-post-form-link<?=$moreClass?>" id="feed-add-post-form-tab-<?=$arTab["ID"]?>"><?php
+				?><span id="feed-add-post-form-tab-lists" class="feed-add-post-form-link-text"><?=$arTab["NAME"]?></span><?php
+				?><span class="feed-add-post-more-icon-lists"></span><?php
+			?></span><?php
 			?><script>
 				BX.bind(BX('feed-add-post-form-tab-<?=$arTab["ID"]?>'), 'click', function() {
-					SBPEFullForm.getInstance().get({
+					BX.Socialnetwork.Livefeed.PostForm.getInstance().get({
 						callback: function() {
-							window.SBPETabs.getInstance().getLists();
+							BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().getLists();
 						}
 					});
 				});
-			</script><?
+			</script><?php
 		}
 		else
 		{
-			?><span class="feed-add-post-form-link<?=$moreClass?>" id="feed-add-post-form-tab-<?=$arTab["ID"]?>"><?
-				?><span><?=$arTab["NAME"]?></span><?
-			?></span><?
+			?><span class="feed-add-post-form-link<?=$moreClass?>" id="feed-add-post-form-tab-<?=$arTab["ID"]?>"><?php
+				?><span><?=$arTab["NAME"]?></span><?php
+			?></span><?php
 			?><script>
-				BX.bind(BX('feed-add-post-form-tab-<?=$arTab["ID"]?>'), 'click', function(e) {
-					<?
+				BX.bind(BX('feed-add-post-form-tab-<?=$arTab["ID"]?>'), 'click', function() {
+					<?php
 					if (isset($arTab["ONCLICK_SLIDER"]))
 					{
-						?><?=$arTab["ONCLICK_SLIDER"]?><?
+						?><?= $arTab["ONCLICK_SLIDER"] ?><?php
+					}
+					elseif ($arTab["LIMITED"] === 'Y')
+					{
+						?><?= ($arTab["ONCLICK"] ?? '') ?><?php
 					}
 					else
 					{
 						?>
-						SBPEFullForm.getInstance().get({
+						BX.Socialnetwork.Livefeed.PostForm.getInstance().get({
 							callback: function() {
 								setTimeout(function() {
-									window.SBPETabs.changePostFormTab('<?=$arTab["ID"]?>');
-									<?=(isset($arTab["ONCLICK"]) ? $arTab["ONCLICK"] : "")?>
+									BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().changePostFormTab('<?= $arTab["ID"] ?>');
+									<?= ($arTab["ONCLICK"] ?? '') ?>
 								}, 10);
 							}
 						});
-						<?
+						<?php
 					}
 					?>
 				});
-			</script><?
+			</script><?php
 		}
 	}
 
@@ -278,7 +338,7 @@ else
 		for ($i = $maxTabs; $i < $tabsCnt; $i++)
 		{
 			$arTab = $arTabs[$i];
-			$pseudoTabs .= '<span class="feed-add-post-form-link" data-onclick="'.(isset($arTab["ONCLICK"]) ? $arTab["ONCLICK"] : "").'" data-name="'.$arTab["NAME"].'" id="feed-add-post-form-tab-'.$arTab["ID"].'" style="display:none;"></span>';
+			$pseudoTabs .= '<span class="feed-add-post-form-link" data-onclick="'.($arTab["ONCLICK"] ?? '').'" data-name="'.$arTab["NAME"].'" data-limited="'.$arTab["LIMITED"].'" id="feed-add-post-form-tab-'.$arTab["ID"].'" style="display:none;"></span>';
 			if (
 				$arResult['tabActive'] == $arTab["ID"]
 				&& $maxTabs > 0
@@ -289,56 +349,55 @@ else
 			}
 		}
 
-		?><span id="feed-add-post-form-link-more" class="feed-add-post-form-link feed-add-post-form-link-more<?=$moreClass?>"><?
-			?><span id="feed-add-post-form-link-text" class="feed-add-post-form-link-text"><?=$moreCaption?></span><?
-			?><span id="feed-add-post-more-icon" class="feed-add-post-more-icon"></span><?
-			?><span id="feed-add-post-more-icon-waiter" class="feed-add-post-more-icon-waiter"><?
-				?><svg class="feed-add-post-loader" viewBox="25 25 50 50"><circle class="feed-add-post-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle><circle class="feed-add-post-loader-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle></svg><?
-			?></span><?
-			?><?=$pseudoTabs?><?
-		?></span><?
+		?><span id="feed-add-post-form-link-more" class="feed-add-post-form-link feed-add-post-form-link-more<?= $moreClass ?>"><?php
+			?><span id="feed-add-post-form-link-text" class="feed-add-post-form-link-text"><?= $moreCaption ?></span><?php
+			?><span id="feed-add-post-more-icon" class="feed-add-post-more-icon"></span><?php
+			?><span id="feed-add-post-more-icon-waiter" class="feed-add-post-more-icon-waiter"><?php
+				?><svg class="feed-add-post-loader" viewBox="25 25 50 50"><circle class="feed-add-post-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle><circle class="feed-add-post-loader-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle></svg><?php
+			?></span><?php
+			?><?= $pseudoTabs ?><?php
+		?></span><?php
 		?><script>
 			BX.bind(BX('feed-add-post-form-link-more'), 'click', function() {
-				SBPEFullForm.getInstance().get({
+				BX.Socialnetwork.Livefeed.PostForm.getInstance().get({
 					callback: function() {
-						window.SBPETabs.getInstance().showMoreMenu();
+						BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().showMoreMenu();
 					},
 					loaderType: 'tab'
 				});
 			});
-		</script><?
+		</script><?php
 	}
 
-	$strGratVote = ob_get_contents();
-	ob_end_clean();
+	$strGratVote = ob_get_clean();
 
 	if (
-		$arParams["TOP_TABS_VISIBLE"] == "Y"
+		$arParams["TOP_TABS_VISIBLE"] === "Y"
 		&& (
 			!isset($arParams["PAGE_ID"])
 			|| !in_array($arParams["PAGE_ID"], [ "user_blog_post_edit_profile", "user_blog_post_edit_grat", "user_grat", "user_blog_post_edit_post" ])
 		)
 	)
 	{
-		?><div class="microblog-top-tabs-visible"><?
-			?><div class="feed-add-post-form-variants" id="feed-add-post-form-tab"><?
+		?><div class="microblog-top-tabs-visible"><?php
+			?><div class="feed-add-post-form-variants" id="feed-add-post-form-tab"><?php
 				echo $strGratVote;
 				if ($arParams["SHOW_BLOG_FORM_TARGET"])
 				{
 					$APPLICATION->ShowViewContent("sonet_blog_form");
 				}
-				?><div id="feed-add-post-form-tab-arrow" class="feed-add-post-form-arrow" style="left: 31px;"></div><?
-			?></div><?
-		?></div><?
+				?><div id="feed-add-post-form-tab-arrow" class="feed-add-post-form-arrow" style="left: 31px;"></div><?php
+			?></div><?php
+		?></div><?php
 	}
 	$htmlAfterTextarea = "";
 	if (!empty($arResult["Images"]))
 	{
 		$arFile = reset($arResult["Images"]);
-		$arJSFiles = array();
+		$arJSFiles = [];
 		while ($arFile)
 		{
-			$arJSFiles[strval($arFile["ID"])] = array(
+			$arJSFiles[(string)$arFile["ID"]] = [
 				"element_id" => $arFile["ID"],
 				"element_name" => $arFile["FILE_NAME"],
 				"element_size" => $arFile["FILE_SIZE"],
@@ -346,10 +405,10 @@ else
 				"element_content_type" => $arFile["CONTENT_TYPE"],
 				"element_thumbnail" => $arFile["SRC"],
 				"element_image" => $arFile["THUMBNAIL"],
-				"isImage" => (mb_substr($arFile["CONTENT_TYPE"], 0, 6) == "image/"),
+				"isImage" => (mb_strpos($arFile["CONTENT_TYPE"], 'image/') === 0),
 				"del_url" => $arFile["DEL_URL"]
-			);
-			$title = GetMessage("MPF_INSERT_FILE");
+			];
+			$title = Loc::getMessage("MPF_INSERT_FILE");
 			$arFile["DEL_URL"] = CUtil::JSEscape($arFile["DEL_URL"]);
 $htmlAfterTextarea .= <<<HTML
 <span class="feed-add-photo-block" id="wd-doc{$arFile["ID"]}">
@@ -371,135 +430,135 @@ HTML;
 		}
 	}
 
-	?><div class="feed-add-post-micro" id="micro<?=$jsObjName?>" <?
+	?><div class="feed-add-post-micro" id="micro<?=$jsObjName?>" <?php
 		?>onclick="
 
-		SBPEFullForm.getInstance().get({
+		BX.Socialnetwork.Livefeed.PostForm.getInstance().get({
 			callback: function() {
 				BX.onCustomEvent(BX('div<?=$jsObjName?>'), 'OnControlClick');
-				if(BX('div<?=$jsObjName?>').style.display=='none')
+				if (BX('div<?=$jsObjName?>').style.display == 'none')
 				{
 					BX.onCustomEvent(BX('div<?=$jsObjName?>'), 'OnShowLHE', ['show']);
 				}
 			}
 		});
 
-		"><div id="micro<?=$jsObjName?>_inner"><?
-			?><span class="feed-add-post-micro-title"><?=GetMessage("BLOG_LINK_SHOW_NEW")?></span><?
-			?><span class="feed-add-post-micro-dnd"><?=GetMessage("MPF_DRAG_ATTACHMENTS2")?></span><?
-		?></div><?
-	?></div><?
+		"><div id="micro<?=$jsObjName?>_inner"><?php
+			?><span class="feed-add-post-micro-title"><?=GetMessage("BLOG_LINK_SHOW_NEW")?></span><?php
+			?><span class="feed-add-post-micro-dnd"><?=GetMessage("MPF_DRAG_ATTACHMENTS2")?></span><?php
+		?></div><?php
+	?></div><?php
 
 	if (
-		$arParams["LAZY_LOAD"] == 'Y'
+		$arParams["LAZY_LOAD"] === 'Y'
 		&& !$arResult["SHOW_FULL_FORM"]
 	) // lazyloadmode on + not ajax
 	{
-		?><div id="full<?=$jsObjName?>"></div><?
+		?><div id="full<?=$jsObjName?>"></div><?php
 	}
 
 	?><script>
+		BX.message(<?=Json::encode(Loc::loadLanguageFile(__FILE__))?>);
+
 		BX.message({
-			sonetBPECreateTaskSuccessTitle : '<?=GetMessageJS("BLOG_POST_EDIT_T_CREATE_TASK_SUCCESS_TITLE")?>',
-			sonetBPECreateTaskSuccessDescription : '<?=GetMessageJS("BLOG_POST_EDIT_T_CREATE_TASK_SUCCESS_DESCRIPTION")?>',
-			sonetBPECreateTaskButtonTitle : '<?=GetMessageJS("BLOG_POST_EDIT_T_CREATE_TASK_BUTTON_TITLE")?>',
 			PATH_TO_USER_TASKS_TASK : '<?=CUtil::JSEscape($arParams['PATH_TO_USER_TASKS_TASK'])?>',
-			SBPE_MORE : '<?=GetMessageJS("SBPE_MORE")?>'
 		});
 
-		SBPEFullForm.getInstance().init({
+		new BX.Socialnetwork.Livefeed.PostForm({
 			lazyLoad: <?=(!$arResult["SHOW_FULL_FORM"] ? 'true' : 'false')?>,
 			ajaxUrl : '<?=CUtil::JSEscape(htmlspecialcharsBack(POST_FORM_ACTION_URI))?>',
 			container: <?=(!$arResult["SHOW_FULL_FORM"] ? "BX('full".$jsObjName."')" : "false")?>,
 			containerMicro: <?=(!$arResult["SHOW_FULL_FORM"] ? "BX('micro".$jsObjName."')" : "false")?>,
-			containerMicroInner: <?=(!$arResult["SHOW_FULL_FORM"] ? "BX('micro".$jsObjName."_inner')" : "false")?>
+			containerMicroInner: <?=(!$arResult["SHOW_FULL_FORM"] ? "BX('micro".$jsObjName."_inner')" : "false")?>,
+			successPostId: <?= (int)$request->get('successPostId') ?>,
 		});
-	</script><?
+	</script><?php
 
-	$dynamicArea = new \Bitrix\Main\Page\FrameStatic("sbpe_dynamic");
+	$dynamicArea = new FrameStatic("sbpe_dynamic");
 	$dynamicArea->startDynamicArea();
 	?><script>
 		BX.ready(function() {
-			<?
+			<?php
 			if (
-				in_array('tasks', $arResult['tabs'])
-				&& isset($_SESSION["SL_TASK_ID_CREATED"])
-
+				isset($_SESSION["SL_TASK_ID_CREATED"])
+				&& in_array('tasks', $arResult['tabs'], true)
 			)
 			{
-				if (intval($_SESSION["SL_TASK_ID_CREATED"]) > 0)
+				if ((int)$_SESSION["SL_TASK_ID_CREATED"] > 0)
 				{
 					?>
-					window.SBPEFullForm.getInstance().tasksTaskEvent(<?=intval($_SESSION["SL_TASK_ID_CREATED"])?>);
-					<?
+					BX.Socialnetwork.Livefeed.PostForm.getInstance().tasksTaskEvent(<?=(int)$_SESSION["SL_TASK_ID_CREATED"]?>);
+					<?php
 				}
 				unset($_SESSION["SL_TASK_ID_CREATED"]);
 			}
 			?>
-			SBPEFullForm.getInstance().setOption('startVideoRecorder', '<?=($arResult['startVideoRecorder'] ? 'Y' : 'N')?>');
-			SBPEFullForm.getInstance().onShow();
+			BX.Socialnetwork.Livefeed.PostForm.getInstance().setOption('startVideoRecorder', '<?=($arResult['startVideoRecorder'] ? 'Y' : 'N')?>');
+			BX.Socialnetwork.Livefeed.PostForm.getInstance().onShow();
 		});
-	</script><?
+	</script><?php
 	$dynamicArea->finishDynamicArea();
 
 
 	if ($arResult["SHOW_FULL_FORM"]) // lazyloadmode on + ajax
 	{
-		if ($_POST["action"] == "SBPE_get_full_form")
+		if ($_POST["action"] === "SBPE_get_full_form")
 		{
 			$APPLICATION->ShowAjaxHead();
 		}
 
-		$postFormActionUri = (isset($arParams["POST_FORM_ACTION_URI"]) ? $arParams["POST_FORM_ACTION_URI"] : htmlspecialcharsback(POST_FORM_ACTION_URI));
+		$postFormActionUri = ($arParams["POST_FORM_ACTION_URI"] ?? htmlspecialcharsback(POST_FORM_ACTION_URI));
 		$uri = new Bitrix\Main\Web\Uri($postFormActionUri);
-		$uri->deleteParams(array("b24statAction", "b24statTab", "b24statAddEmailUserCrmContact"));
-		$uri->addParams(array(
+		$uri->deleteParams([ "b24statAction", "b24statTab", "b24statAddEmailUserCrmContact" ]);
+		$uri->addParams([
 			"b24statAction" => ($arParams["ID"] > 0 ? "editLogEntry" : "addLogEntry"),
-		));
+		]);
 		$postFormActionUri = $uri->getUri();
 
-		$selectorId = randString(6);
+		$selectorId = Random::getString(6);
 
 		?><div id="microblog-form">
 		<form action="<?=htmlspecialcharsbx($postFormActionUri)?>" id="blogPostForm" name="blogPostForm" method="POST" enctype="multipart/form-data" target="_self" data-bx-selector-id="<?=htmlspecialcharsbx($selectorId)?>">
 			<input type="hidden" name="show_title" id="show_title" value="<?=($bShowTitle ? "Y" : "N")?>">
-			<?=bitrix_sessid_post();?>
-			<div class="feed-add-post-form-wrap"><?
+			<?= bitrix_sessid_post() ?>
+			<div class="feed-add-post-form-wrap"><?php
 				if (
-					$arParams["TOP_TABS_VISIBLE"] != "Y"
+					$arParams["TOP_TABS_VISIBLE"] !== "Y"
 					&& (
 						!isset($arParams["PAGE_ID"])
 						|| !in_array($arParams["PAGE_ID"], [ "user_blog_post_edit_profile", "user_blog_post_edit_grat", "user_grat", "user_blog_post_edit_post" ])
 					)
 				)
 				{
-					?><div class="feed-add-post-form-variants" id="feed-add-post-form-tab"><?
+					?><div class="feed-add-post-form-variants" id="feed-add-post-form-tab"><?php
 						echo $strGratVote;
 
 						if ($arParams["SHOW_BLOG_FORM_TARGET"])
 						{
 							$APPLICATION->ShowViewContent("sonet_blog_form");
 						}
-						?><div id="feed-add-post-form-tab-arrow" class="feed-add-post-form-arrow" style="left: 31px;"></div><?
-					?></div><?
+						?><div id="feed-add-post-form-tab-arrow" class="feed-add-post-form-arrow" style="left: 31px;"></div><?php
+					?></div><?php
 				}
 
 				?><div id="feed-add-post-content-message">
 					<div class="feed-add-post-title" id="blog-title" style="display: none;">
-						<input id="POST_TITLE" name="POST_TITLE" class="feed-add-post-inp feed-add-post-inp-active" <?
+						<input id="POST_TITLE" name="POST_TITLE" class="feed-add-post-inp feed-add-post-inp-active" <?php
 						?>type="text" value="<?=$arResult["PostToShow"]["TITLE"]?>" placeholder="<?=GetMessage("BLOG_TITLE")?>" />
-						<div class="feed-add-close-icon" onclick="showPanelTitle_<?=$arParams["FORM_ID"]?>(false);"></div>
+						<div class="feed-add-close-icon" onclick="BX.Socialnetwork.Livefeed.PostFormEditor.getInstance('<?=$arParams["FORM_ID"]?>').showPanelTitle(false);"></div>
 					</div>
-					<?$APPLICATION->IncludeComponent(
+					<?php
+					$APPLICATION->IncludeComponent(
 						"bitrix:main.post.form",
 						"",
-						($formParams = Array(
+						($formParams = [
 							"FORM_ID" => "blogPostForm",
 							"DEST_SELECTOR_ID" => $selectorId,
 							"SHOW_MORE" => "Y",
-							"PARSER" => Array("Bold", "Italic", "Underline", "Strike", "ForeColor",
+							"PARSER" => [
+								"Bold", "Italic", "Underline", "Strike", "ForeColor",
 								"FontList", "FontSizeList", "RemoveFormat", "Quote", "Code",
-								(($arParams["USE_CUT"] == "Y") ? "InsertCut" : ""),
+								(($arParams["USE_CUT"] === "Y") ? "InsertCut" : ""),
 								"CreateLink",
 								"Image",
 								"Table",
@@ -509,74 +568,77 @@ HTML;
 								"SmileList",
 								"Source",
 								"UploadImage",
-								(($arResult["allowVideo"] == "Y") ? "InputVideo" : ""),
+								(($arResult["allowVideo"] === "Y") ? "InputVideo" : ""),
 								"MentionUser",
-							),
-							"BUTTONS" => Array(
+							],
+							"BUTTONS" => [
 								"UploadImage",
 								"UploadFile",
 								"CreateLink",
-								(($arResult["allowVideo"] == "Y") ? "InputVideo" : ""),
+								(($arResult["allowVideo"] === "Y") ? "InputVideo" : ""),
 								"Quote",
 								"MentionUser",
 								"InputTag",
 								"VideoMessage",
-	//						,"Important"
-							),
-							"BUTTONS_HTML" => Array("VideoMessage" => '<span class="feed-add-post-form-but-cnt feed-add-videomessage" onclick="BX.VideoRecorder.start(\''.$arParams["FORM_ID"].'\', \'post\');">'.GetMessage('BLOG_VIDEO_RECORD_BUTTON').'</span>'),
-							"ADDITIONAL" => array(
-								"<span title=\"".GetMessage("BLOG_TITLE")."\" ".
-								"onclick=\"showPanelTitle_".$arParams["FORM_ID"]."(this);\" ".
+							],
+							"BUTTONS_HTML" => [
+								"VideoMessage" => '<span class="feed-add-post-form-but-cnt feed-add-videomessage" onclick="BX.VideoRecorder.start(\''.$arParams["FORM_ID"].'\', \'post\');">'.Loc::getMessage('BLOG_VIDEO_RECORD_BUTTON').'</span>'
+							],
+							"ADDITIONAL" => [
+								"<span title=\"".Loc::getMessage("BLOG_TITLE")."\" ".
+								"onclick=\"BX.Socialnetwork.Livefeed.PostFormEditor.getInstance('".$arParams["FORM_ID"]."').showPanelTitle(this);\" ".
 								"class=\"feed-add-post-form-title-btn".($bShowTitle ? " feed-add-post-form-btn-active" : "")."\" ".
 								"id=\"lhe_button_title_".$arParams["FORM_ID"]."\" ".
 								"></span>"
-							),
+							],
 
-							"TEXT" => Array(
+							"TEXT" => [
 								"NAME" => "POST_MESSAGE",
 								"VALUE" => \Bitrix\Main\Text\Emoji::decode(htmlspecialcharsBack($arResult["PostToShow"]["~DETAIL_TEXT"])),
-								"HEIGHT" => "120px"),
+								"HEIGHT" => "120px"
+							],
 
-							"PROPERTIES" => array(
+							"PROPERTIES" => [
 								array_key_exists("UF_BLOG_POST_FILE", $arResult["POST_PROPERTIES"]["DATA"]) ?
 									array_merge(
-										(is_array($arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"]) ? $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"] : array()),
-										($arResult['bVarsFromForm'] && is_array($_POST["UF_BLOG_POST_FILE"]) ? array("VALUE" => $_POST["UF_BLOG_POST_FILE"]) : array()))
+										(is_array($arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"]) ? $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"] : []),
+										($arResult['bVarsFromForm'] && is_array($_POST["UF_BLOG_POST_FILE"]) ? [ "VALUE" => $_POST["UF_BLOG_POST_FILE"] ] : []))
 									:
 									array_merge(
-										(is_array($arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_DOC"]) ? $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_DOC"] : array()),
-										($arResult['bVarsFromForm'] && is_array($_POST["UF_BLOG_POST_DOC"]) ? array("VALUE" => $_POST["UF_BLOG_POST_DOC"]) : array()),
-										array("POSTFIX" => "file")),
+										(is_array($arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_DOC"]) ? $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_DOC"] : []),
+										($arResult['bVarsFromForm'] && is_array($_POST["UF_BLOG_POST_DOC"]) ? [ "VALUE" => $_POST["UF_BLOG_POST_DOC"] ] : []),
+										[ "POSTFIX" => "file"]
+									),
 								array_key_exists("UF_BLOG_POST_URL_PRV", $arResult["POST_PROPERTIES"]["DATA"]) ?
 									array_merge(
 										$arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_URL_PRV"],
-										array(
+										[
 											'ELEMENT_ID' => 'url_preview_'.$id,
 											'STYLE' => 'margin: 0 18px'
-										)
+										]
 									)
-									:
-									array()
-							),
-							"UPLOAD_FILE_PARAMS" => array('width' => $arParams["IMAGE_MAX_WIDTH"], 'height' => $arParams["IMAGE_MAX_HEIGHT"]),
+									: []
+							],
+							"UPLOAD_FILE_PARAMS" => [ 'width' => $arParams["IMAGE_MAX_WIDTH"], 'height' => $arParams["IMAGE_MAX_HEIGHT"] ],
 
-							"DESTINATION" => array(
+							"DESTINATION" => [
 								"VALUE" => $arResult["PostToShow"]["FEED_DESTINATION"],
-								"SHOW" => (!isset($arParams["PAGE_ID"]) || $arParams["PAGE_ID"] != "user_blog_post_edit_profile" ? 'Y' : 'N')
-							),
+								"SHOW" => (!isset($arParams["PAGE_ID"]) || $arParams["PAGE_ID"] !== "user_blog_post_edit_profile" ? 'Y' : 'N')
+							],
 							"DEST_SORT" => $arResult["DEST_SORT"],
 							"SELECTOR_CONTEXT" => "BLOG_POST",
-							"TAGS" => Array(
+							'SELECTOR_VERSION' => $arResult['SELECTOR_VERSION'],
+							"TAGS" => [
 								"ID" => "TAGS",
 								"NAME" => "TAGS",
 								"VALUE" => explode(",", trim($arResult["PostToShow"]["CategoryText"])),
 								"USE_SEARCH" => "Y",
 								"FILTER" => "blog",
-							),
-							"SMILES" => COption::GetOptionInt("blog", "smile_gallery_id", 0),
+							],
+							"SMILES" => (int)Option::get('blog', 'smile_gallery_id', 0),
 							"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
 							"AT_THE_END_HTML" => $htmlAfterTextarea,
-							"LHE" => array(
+							"LHE" => [
 								"id" => $id,
 								"documentCSS" => "body {color:#434343;}",
 								"iframeCss" => "html body {font-size: 14px!important; line-height: 20px!important;}",
@@ -584,107 +646,143 @@ HTML;
 								"jsObjName" => $jsObjName,
 								"fontFamily" => "'Helvetica Neue', Helvetica, Arial, sans-serif",
 								"fontSize" => "14px",
-								"bInitByJS" => (!$arResult['bVarsFromForm'] && $arParams["TOP_TABS_VISIBLE"] == "Y")
-							),
+								"bInitByJS" => (!$arResult['bVarsFromForm'] && $arParams["TOP_TABS_VISIBLE"] === "Y")
+							],
 							"USE_CLIENT_DATABASE" => "Y",
 							"DEST_CONTEXT" => "BLOG_POST",
-							"ALLOW_EMAIL_INVITATION" => ($arResult["ALLOW_EMAIL_INVITATION"] ? 'Y' : 'N')
-						)),
+							"ALLOW_EMAIL_INVITATION" => ($arResult["ALLOW_EMAIL_INVITATION"] ? 'Y' : 'N'),
+							'MENTION_ENTITIES' => [
+								[
+									'id' => 'user',
+									'options' => [
+										'emailUsers' => true,
+										'inviteEmployeeLink' => false,
+									],
+								],
+								[
+									'id' => 'department',
+									'options' => [
+										'selectMode' => 'usersAndDepartments',
+										'allowFlatDepartments' => false,
+									],
+								],
+								[
+									'id' => 'project',
+									'options' => [
+										'features' => [
+											'blog' =>  [ 'premoderate_post', 'moderate_post', 'write_post', 'full_post' ],
+										],
+									],
+								],
+							],
+						]),
 						false,
-						Array("HIDE_ICONS" => "Y")
+						[ "HIDE_ICONS" => "Y" ]
 					);?>
-				</div><?
+				</div><?php
 				if (
 					isset($arParams["PAGE_ID"])
-					&& $arParams["PAGE_ID"] == "user_blog_post_edit_profile"
-					&& $arResult["perms"] = BLOG_PERMS_FULL
+					&& $arParams["PAGE_ID"] === "user_blog_post_edit_profile"
+					&& $arResult["perms"] === BLOG_PERMS_FULL
 				)
 				{
-					?><input type="hidden" name="DEST_CODES[]" value="UP<?=intval($arParams['USER_ID'])?>" /><?
+					?><input type="hidden" name="DEST_CODES[]" value="UP<?=(int)$arParams['USER_ID']?>" /><?php
 				}
-			?></div><? //feed-add-post-form-wrap
-			?><div id="feed-add-post-content-message-add-ins"><?
-				if (in_array('vote', $arResult['tabs']))
+			?></div><?php //feed-add-post-form-wrap
+			?><div id="feed-add-post-content-message-add-ins"><?php
+				if (in_array('vote', $arResult['tabs'], true))
 				{
-					?><div id="feed-add-post-content-vote" style="display: none;"><?
-					if (IsModuleInstalled("vote"))
+					?><div id="feed-add-post-content-vote" style="display: none;"><?php
+					if (ModuleManager::isModuleInstalled("vote"))
 					{
 						$APPLICATION->IncludeComponent(
 							"bitrix:system.field.edit",
 							"vote",
-							array(
+							[
 								"bVarsFromForm" => $arResult['bVarsFromForm'],
-								"arUserField" => $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_VOTE"]),
+								"arUserField" => $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_VOTE"]
+							],
 							null,
-							array("HIDE_ICONS" => "Y")
+							[ "HIDE_ICONS" => "Y" ]
 						);
 					}
-					?></div><?
+					?></div><?php
 				}
-				?><div id="feed-add-post-content-important" style="display: none;"><?
-					?><span style="display: none;"><?
+				?><div id="feed-add-post-content-important" style="display: none;"><?php
+					?><span style="display: none;"><?php
 						$APPLICATION->IncludeComponent(
 							"bitrix:system.field.edit",
 							"integer",
-							array(
+							[
 								"bVarsFromForm" => $arResult['bVarsFromForm'],
-								"arUserField" => $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_IMPRTNT"]),
+								"arUserField" => $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_IMPRTNT"]
+							],
 							null,
-							array("HIDE_ICONS" => "Y")
+							[ "HIDE_ICONS" => "Y" ]
 						);
-					?></span><?
+					?></span><?php
 
-					if (isset($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]) && !empty($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]))
+					if (
+						isset($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"])
+						&& !empty($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"])
+					)
 					{
 						$dateTillPostIsShowing = false;
-						if (isset($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]["VALUE"])
-							&& $arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]["VALUE"])
+						if (
+							isset($arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]["VALUE"])
+							&& $arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]["VALUE"]
+						)
 						{
 							$dateTillPostIsShowing = $arResult["POST_PROPERTIES"]["DATA"]["UF_IMPRTANT_DATE_END"]["VALUE"];
 						}
-						$ufPostEndTimeEditing = $dateTillPostIsShowing ? $dateTillPostIsShowing : "";
+						$ufPostEndTimeEditing = $dateTillPostIsShowing ?: '';
 						?>
 						<div class="feed-add-post-expire-date">
 							<div class="feed-add-post-expire-date-wrap">
 								<div class="feed-add-post-expire-date-inner js-post-expire-date-block
-								<?= $ufPostEndTimeEditing ? 'feed-add-post-expire-date-customize' : ''; ?>">
-									<span class="feed-add-post-expire-date-text"><?= htmlspecialcharsbx(GetMessage("IMPORTANT_TILL_TITLE")); ?></span>
+								<?= ($ufPostEndTimeEditing ? 'feed-add-post-expire-date-customize' : '') ?>">
+									<span class="feed-add-post-expire-date-text"><?= htmlspecialcharsbx(Loc::getMessage('IMPORTANT_TILL_TITLE')) ?></span>
 									<span id="js-post-expire-date-wrapper" class="feed-add-post-expire-date-period ">
-										<span class="feed-add-post-expire-date-duration js-important-till-popup-trigger"><?
-											?><?= htmlspecialcharsbx($dateTillPostIsShowing ?
-												GetMessage("IMPORTANT_FOR_CUSTOM") :
-												GetMessage($arResult["REMAIN_IMPORTANT_DEFAULT_OPTION"]["TEXT_KEY"])) ?><?
+										<span class="feed-add-post-expire-date-duration js-important-till-popup-trigger"><?php
+											?><?= htmlspecialcharsbx(
+												$dateTillPostIsShowing
+													? Loc::getMessage("IMPORTANT_FOR_CUSTOM")
+													: Loc::getMessage($arResult["REMAIN_IMPORTANT_DEFAULT_OPTION"]["TEXT_KEY"])
+											) ?><?php
 										?></span>
 										<div class="js-post-showing-duration-options-container main-ui-hide">
-											<? 	foreach ($arResult["REMAIN_IMPORTANT_TILL"] as $periodAttributes)
-											{?>
+											<?php
+											foreach ($arResult["REMAIN_IMPORTANT_TILL"] as $periodAttributes)
+											{
+												?>
 												<span class="main-ui-hide js-post-showing-duration-option"
-													  data-value="<?=htmlspecialcharsbx($periodAttributes['VALUE']) ; ?>"
-													  data-class="<?=htmlspecialcharsbx($periodAttributes['CLASS']) ; ?>"
-													  data-text="<?= htmlspecialcharsbx(GetMessage($periodAttributes['TEXT_KEY']));?>"></span><?
-											 }; ?>
+													  data-value="<?= htmlspecialcharsbx($periodAttributes['VALUE']) ?>"
+													  data-class="<?= htmlspecialcharsbx($periodAttributes['CLASS']) ?>"
+													  data-text="<?= htmlspecialcharsbx(GetMessage($periodAttributes['TEXT_KEY'])) ?>"></span><?php
+											}
+											?>
 										</div>
-										<span class="js-date-post-showing-custom feed-add-post-expire-date-final"><?= htmlspecialcharsbx($ufPostEndTimeEditing); ?></span>
-										<input class="js-form-editing-post-end-time" type="hidden" name="UF_IMPRTANT_DATE_END_SAVED" value="<?= htmlspecialcharsbx($ufPostEndTimeEditing); ?>">
-										<input class="js-form-post-end-time" type="hidden" name="UF_IMPRTANT_DATE_END" value="<?= htmlspecialcharsbx($ufPostEndTimeEditing); ?>">
+										<span class="js-date-post-showing-custom feed-add-post-expire-date-final"><?= htmlspecialcharsbx($ufPostEndTimeEditing) ?></span>
+										<input class="js-form-editing-post-end-time" type="hidden" name="UF_IMPRTANT_DATE_END_SAVED" value="<?= htmlspecialcharsbx($ufPostEndTimeEditing) ?>">
+										<input class="js-form-post-end-time" type="hidden" name="UF_IMPRTANT_DATE_END" value="<?= htmlspecialcharsbx($ufPostEndTimeEditing) ?>">
 										<input class="js-form-post-end-period" type="hidden" name="postShowingDuration"
-											   value="<?= htmlspecialcharsbx($dateTillPostIsShowing ? "CUSTOM" : $arResult["REMAIN_IMPORTANT_DEFAULT_OPTION"]["VALUE"]); ?>">
+											   value="<?= htmlspecialcharsbx($dateTillPostIsShowing ? "CUSTOM" : $arResult["REMAIN_IMPORTANT_DEFAULT_OPTION"]["VALUE"]) ?>">
 									</span>
 								</div>
 							</div>
 						</div>
 						<script>
 							BX.ready(function(){
-								BX.SocNetPostDateEndData.init();
+								new BX.Socialnetwork.Livefeed.PostFormDateEnd();
 							});
-						</script><?
+						</script><?php
 					}
-				?></div><?
-				if (in_array('grat', $arResult['tabs']))
+				?></div><?php
+				if (in_array('grat', $arResult['tabs'], true))
 				{
-					?><div id="feed-add-post-content-grat" style="display: <?=($arResult['tabActive'] == "grat" ? "block" : "none")?>;"><?
+					?><div id="feed-add-post-content-grat" style="display: <?=($arResult['tabActive'] === "grat" ? "block" : "none")?>;"><?php
 
-						?><div class="feed-add-grat-block feed-add-grat-star"><?
+						?><div class="feed-add-grat-block feed-add-grat-star"><?php
 
 						$grat_type = ""; $title_default = "";
 
@@ -710,162 +808,122 @@ HTML;
 							<div class="feed-add-grat-medal-arrow"></div>
 						</div>
 						<input type="hidden" name="GRAT_TYPE" value="<?=htmlspecialcharsbx($grat_type)?>" id="feed-add-post-grat-type-input">
-						<script type="text/javascript">
-
-							var arGrats = [];
-							var	BXSocNetLogGratFormName = '<?=$this->randString(6)?>';
-							<?
-							if (is_array($arResult["PostToShow"]["GRATS"]))
-							{
-								foreach($arResult["PostToShow"]["GRATS"] as $i => $arGrat)
-								{
-									?>
-									arGrats[<?=CUtil::JSEscape($i)?>] = {
-										'title': '<?=CUtil::JSEscape($arGrat["VALUE"])?>',
-										'code': '<?=CUtil::JSEscape($arGrat["XML_ID"])?>',
-										'style': 'feed-add-grat-medal-<?=CUtil::JSEscape($arGrat["XML_ID"])?>'
-									};
-									<?
-								}
-							}
-							?>
+						<script>
 
 							BX.ready(function(){
-								BX.SocNetGratSelector.init({
-									name : BXSocNetLogGratFormName,
-									itemSelectedImageItem : BX('feed-add-post-grat-type-selected'),
-									itemSelectedInput : BX('feed-add-post-grat-type-input')
-								});
 
-								BX.bind(BX('feed-add-post-grat-type-selected'), 'click', function(e) {
-									BX.SocNetGratSelector.openDialog(BXSocNetLogGratFormName);
-									BX.PreventDefault(e);
+								var arGrats = [];
+								var	BXSocNetLogGratFormName = '<?=$this->randString(6)?>';
+								<?php
+								if (is_array($arResult["PostToShow"]["GRATS"]))
+								{
+									foreach ($arResult["PostToShow"]["GRATS"] as $i => $arGrat)
+									{
+										?>
+										arGrats[<?=CUtil::JSEscape($i)?>] = {
+											'title': '<?=CUtil::JSEscape($arGrat["VALUE"])?>',
+											'code': '<?=CUtil::JSEscape($arGrat["XML_ID"])?>',
+											'style': 'feed-add-grat-medal-<?=CUtil::JSEscape($arGrat["XML_ID"])?>'
+										};
+										<?php
+									}
+								}
+
+								$selectorId = Random::getString(6);
+								?>
+
+								new BX.Socialnetwork.Livefeed.PostFormGratSelector({
+									name: BXSocNetLogGratFormName,
+									gratsList: arGrats,
+									itemSelectedImageItem: document.getElementById('feed-add-post-grat-type-selected'),
+									itemSelectedInput: document.getElementById('feed-add-post-grat-type-input'),
+									entitySelectorParams: {
+										id: '<?=CUtil::JSescape($selectorId)?>',
+										tagNodeId: 'entity-selector-<?=CUtil::JSescape($selectorId)?>',
+										inputNodeId: 'entity-selector-data-<?=CUtil::JSescape($selectorId)?>',
+										preselectedItems: <?=CUtil::PhpToJSObject($arResult['selectedGratitudeEntities'])?>,
+									}
 								});
 							});
 
 						</script>
 						<div class="feed-add-grat-right">
-							<div class="feed-add-grat-label"><?=GetMessage("BLOG_TITLE_GRAT")?></div>
-							<div class="feed-add-grat-form"><?
-
-								$APPLICATION->IncludeComponent(
-									"bitrix:main.user.selector",
-									"",
-									[
-										"ID" => 'grat_'.randString(6),
-										"LAZYLOAD" => 'Y',
-										"LIST" => (is_array($arResult['arGratCurrentUsers']) ? $arResult['arGratCurrentUsers'] : array()),
-										"INPUT_NAME" => 'GRAT_DEST_CODES[]',
-										"USE_SYMBOLIC_ID" => true,
-										"BUTTON_SELECT_CAPTION" => Loc::getMessage("BLOG_GRATMEDAL_1"),
-										"BUTTON_SELECT_CAPTION_MORE" => Loc::getMessage("BLOG_GRATMEDAL_1"),
-										"API_VERSION" => 3,
-										"SELECTOR_OPTIONS" => array(
-											'lazyLoad' => 'Y',
-											'context' => 'GRATITUDE',
-											'contextCode' => '',
-											'enableSonetgroups' => 'N',
-											'departmentSelectDisable' => 'Y',
-											'showVacations' => 'N',
-											'disableLast' => 'Y',
-											'enableAll' => 'N',
-											'lheName' => $jsObjName,
-											'userSearchArea' => 'I'
-										)
-									]
-								);
-								?>
-								<script>
-									BX.message({
-										'BLOG_GRAT_POPUP_TITLE': '<?=GetMessageJS("BLOG_GRAT_POPUP_TITLE")?>'
-									});
-								</script>
+							<div class="feed-add-grat-label"><?=Loc::getMessage("BLOG_TITLE_GRAT")?></div>
+							<div class="feed-add-grat-form">
+								<input type="hidden" id="entity-selector-data-<?= htmlspecialcharsbx($selectorId) ?>" name="GRAT_DEST_DATA" value="<?= htmlspecialcharsbx(Json::encode($arResult['selectedGratitudeEntities'])) ?>" />
+								<div id="entity-selector-<?=htmlspecialcharsbx($selectorId)?>"></div>
+							</div>
 						</div>
-					</div>
-					</div><?
-					?></div><?
+					</div><?php
+					?></div><?php
 				}
 
 				if (!empty($arResult['POST_PROPERTIES']['DATA']['UF_MAIL_MESSAGE']['VALUE']))
 				{
 					?>
 					<div id="blog-post-user-fields-UF_MAIL_MESSAGE" style="padding-top: 15px; padding-bottom: 15px; ">
-						<? $APPLICATION->includeComponent(
+						<?php
+						$APPLICATION->includeComponent(
 							'bitrix:system.field.edit',
 							$arResult['POST_PROPERTIES']['DATA']['UF_MAIL_MESSAGE']['USER_TYPE']['USER_TYPE_ID'],
-							array('arUserField' => $arResult['POST_PROPERTIES']['DATA']['UF_MAIL_MESSAGE']),
+							[ 'arUserField' => $arResult['POST_PROPERTIES']['DATA']['UF_MAIL_MESSAGE'] ],
 							null,
-							array('HIDE_ICONS' => 'Y')
-						); ?>
+							[ 'HIDE_ICONS' => 'Y' ]
+						);
+						?>
 					</div>
 					<div class="blog-clear-float"></div>
-					<?
+					<?php
 				}
 
 				foreach ($arResult["POST_PROPERTIES"]["DATA"] as $FIELD_NAME => $arPostField)
 				{
-					if(in_array($FIELD_NAME, $arParams["POST_PROPERTY_SOURCE"]))
+					if (in_array($FIELD_NAME, $arParams["POST_PROPERTY_SOURCE"], true))
 					{
 						?>
 						<div id="blog-post-user-fields-<?=$FIELD_NAME?>"><?=$arPostField["EDIT_FORM_LABEL"].":"?>
-							<?$APPLICATION->IncludeComponent(
+							<?php
+							$APPLICATION->IncludeComponent(
 								"bitrix:system.field.edit",
 								$arPostField["USER_TYPE"]["USER_TYPE_ID"],
-								array("arUserField" => $arPostField), null, array("HIDE_ICONS"=>"Y"));?>
+								[ "arUserField" => $arPostField ],
+								null,
+								[ "HIDE_ICONS"=>"Y" ]
+							);
+							?>
 						</div>
 						<div class="blog-clear-float"></div>
-						<?
+						<?php
 					}
 				}
 
-				if (in_array('calendar', $arResult['tabs']))
+				if (in_array('calendar', $arResult['tabs'], true))
 				{
-					?>
-					<div id="feed-add-post-content-calendar" style="display: none;">
-						<?
-						$APPLICATION->IncludeComponent("bitrix:calendar.livefeed.edit", '',
-							array(
-								"EVENT_ID" => '',
-								"UPLOAD_FILE" => (!empty($arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"]) ? false : $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_DOC"]),
-								"UPLOAD_WEBDAV_ELEMENT" => $arResult["POST_PROPERTIES"]["DATA"]["UF_BLOG_POST_FILE"],
-								"UPLOAD_FILE_PARAMS" => array('width' => $arParams["IMAGE_MAX_WIDTH"], 'height' => $arParams["IMAGE_MAX_HEIGHT"]),
-								"FILES" => Array(
-									"VALUE" => $arResult["Images"],
-									"POSTFIX" => "file",
-								),
-								"DESTINATION" => array(
-									"VALUE" => (isset($arResult["PostToShow"]["FEED_DESTINATION_CALENDAR"]) ? $arResult["PostToShow"]["FEED_DESTINATION_CALENDAR"] : $arResult["PostToShow"]["FEED_DESTINATION"]),
-									"SHOW" => "Y"
-								),
-								"DEST_SORT" => (isset($arResult["DEST_SORT_CALENDAR"]) ? $arResult["DEST_SORT_CALENDAR"] : $arResult["DEST_SORT"]),
-								"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"]
-
-							), null, array("HIDE_ICONS"=>"Y"));
-						?>
-					</div>
-					<?
+					?><div id="feed-add-post-content-calendar" style="display: none;"></div><?php
 				}
 
-				if(in_array('lists', $arResult['tabs']))
+				if (in_array('lists', $arResult['tabs'], true))
 				{
 					?>
 					<div id="feed-add-post-content-lists" style="display: none;">
-						<?
+						<?php
 						$APPLICATION->IncludeComponent("bitrix:lists.live.feed", "",
-							array(
+							[
 								"SOCNET_GROUP_ID" => $arParams["SOCNET_GROUP_ID"],
 								"DESTINATION" => $arResult["PostToShow"],
-								"IBLOCK_ID" => isset($_GET['bp_setting']) ? $_GET['bp_setting'] : 0
-							), null, array("HIDE_ICONS" => "Y")
+								"IBLOCK_ID" => $_GET['bp_setting'] ?? 0
+							],
+							null,
+							[ "HIDE_ICONS" => "Y" ]
 						);
 						?>
 					</div>
-					<?
+					<?php
 				}
 
-				if(in_array('tasks', $arResult['tabs']))
+				if (in_array('tasks', $arResult['tabs'], true))
 				{
-					?><div id="feed-add-post-content-tasks" style="display: none;"><div id="feed-add-post-content-tasks-container"><?
+					?><div id="feed-add-post-content-tasks" style="display: none;"><div id="feed-add-post-content-tasks-container"><?php
 
 						$taskSubmitted = false;
 
@@ -878,8 +936,8 @@ HTML;
 							{
 								if (
 									!empty($taskAction['OPERATION'])
-									&& $taskAction['OPERATION'] == 'task.add'
-									&& CModule::IncludeModule('tasks')
+									&& $taskAction['OPERATION'] === 'task.add'
+									&& Loader::includeModule('tasks')
 								)
 								{
 									$taskSubmitted = true;
@@ -892,7 +950,7 @@ HTML;
 						{
 							CTaskNotifications::enableSonetLogNotifyAuthor();
 
-							$componentParameters = array(
+							$componentParameters = [
 								'ID' => 0,
 								'GROUP_ID' => $arParams['SOCNET_GROUP_ID'],
 								'PATH_TO_USER_PROFILE' => $arParams['PATH_TO_USER_PROFILE'],
@@ -910,36 +968,36 @@ HTML;
 								'NAME_TEMPLATE' => $arParams["NAME_TEMPLATE"],
 								'ENABLE_FOOTER' => 'N',
 								'ENABLE_MENU_TOOLBAR' => 'N',
-								'SUB_ENTITY_SELECT' => array(
+								'SUB_ENTITY_SELECT' => [
 									'TAG',
 									'CHECKLIST',
 									'REMINDER',
 									'PROJECTDEPENDENCE',
 									'TEMPLATE',
 									'RELATEDTASK'
-								), // change to API call
-								'AUX_DATA_SELECT' => array(
+								], // change to API call
+								'AUX_DATA_SELECT' => [
 									'COMPANY_WORKTIME',
 									'USER_FIELDS',
 									'TEMPLATE'
-								), // change to API call
+								], // change to API call
 								'BACKURL' => $arParams['TASK_SUBMIT_BACKURL'],
 								'ACTION' => 'edit'
-							);
+							];
 
 							$APPLICATION->IncludeComponent('bitrix:tasks.task', '',
 								$componentParameters,
 								null,
-								array("HIDE_ICONS" => "Y")
+								[ "HIDE_ICONS" => "Y" ]
 							);
 
 							CTaskNotifications::disableSonetLogNotifyAuthor();
 						}
-						?></div></div><?
+						?></div></div><?php
 				}
 
 				?></div>
-				<script type="text/javascript">
+				<script>
 					BX.message({
 						'BLOG_TITLE' : '<?=GetMessageJS("BLOG_TITLE")?>',
 						'BLOG_TAB_GRAT': '<?=GetMessageJS("BLOG_TAB_GRAT")?>',
@@ -950,12 +1008,12 @@ HTML;
 						'SBPE_CALENDAR_EVENT': '<?=GetMessageJS("SBPE_CALENDAR_EVENT")?>',
 						'LISTS_CATALOG_PROCESSES_ACCESS_DENIED' : '<?=GetMessageJS("LISTS_CATALOG_PROCESSES_ACCESS_DENIED")?>'
 					});
-					<?
-					if(in_array('tasks', $arResult['tabs']))
+					<?php
+					if (in_array('tasks', $arResult['tabs'], true))
 					{
 						?>
 						BX.message({
-							'TASK_SOCNET_GROUP_ID' : <?=intval($arParams['SOCNET_GROUP_ID'])?>,
+							'TASK_SOCNET_GROUP_ID' : <?=(int)$arParams['SOCNET_GROUP_ID']?>,
 							'PATH_TO_USER_PROFILE' : '<?=CUtil::JSEscape($arParams['PATH_TO_USER_PROFILE'])?>',
 							'PATH_TO_GROUP' : '<?=CUtil::JSEscape($arParams['PATH_TO_GROUP'])?>',
 							'PATH_TO_USER_TASKS' : '<?=CUtil::JSEscape($arParams['PATH_TO_USER_TASKS'])?>',
@@ -967,110 +1025,121 @@ HTML;
 							'LOG_EXPERT_MODE' : '<?=(isset($arParams["LOG_EXPERT_MODE"]) ? CUtil::JSEscape($arParams['LOG_EXPERT_MODE']) : 'N')?>',
 							'TASK_SUBMIT_BACKURL' : '<?=CUtil::JSEscape($arParams['TASK_SUBMIT_BACKURL'])?>'
 						});
-						<?
+						<?php
 					}
 					?>
-					BX.SocnetBlogPostInit('<?=$arParams["FORM_ID"]?>', {
-						editorID : '<?=$id?>',
-						showTitle : '<?=$bShowTitle?>',
-						autoSave : '<?=(COption::GetOptionString("blog", "use_autosave", "Y") == "Y" ? ($arParams["ID"] > 0 ? "onDemand" : "Y") : 'N')?>',
-						activeTab : '<?=($arResult['bVarsFromForm'] || $arParams["ID"] > 0 ? CUtil::JSEscape($arResult['tabActive']) : '')?>',
-						text : '<?=CUtil::JSEscape($formParams["TEXT"]["VALUE"])?>',
-						restoreAutosave : <?=(empty($arResult["ERROR_MESSAGE"]) ? 'true' : 'false')?>
+					new BX.Socialnetwork.Livefeed.PostFormEditor('<?=$arParams["FORM_ID"]?>', {
+						editorID: '<?=$id?>',
+						showTitle: '<?=$bShowTitle?>',
+						autoSave: '<?=(COption::GetOptionString("blog", "use_autosave", "Y") === "Y" ? ($arParams["ID"] > 0 ? "onDemand" : "Y") : 'N')?>',
+						activeTab: '<?=($arResult['bVarsFromForm'] || $arParams["ID"] > 0 ? CUtil::JSEscape($arResult['tabActive']) : '')?>',
+						text: '<?=CUtil::JSEscape($formParams["TEXT"]["VALUE"])?>',
+						restoreAutosave: <?=(empty($arResult["ERROR_MESSAGE"]) ? 'true' : 'false')?>,
+						createdFromEmail: <?= (!empty($arResult['POST_PROPERTIES']['DATA']['UF_MAIL_MESSAGE']['VALUE']) ? 'true' : 'false') ?>,
 					});
+
 				</script>
-				<?
-				if(COption::GetOptionString("blog", "use_autosave", "Y") == "Y")
+				<?php
+				if (Option::get('blog', 'use_autosave', 'Y') === "Y")
 				{
-					$dynamicArea = new \Bitrix\Main\Page\FrameStatic("post-autosave");
+					$dynamicArea = new FrameStatic("post-autosave");
 					$dynamicArea->startDynamicArea();
 					$as = new CAutoSave();
 					$as->Init(false);
 					$dynamicArea->finishDynamicArea();
 				}
-				$arButtons = Array(
-					Array(
+				$arButtons = [
+					[
 						"NAME" => "save",
-						"TEXT" => GetMessage(!empty($arResult["Post"]) && !empty($arResult["Post"]["PUBLISH_STATUS"]) && $arResult["Post"]["PUBLISH_STATUS"] == BLOG_PUBLISH_STATUS_DRAFT ? "BLOG_BUTTON_PUBLISH" : "BLOG_BUTTON_SEND"),
+						"TEXT" => GetMessage(!empty($arResult["Post"]) && !empty($arResult["Post"]["PUBLISH_STATUS"]) && $arResult["Post"]["PUBLISH_STATUS"] === BLOG_PUBLISH_STATUS_DRAFT ? "BLOG_BUTTON_PUBLISH" : "BLOG_BUTTON_SEND"),
 						"CLICK" => "submitBlogPostForm();",
-					),
-				);
+					],
+				];
 
-				if(
-					$arParams["MICROBLOG"] != "Y"
+				if (
+					$arParams["MICROBLOG"] !== "Y"
+					&& (int)$arResult['UserID'] === (int)$arResult['Blog']['OWNER_ID']
 					&& !in_array($arParams["PAGE_ID"], [ "user_blog_post_edit_profile", "user_blog_post_edit_grat", "user_grat", "user_blog_post_edit_post" ])
 				)
 				{
-					$arButtons[] = Array(
+					$arButtons[] = [
 						"NAME" => "draft",
 						"TEXT" => GetMessage("BLOG_BUTTON_DRAFT")
-					);
+					];
 				}
 				else
 				{
-					$arButtons[] = Array(
+					$arButtons[] = [
 						"NAME" => "cancel",
 						"TEXT" => GetMessage("BLOG_BUTTON_CANCEL"),
-						"CLICK" => "window.SBPETabs.getInstance().collapse({ userId: ".intval($arParams['USER_ID'])."})",
+						"CLICK" => "BX.Socialnetwork.Livefeed.PostFormTabs.getInstance().collapse({ userId: ".(int)$arParams['USER_ID']."})",
 						"CLEAR_CANCEL" => "Y",
-					);
+					];
 				}
 
-				?><div class="feed-buttons-block" id="feed-add-buttons-block<?=$arParams["FORM_ID"]?>" style="display:none;"><?
-					$scriptFunc = array();
-					foreach($arButtons as $val)
+				?><div class="feed-add-post-bottom-alert" id="feed-add-post-bottom-alert<?= $arParams['FORM_ID'] ?>"></div><?php
+
+				?><div class="feed-buttons-block" id="feed-add-buttons-block<?=$arParams["FORM_ID"]?>" style="display:none;"><?php
+					$scriptFunc = [];
+					foreach ($arButtons as $val)
 					{
 						$onclick = $val["CLICK"];
-						if($onclick == '')
-							$onclick = "submitBlogPostForm('".$val["NAME"]."'); ";
-						$scriptFunc[$val["NAME"]] = $onclick;
-						if($val["CLEAR_CANCEL"] == "Y")
+						if ((string)$onclick === '')
 						{
-							?><button class="ui-btn ui-btn-lg ui-btn-link" id="blog-submit-button-<?=$val["NAME"]?>"><?=$val["TEXT"]?></button><?
+							$onclick = "submitBlogPostForm('".$val["NAME"]."'); ";
+						}
+						$scriptFunc[$val["NAME"]] = $onclick;
+						if ($val["CLEAR_CANCEL"] === "Y")
+						{
+							?><button class="ui-btn ui-btn-lg ui-btn-link" id="blog-submit-button-<?=$val["NAME"]?>"><?=$val["TEXT"]?></button><?php
 						}
 						else
 						{
-							?><button class="ui-btn ui-btn-lg ui-btn-primary" id="blog-submit-button-<?=$val["NAME"]?>"><?=$val["TEXT"]?></button><?
+							?><button class="ui-btn ui-btn-lg ui-btn-primary" id="blog-submit-button-<?=$val["NAME"]?>"><?=$val["TEXT"]?></button><?php
 						}
 					}
 					if (!empty($scriptFunc))
 					{
-						?><script>BX.ready(function(){<?
-						foreach ($scriptFunc as $id => $handler)
-						{
-							?>BX.bind(BX("blog-submit-button-<?=$id?>"), "click", function(e) {
-								<?=$handler?>;
-								return e.preventDefault();
-							});<?
-						}
-						?>});
-						</script><?
+						?><script>
+						BX.ready(function(){
+							<?php
+							foreach ($scriptFunc as $id => $handler)
+							{
+								?>BX.bind(BX("blog-submit-button-<?=$id?>"), "click", function(e) {
+									<?= $handler ?>;
+									return e.preventDefault();
+								});
+								<?php
+							}
+							?>
+						});
+						</script><?php
 					}
 				?></div>
 			<input type="hidden" name="blog_upload_cid" id="upload-cid" value="">
-		</form><?
-		?><div id="task_form_hidden" style="display: none;"></div><?
-		?></div><?
+		</form><?php
+		?><div id="task_form_hidden" style="display: none;"></div><?php
+		?></div><?php
 
-		if ($_POST["action"] == "SBPE_get_full_form")
+		if ($_POST["action"] === "SBPE_get_full_form")
 		{
 			$strFullForm = ob_get_contents();
-			while (ob_end_clean());
+			while (ob_end_clean()) {}
 
-			$JSList = $stringsList = array();
+			$JSList = $stringsList = [];
 
-			\Bitrix\Main\Page\Asset::getInstance()->getJs();
-			$CSSStrings = \Bitrix\Main\Page\Asset::getInstance()->getCss();
-			\Bitrix\Main\Page\Asset::getInstance()->getStrings();
+			Asset::getInstance()->getJs();
+			$CSSStrings = Asset::getInstance()->getCss();
+			Asset::getInstance()->getStrings();
 
-			$targetTypeList = array('JS'/*, 'CSS'*/);
-			foreach($targetTypeList as $targetType)
+			$targetTypeList = [ 'JS'/*, 'CSS'*/ ];
+			foreach ($targetTypeList as $targetType)
 			{
-				$targetAssetList = \Bitrix\Main\Page\Asset::getInstance()->getTargetList($targetType);
+				$targetAssetList = Asset::getInstance()->getTargetList($targetType);
 
-				foreach($targetAssetList as $targetAsset)
+				foreach ($targetAssetList as $targetAsset)
 				{
-					$assetInfo = \Bitrix\Main\Page\Asset::getInstance()->getAssetInfo($targetAsset['NAME'], \Bitrix\Main\Page\AssetMode::ALL);
+					$assetInfo = Asset::getInstance()->getAssetInfo($targetAsset['NAME'], \Bitrix\Main\Page\AssetMode::ALL);
 					if (!empty($assetInfo['JS']))
 					{
 						$JSList = array_merge($JSList, $assetInfo['JS']);
@@ -1084,15 +1153,15 @@ HTML;
 
 			$JSList = array_unique($JSList);
 
-			echo CUtil::PhpToJSObject(array(
-				"PROPS" => array(
+			echo CUtil::PhpToJSObject([
+				"PROPS" => [
 					"CONTENT" => $CSSStrings.implode('', $stringsList).$strFullForm,
-					"STRINGS" => array(),
+					"STRINGS" => [],
 					"JS" => $JSList,
-					"CSS" => array()
-				),
+					"CSS" => []
+				],
 				"success" => true
-			));
+			]);
 			die();
 		}
 	}

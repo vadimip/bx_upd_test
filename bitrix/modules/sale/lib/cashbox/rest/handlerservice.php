@@ -29,9 +29,6 @@ class HandlerService extends RestService
 	/**
 	 * @param $params
 	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
 	 */
 	private static function checkParamsBeforeAddHandler($params)
 	{
@@ -66,25 +63,13 @@ class HandlerService extends RestService
 	/**
 	 * @param $params
 	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
+	 * @throws AccessException
 	 */
 	private static function checkParamsBeforeUpdateHandler($params)
 	{
 		if (empty($params['ID']))
 		{
 			throw new RestException('Parameter ID is not defined', self::ERROR_CHECK_FAILURE);
-		}
-
-		if (empty($params['FIELDS']) || !is_array($params['FIELDS']))
-		{
-			throw new RestException('Parameter FIELDS is not defined', self::ERROR_CHECK_FAILURE);
-		}
-
-		if (isset($params['FIELDS']['SETTINGS']))
-		{
-			self::checkHandlerSettings($params['FIELDS']['SETTINGS']);
 		}
 
 		$handler = CashboxRestHandlerTable::getList([
@@ -96,14 +81,27 @@ class HandlerService extends RestService
 		{
 			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
 		}
+
+		if ($params['APP_ID'] && !empty($handler['APP_ID']) && $handler['APP_ID'] !== $params['APP_ID'])
+		{
+			throw new AccessException();
+		}
+
+		if (empty($params['FIELDS']) || !is_array($params['FIELDS']))
+		{
+			throw new RestException('Parameter FIELDS is not defined', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (isset($params['FIELDS']['SETTINGS']))
+		{
+			self::checkHandlerSettings($params['FIELDS']['SETTINGS']);
+		}
 	}
 
 	/**
 	 * @param $params
 	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
+	 * @throws AccessException
 	 */
 	private static function checkParamsBeforeDeleteHandler($params)
 	{
@@ -120,6 +118,11 @@ class HandlerService extends RestService
 		if (!$handler)
 		{
 			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
+		}
+
+		if ($params['APP_ID'] && !empty($handler['APP_ID']) && $handler['APP_ID'] !== $params['APP_ID'])
+		{
+			throw new AccessException();
 		}
 
 		$cashboxListResult = Manager::getList([
@@ -171,18 +174,13 @@ class HandlerService extends RestService
 
 	/**
 	 * @param $params
+	 * @param \CRestServer $server
 	 * @return array|bool|int
-	 * @throws AccessException
-	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\LoaderException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function addHandler($params)
+	public static function addHandler($params, $page, \CRestServer $server)
 	{
 		Helpers\Rest\AccessChecker::checkAccessPermission();
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 		self::checkParamsBeforeAddHandler($params);
 
 		if (!isset($params['SETTINGS']['SUPPORTS_FFD105']))
@@ -195,6 +193,7 @@ class HandlerService extends RestService
 			'CODE' => $params['CODE'],
 			'SORT' => $params['SORT'] ?: 100,
 			'SETTINGS' => $params['SETTINGS'],
+			'APP_ID' => $params['APP_ID'],
 		]);
 
 		if ($result->isSuccess())
@@ -208,17 +207,12 @@ class HandlerService extends RestService
 	/**
 	 * @param $params
 	 * @return bool
-	 * @throws AccessException
 	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\LoaderException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function updateHandler($params)
+	public static function updateHandler($params, $page, \CRestServer $server)
 	{
 		Helpers\Rest\AccessChecker::checkAccessPermission();
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 		self::checkParamsBeforeUpdateHandler($params);
 
 		$result = CashboxRestHandlerTable::update($params['ID'], $params['FIELDS']);
@@ -234,17 +228,12 @@ class HandlerService extends RestService
 	/**
 	 * @param $params
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
-	public static function deleteHandler($params)
+	public static function deleteHandler($params, $page, \CRestServer $server)
 	{
 		Helpers\Rest\AccessChecker::checkAccessPermission();
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 		self::checkParamsBeforeDeleteHandler($params);
 
 		$result = CashboxRestHandlerTable::delete($params['ID']);
@@ -259,16 +248,21 @@ class HandlerService extends RestService
 
 	/**
 	 * @return array
-	 * @throws AccessException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\LoaderException
-	 * @throws \Bitrix\Main\ObjectPropertyException
-	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function getHandlerList()
+	public static function getHandlerList($params, $page, \CRestServer $server)
 	{
 		Helpers\Rest\AccessChecker::checkAccessPermission();
 
-		return Manager::getRestHandlersList();
+		$result = [];
+
+		$dbRes = CashboxRestHandlerTable::getList([
+			'select' => ['ID', 'NAME', 'CODE', 'SORT', 'SETTINGS'],
+		]);
+		while ($item = $dbRes->fetch())
+		{
+			$result[] = $item;
+		}
+
+		return $result;
 	}
 }

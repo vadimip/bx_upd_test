@@ -1,4 +1,5 @@
 <?php
+
 namespace Bitrix\Socialnetwork\Component;
 
 use Bitrix\Main\ErrorCollection;
@@ -16,154 +17,109 @@ use Bitrix\Socialnetwork\Component\LogList\Processor;
 use Bitrix\Socialnetwork\Component\LogList\Page;
 use Bitrix\Socialnetwork\Component\LogList\Counter;
 
-class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\Controllerable, \Bitrix\Main\Errorable
+class LogList extends \Bitrix\Socialnetwork\Component\LogListCommon
 {
-	/** @var ErrorCollection errorCollection */
-	protected $errorCollection;
-
 	protected $extranetSite = false;
 	protected $presetFilterTopId = false;
 	protected $presetFilterId = false;
 	protected $commentsNeeded = false;
-	protected $currentUserAdmin = false;
 	protected $activity2LogList = [];
 	protected $diskUFEntityList = [
 		'BLOG_POST' => [],
 		'SONET_LOG' => []
 	];
 
-	protected $request = null;
-	protected $gratitudesInstance = null;
-	protected $paramsInstance = null;
-	protected $assetsInstance = null;
-	protected $pathInstance = null;
-	protected $paramsPhotogalleryInstance = null;
-	protected $processorInstance = null;
-	protected $logPageProcessorInstance = null;
-	protected $counterProcessorInstance = null;
+	protected $gratitudesInstance;
+	protected $paramsInstance;
+	protected $assetsInstance;
+	protected $pathInstance;
+	protected $paramsPhotogalleryInstance;
+	protected $processorInstance;
+	protected $logPageProcessorInstance;
+	protected $counterProcessorInstance;
 
 	public $useLogin = false;
 
 	public static $canCurrentUserAddComments = [];
 
-	public function configureActions()
-	{
-		return [];
-	}
-
-	public function getErrorByCode($code)
-	{
-		return $this->errorCollection->getErrorByCode($code);
-	}
-
-	/**
-	 * Getting array of errors.
-	 * @return Error[]
-	 */
-	public function getErrors()
-	{
-		return $this->errorCollection->toArray();
-	}
-
-	protected function printErrors()
-	{
-		foreach($this->errorCollection as $error)
-		{
-			ShowError($error);
-		}
-	}
-
-	protected function getRequest()
-	{
-		if ($this->request == null)
-		{
-			$this->request = Util::getRequest();
-		}
-
-		return $this->request;
-	}
-
-	public function setExtranetSiteValue($value = false)
+	public function setExtranetSiteValue($value = false): void
 	{
 		$this->extranetSite = ($value === true);
 	}
-	public function getExtranetSiteValue()
+
+	public function getExtranetSiteValue(): bool
 	{
 		return $this->extranetSite;
 	}
 
-	public function setPresetFilterTopIdValue($value)
+	public function setPresetFilterTopIdValue($value): void
 	{
 		$this->presetFilterTopId = $value;
 	}
+
 	public function getPresetFilterTopIdValue()
 	{
 		return $this->presetFilterTopId;
 	}
 
-	public function setPresetFilterIdValue($value)
+	public function setPresetFilterIdValue($value): void
 	{
 		$this->presetFilterId = $value;
 	}
+
 	public function getPresetFilterIdValue()
 	{
 		return $this->presetFilterId;
 	}
 
-	public function setCommentsNeededValue($value = false)
+	public function setCommentsNeededValue($value = false): void
 	{
 		$this->commentsNeeded = ($value === true);
 	}
-	public function getCommentsNeededValue()
+
+	public function getCommentsNeededValue(): bool
 	{
 		return $this->commentsNeeded;
 	}
 
-	public function setCurrentUserAdmin($value = false)
-	{
-		$this->currentUserAdmin = $value;
-	}
-	public function getCurrentUserAdmin()
-	{
-		return $this->currentUserAdmin;
-	}
-
-	public function setActivity2LogListValue($value = [])
+	public function setActivity2LogListValue($value = []): void
 	{
 		$this->activity2LogList = $value;
 	}
+
 	public function getActivity2LogListValue()
 	{
 		return $this->activity2LogList;
 	}
 
-	public function setDiskUFEntityListValue($value = [])
+	public function setDiskUFEntityListValue($value = []): void
 	{
 		$this->diskUFEntityList = $value;
 	}
+
 	public function getDiskUFEntityListValue()
 	{
 		return $this->diskUFEntityList;
 	}
 
-	protected function processParentParams(&$params)
+	protected function processParentParams(&$params): void
 	{
 		$parent = $this->getParent();
-		if(is_object($parent) && $parent->__name <> '')
+		if (is_object($parent) && $parent->__name <> '')
 		{
 			$this->getParamsInstance()->prepareParentParams($params);
 			$this->getParamsPhotogalleryInstance()->prepareParentPhotogalleryParams($params);
 
 			// parent of 2nd level
 			$parent2 = $parent->getParent();
-			if(is_object($parent2) && $parent2->__name <> '')
+			if (is_object($parent2) && $parent2->__name <> '')
 			{
 				$this->getParamsInstance()->prepareParent2Params($params);
 			}
 		}
 	}
 
-	protected function getGratitudesInstance()
+	protected function getGratitudesInstance(): Gratitude
 	{
 		if($this->gratitudesInstance === null)
 		{
@@ -175,7 +131,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->gratitudesInstance;
 	}
 
-	protected function getParamsInstance()
+	protected function getParamsInstance(): Param
 	{
 		if($this->paramsInstance === null)
 		{
@@ -188,7 +144,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->paramsInstance;
 	}
 
-	public function getAssetsInstance()
+	public function getAssetsInstance(): Assets
 	{
 		if($this->assetsInstance === null)
 		{
@@ -200,7 +156,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->assetsInstance;
 	}
 
-	public function getPathInstance()
+	public function getPathInstance(): Path
 	{
 		if($this->pathInstance === null)
 		{
@@ -213,7 +169,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->pathInstance;
 	}
 
-	public function getParamsPhotogalleryInstance()
+	public function getParamsPhotogalleryInstance(): ParamPhotogallery
 	{
 		if($this->paramsPhotogalleryInstance === null)
 		{
@@ -225,7 +181,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->paramsPhotogalleryInstance;
 	}
 
-	protected function getProcessorInstance()
+	protected function getProcessorInstance(): Processor
 	{
 		if($this->processorInstance === null)
 		{
@@ -238,7 +194,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->processorInstance;
 	}
 
-	public function getLogPageProcessorInstance()
+	public function getLogPageProcessorInstance(): Page
 	{
 		if($this->logPageProcessorInstance === null)
 		{
@@ -252,7 +208,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->logPageProcessorInstance;
 	}
 
-	public function getCounterProcessorInstance()
+	public function getCounterProcessorInstance(): Counter
 	{
 		if($this->counterProcessorInstance === null)
 		{
@@ -266,7 +222,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $this->counterProcessorInstance;
 	}
 
-	public function onPrepareComponentParams($params)
+	public function onPrepareComponentParams($params): array
 	{
 		global $USER;
 
@@ -279,7 +235,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$this->setExtranetSiteValue((Loader::includeModule('extranet') && \CExtranet::isExtranetSite()));
 		$this->setCommentsNeededValue(
 			$request->get('log_filter_submit') <> ''
-			&& $request->get('flt_comments')== 'Y'
+			&& $request->get('flt_comments') === 'Y'
 		);
 
 		Util::checkEmptyParamInteger($params, 'LOG_CNT', 0);
@@ -288,10 +244,15 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		Util::checkEmptyParamString($params, 'SHOW_EVENT_ID_FILTER', 'Y');
 		Util::checkEmptyParamInteger($params, 'LOG_ID', 0);
 
-		$params['HIDE_EDIT_FORM'] = ($params['LOG_ID'] > 0 ? 'Y' : (isset($params['HIDE_EDIT_FORM']) ? $params['HIDE_EDIT_FORM'] : 'N'));
+		$params['HIDE_EDIT_FORM'] = ($params['LOG_ID'] > 0 ? 'Y' : ($params['HIDE_EDIT_FORM'] ?? 'N'));
 		$params['SHOW_EVENT_ID_FILTER'] = ($params['LOG_ID'] > 0 ? 'N' : $params['SHOW_EVENT_ID_FILTER']);
-		$params['AUTH'] = (isset($params['AUTH']) && mb_strtoupper($params['AUTH']) == 'Y' ? 'Y' : 'N');
-		$params['PAGE_NUMBER'] = (isset($params['PAGE_NUMBER']) && intval($params['PAGE_NUMBER']) > 0 ? intval($params['PAGE_NUMBER']) : 1);
+		$params['AUTH'] = (isset($params['AUTH']) && mb_strtoupper($params['AUTH']) === 'Y' ? 'Y' : 'N');
+		$params['PAGE_NUMBER'] = (
+			isset($params['PAGE_NUMBER'])
+			&& (int)$params['PAGE_NUMBER'] > 0
+				? (int)$params['PAGE_NUMBER']
+				: 1
+		);
 
 		$paramsInstance->prepareModeParams($params);
 		$paramsInstance->prepareFollowParams($params);
@@ -301,17 +262,13 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$params['IS_CRM'] = (
 			!ModuleManager::isModuleInstalled('crm')
 				? 'N'
-				: (
-					isset($params['IS_CRM'])
-						? $params['IS_CRM']
-						: 'N'
-				)
+				: ($params['IS_CRM'] ?? 'N')
 		);
 
-		$params['SHOW_LOGIN'] = (isset($params['SHOW_LOGIN']) ? $params['SHOW_LOGIN'] : 'Y');
-		$this->useLogin = ($params['SHOW_LOGIN'] != 'N');
+		$params['SHOW_LOGIN'] = ($params['SHOW_LOGIN'] ?? 'Y');
+		$this->useLogin = ($params['SHOW_LOGIN'] !== 'N');
 
-		$params['SHOW_UNREAD'] = ($USER->isAuthorized() && $params['LOG_ID'] <= 0 && $params['MODE'] != 'LANDING' ? 'Y' : 'N');
+		$params['SHOW_UNREAD'] = ($USER->isAuthorized() && $params['LOG_ID'] <= 0 && $params['MODE'] !== 'LANDING' ? 'Y' : 'N');
 
 		$paramsInstance->prepareRatingParams($params);
 		$paramsInstance->prepareRequestVarParams($params);
@@ -331,6 +288,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$this->getParamsPhotogalleryInstance()->preparePhotogalleryParams($params);
 		$paramsInstance->preparePageTitleParams($params);
 		$paramsInstance->prepareBehaviourParams($params);
+		$paramsInstance->prepareCommentFormParams($params);
 
 		Util::checkEmptyParamString($params, 'PAGER_TITLE', '');
 
@@ -358,14 +316,14 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$this->getGratitudesInstance()->prepareGratPostFilter($result);
 
 		$result['isExtranetSite'] = $this->getExtranetSiteValue();
-		$result['SHOW_FOLLOW_CONTROL'] = $this->arParams['USE_FOLLOW'];
+		$result['SHOW_FOLLOW_CONTROL'] = 'Y';
 		$result['CAN_DELETE'] = \CSocNetUser::isCurrentUserModuleAdmin(SITE_ID, false);
 		$result['ENTITIES_CORRESPONDENCE'] = [];
 
 		$result['PATH_TO_LOG_TAG'] = $pathsProcessorInstance->getFolderUsersValue().'log/?TAG=#tag#';
 		if (
 			defined('SITE_TEMPLATE_ID')
-			&& SITE_TEMPLATE_ID == 'bitrix24'
+			&& SITE_TEMPLATE_ID === 'bitrix24'
 		)
 		{
 			$result['PATH_TO_LOG_TAG'] .= '&apply_filter=Y';
@@ -378,10 +336,10 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$result['bReload'] = (
 			$result['AJAX_CALL']
 			&& (
-				$request->get('RELOAD') == 'Y'
+				$request->get('RELOAD') === 'Y'
 				|| (
 					isset($this->arParams['RELOAD'])
-					&& $this->arParams['RELOAD'] == 'Y'
+					&& $this->arParams['RELOAD'] === 'Y'
 				)
 			)
 		);
@@ -404,15 +362,16 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		\CSocNetTools::initGlobalExtranetArrays();
 
 		if (
-			Util::checkUserAuthorized()
-			|| $this->arParams['AUTH'] == 'Y'
+			$this->arParams['AUTH'] === 'Y'
+			|| Util::checkUserAuthorized()
 		)
 		{
 			$result['IS_FILTERED'] = false;
 
-
 			$processorInstance->prepareContextData($result);
-			$this->setTitle();
+			$this->setTitle([
+				'GROUP' => ($result['Group'] ?? []),
+			]);
 
 			$result['Events'] = false;
 
@@ -430,7 +389,9 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 			$processorInstance->processFavoritesData($result);
 
 			$processorInstance->processDiskUFEntities();
+
 			$processorInstance->processCrmActivities($result);
+
 			$logPageProcessorInstance->deleteLogPageData($result);
 
 			$processorInstance->processNextPageSize($result);
@@ -458,6 +419,10 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 			$counterProcessorInstance->setLogCounter($result);
 			$processorInstance->getExpertModeValue($result);
 			$logPageProcessorInstance->setLogPageData($result);
+
+			$processorInstance->getUnreadTaskCommentsIdList($result);
+			$processorInstance->getResultTaskCommentsIdList($result);
+
 			$counterProcessorInstance->clearLogCounter($result);
 			$this->processLogFormComments($result);
 
@@ -477,7 +442,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return $result;
 	}
 
-	protected function getEntriesData(&$result)
+	protected function getEntriesData(&$result): void
 	{
 		$result['arLogTmpID'] = [];
 
@@ -495,11 +460,11 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 
 		if (empty($result['RETURN_EMPTY_LIST']))
 		{
-			$this->getEntryIdList($result);
+			$queryResultData = $this->getEntryIdList($result);
 
 			if (
-				count($result['arLogTmpID']) < $params['PAGE_SIZE']
-				&& $logPageProcessorInstance->getNeedSetLogPage() // no log pages for user
+				$queryResultData['countAll'] < (int)$params['PAGE_SIZE']
+				&& !empty($processorInstance->getFilterKey('>=LOG_UPDATE'))
 			)
 			{
 				$result['arLogTmpID'] = [];
@@ -514,7 +479,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$this->getPinnedIdList($result);
 	}
 
-	protected function processEvent(&$result, &$cnt, array $eventFields = [], array $options = [])
+	protected function processEvent(&$result, &$cnt, array $eventFields = [], array $options = []): void
 	{
 		if ($eventFields['MODULE_ID'] === 'crm_shared')
 		{
@@ -577,6 +542,13 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 			$this->setActivity2LogListValue($activity2LogList);
 			unset($activity2LogList);
 		}
+		elseif ($eventFields['EVENT_ID'] === 'tasks')
+		{
+			$task2LogList = $this->getTask2LogListValue();
+			$task2LogList[(int)$eventFields['SOURCE_ID']] = (int)$eventFields['ID'];
+			$this->setTask2LogListValue($task2LogList);
+			unset($task2LogList);
+		}
 
 		$cnt++;
 		if (isset($options['type']))
@@ -598,12 +570,15 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 						'LOG_ID' => $eventFields['ID']
 					]);
 
-					$result['pinnedIdList'][] = $eventFields['ID'];
-					$eventFields['PINNED_PANEL_DATA'] = [
-						'TITLE' => $postProvider->getPinnedTitle(),
-						'DESCRIPTION' => $postProvider->getPinnedDescription()
-					];
-					$processorInstance->appendEventsList($eventFields, 'pinned');
+					if ($postProvider)
+					{
+						$result['pinnedIdList'][] = $eventFields['ID'];
+						$eventFields['PINNED_PANEL_DATA'] = [
+							'TITLE' => $postProvider->getPinnedTitle(),
+							'DESCRIPTION' => $postProvider->getPinnedDescription()
+						];
+						$processorInstance->appendEventsList($eventFields, 'pinned');
+					}
 				}
 			}
 		}
@@ -611,8 +586,8 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$livefeedProvider = new \Bitrix\Socialnetwork\Livefeed\BlogPost();
 
 		if (
-			in_array($eventFields['EVENT_ID'], array_merge($livefeedProvider->getEventId(), [ 'idea' ]))
-			&& intval($eventFields['SOURCE_ID']) > 0
+			(int)$eventFields['SOURCE_ID'] > 0
+			&& in_array($eventFields['EVENT_ID'], array_merge($livefeedProvider->getEventId(), ['idea']), true)
 		)
 		{
 			$diskUFEntityList = $this->getDiskUFEntityListValue();
@@ -629,20 +604,24 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		}
 	}
 
-	protected function getEntryIdList(&$result)
+	protected function getEntryIdList(&$result): array
 	{
 		global $NavNum;
+
+		$returnResult = [
+			'countAll' => 0
+		];
 
 		$processorInstance = $this->getProcessorInstance();
 		if (!$processorInstance)
 		{
-			return;
+			return $returnResult;
 		}
 
 		if ($processorInstance->getListParamsKey('EMPTY_LIST') === 'Y')
 		{
 			$result['arLogTmpID'] = [];
-			return;
+			return $returnResult;
 		}
 
 		$res = \CSocNetLog::getList(
@@ -677,9 +656,13 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 				'pageNumber' => $res->NavPageNomer
 			]);
 		}
+
+		$returnResult['countAll'] = $res->selectedRowsCount();
+
+		return $returnResult;
 	}
 
-	protected function getPinnedIdList(&$result)
+	protected function getPinnedIdList(&$result): void
 	{
 		$result['pinnedEvents'] = [];
 		$result['pinnedIdList'] = [];
@@ -705,8 +688,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		$filter['PINNED_USER_ID'] = $result['currentUserId'];
 
 		$select = $processorInstance->getSelect();
-		unset($select['TMP_ID']);
-		unset($select['PINNED_USER_ID']);
+		unset($select['TMP_ID'], $select['PINNED_USER_ID']);
 
 		$res = \CSocNetLog::getList(
 			[
@@ -733,16 +715,16 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		}
 	}
 
-	protected function processLogFormComments(&$result)
+	protected function processLogFormComments(&$result): void
 	{
 		global $USER_FIELD_MANAGER;
 
 		$params = $this->arParams;
 
 		if (
-			empty($this->getErrors())
+			!$result['AJAX_CALL']
+			&& empty($this->getErrors())
 			&& Util::checkUserAuthorized()
-			&& !$result['AJAX_CALL']
 		)
 		{
 			$cache = new \CPHPCache;
@@ -769,7 +751,7 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 					$arPostFields = $USER_FIELD_MANAGER->getUserFields('SONET_COMMENT', 0, LANGUAGE_ID);
 					foreach ($arPostFields as $fieldName => $fieldData)
 					{
-						if (!in_array($fieldName, $params['COMMENT_PROPERTY']))
+						if (!in_array($fieldName, $params['COMMENT_PROPERTY'], true))
 						{
 							continue;
 						}
@@ -796,14 +778,13 @@ class LogList extends \CBitrixComponent implements \Bitrix\Main\Engine\Contract\
 		return Gratitude::getGratitudesIblockId();
 	}
 
-	public static function getGratitudesIblockData(array $params = [])
+	public static function getGratitudesIblockData(array $params = []): array
 	{
 		return LogList\Gratitude::getGratitudesIblockData($params);
 	}
 
-	public static function getGratitudesBlogData(array $params = [])
+	public static function getGratitudesBlogData(array $params = []): array
 	{
 		return LogList\Gratitude::getGratitudesBlogData($params);
 	}
 }
-?>

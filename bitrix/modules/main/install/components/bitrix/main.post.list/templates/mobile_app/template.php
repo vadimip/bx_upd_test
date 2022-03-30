@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /**
  * @var array $arResult
  * @var array $arParams
@@ -16,7 +22,12 @@ global $USER;
 \Bitrix\Main\Page\Asset::getInstance()->addString('<link href="'.CUtil::GetAdditionalFileURL('/bitrix/js/ui/icons/base/ui.icons.base.css').'" type="text/css" rel="stylesheet" />');
 \Bitrix\Main\Page\Asset::getInstance()->addString('<link href="'.CUtil::GetAdditionalFileURL('/bitrix/js/ui/icons/b24/ui.icons.b24.css').'" type="text/css" rel="stylesheet" />');
 
-CUtil::InitJSCore(array("uploader", "date", "fx", "ls")); // does not work
+$extensionsList = [ 'uploader', 'date', 'fx', 'ls' ];
+if (CModule::IncludeModule('socialnetwork'))
+{
+	$extensionsList[] = 'comment_aux';
+}
+CUtil::InitJSCore($extensionsList); // does not work
 
 $prefixNode = $arParams["ENTITY_XML_ID"].'-'.$arParams["EXEMPLAR_ID"];
 $eventNodeId = $prefixNode."_main";
@@ -96,7 +107,9 @@ ob_start();
 	</div>
 	#AFTER_RECORD#<?
 	?><script>BX.ready(function() { BX.onCustomEvent(BX('<?=$eventNodeIdTemplate?>'), 'OnUCCommentIsInDOM', ['#ID#', BX('<?=$eventNodeIdTemplate?>')]);});</script><?
-?></div><? // post-comment-block
+?></div>
+<!--RCRD_END_#FULL_ID#-->
+<? // post-comment-block
 $template = preg_replace("/[\t\n]/", "", ob_get_clean());
 
 ob_start();
@@ -188,13 +201,13 @@ else
 				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?
 			}
 
-			?><a href="<?=$arParams["NAV_STRING"]?>" id="<?=$prefixNode?>_page_nav" class="post-comments-link" bx-mpl-comments-count="<?=$arResult["NAV_STRING_COUNT_MORE"]?>"><?=Loc::getMessage("BLOG_C_VIEW")?> <span class="post-comments-link-count"><?=$arResult["NAV_STRING_COUNT_MORE"]?></span><?
-				?><span class="post-comments-button-waiter"><svg class="post-comments-button-waiter-circular" viewBox="25 25 50 50">
-					<circle class="post-comments-button-waiter-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
-					<circle class="post-comments-button-waiter-inner-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
-				</svg></span><?
-			?></a><?
-
+			?><div class="post-comments-link-cont">
+				<a href="<?=$arParams["NAV_STRING"]?>" id="<?=$prefixNode?>_page_nav" class="post-comments-link" bx-mpl-comments-count="<?=$arResult["NAV_STRING_COUNT_MORE"]?>"><?
+					?><?=Loc::getMessage("BLOG_C_VIEW")?><?
+					?><span class="post-comments-link-count"><?=$arResult["NAV_STRING_COUNT_MORE"]?></span><?
+				?></a>
+				<span class="post-comments-link-loader-informer" id="<?=$prefixNode?>_page_nav_loader" style='display: none;'><?=Loc::getMessage("BLOG_C_LOADING")?></span>
+			</div><?
 			if ($arParams["PREORDER"] != "Y")
 			{
 				?><div id="record-<?=$prefixNode?>-hidden" class="feed-hidden-post" style="display:none; overflow:hidden;"></div> <?
@@ -366,6 +379,7 @@ if ($this->__component->__parent instanceof \Bitrix\Main\Engine\Contract\Control
 
 					mainNode : BX('<?=$eventNodeId?>'),
 					navigationNode : BX('<?=$prefixNode?>_page_nav'),
+					navigationNodeLoader : BX('<?=$prefixNode?>_page_nav_loader'),
 					nodeForOldMessages : BX('record-<?=$prefixNode?>-hidden'),
 					nodeForNewMessages : BX('record-<?=$prefixNode?>-new'),
 					nodeFormHolder : BX('record-<?=$prefixNode?>-form-holder'),

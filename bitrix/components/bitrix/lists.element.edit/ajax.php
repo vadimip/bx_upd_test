@@ -1,4 +1,5 @@
 <?php
+
 use Bitrix\Lists\Internals\Error\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Loader;
@@ -59,6 +60,12 @@ class ListsElementEditAjaxController extends Controller
 			$this->sendJsonErrorResponse();
 		}
 
+		if (!CLists::isBpFeatureEnabled($this->iblockTypeId))
+		{
+			$this->errorCollection->add([new Error(Loc::getMessage('LISTS_LAC_ACCESS_DENIED'))]);
+			$this->sendJsonErrorResponse();
+		}
+
 		$workflowId = $this->request->getPost('workflowId');
 		$this->elementId = $this->request->getPost('elementId');
 
@@ -85,37 +92,30 @@ class ListsElementEditAjaxController extends Controller
 	protected function processActionIsConstantsTuned()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'iblockTypeId', 'socnetGroupId', 'sectionId'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+
+		$this->fillDataForCheckPermission();
+
+		$this->checkPermission();
+
+		if (!Loader::includeModule('bizproc') || !CLists::isBpFeatureEnabled($this->iblockTypeId))
 		{
-			$this->errorCollection->add(
-				array(new Error(Loc::getMessage('LISTS_CONNECTION_MODULE_BIZPROC')))
-			);
+			$this->errorCollection->add([new Error(Loc::getMessage('LISTS_CONNECTION_MODULE_BIZPROC'))]);
 		}
+
 		if($this->errorCollection->hasErrors())
 		{
 			$this->sendJsonErrorResponse();
 		}
 
-		$this->fillDataForCheckPermission();
-
 		$templateData = $this->getTemplatesIdList();
-		if(empty($templateData))
+		if (empty($templateData))
 		{
 			$this->errorCollection->add(
 				array(new Error(Loc::getMessage('LISTS_NOT_BIZPROC_TEMPLATE_NEW')))
 			);
 		}
 
-		$this->checkPermission();
-		if($this->errorCollection->hasErrors())
-		{
-			$this->sendJsonErrorResponse();
-		}
-
-		$admin = true;
-		if($this->listPerm < CListPermissions::IS_ADMIN &&
-			!CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_edit'))
-			$admin = false;
+		$admin = CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_rights_edit');
 
 		$isConstantsTuned = true;
 		foreach($templateData as $templateId => $template)
@@ -141,7 +141,11 @@ class ListsElementEditAjaxController extends Controller
 
 	protected function getTemplatesIdList()
 	{
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled() || empty($this->iblockTypeId) || empty($this->iblockId))
+		if (
+			!Loader::includeModule('bizproc')
+			|| empty($this->iblockTypeId)
+			|| empty($this->iblockId)
+		)
 		{
 			return array();
 		}
@@ -163,22 +167,26 @@ class ListsElementEditAjaxController extends Controller
 	protected function processActionFillConstants()
 	{
 		$this->checkRequiredPostParams(array('iblockId', 'listTemplateId'));
-		if(!Loader::includeModule('bizproc') || !CBPRuntime::isFeatureEnabled())
+		if(!Loader::includeModule('bizproc'))
 		{
 			$this->errorCollection->add(
 				array(new Error(Loc::getMessage('LISTS_CONNECTION_MODULE_BIZPROC')))
 			);
 		}
+
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
+
 			return;
 		}
 		$this->iblockId = intval($this->request->getPost('iblockId'));
 		if(!CIBlockRights::UserHasRightTo($this->iblockId, $this->iblockId, 'iblock_edit'))
 		{
 			ShowError(Loc::getMessage('LISTS_ACCESS_DENIED'));
+
 			return;
 		}
 
@@ -213,8 +221,10 @@ class ListsElementEditAjaxController extends Controller
 		}
 		if($this->errorCollection->hasErrors())
 		{
-			$errorObject = array_shift($this->errorCollection->toArray());
+			$errors = $this->errorCollection->toArray();
+			$errorObject = array_shift($errors);
 			ShowError($errorObject->getMessage());
+
 			return;
 		}
 		echo $html;
@@ -247,7 +257,7 @@ class ListsElementEditAjaxController extends Controller
 			if($right['TASK_ID'] == $idRight && $res === 0)
 			{
 				$userId = mb_substr($right['GROUP_CODE'], 1);
-				$users = CUser::GetList($by="id", $order="asc",
+				$users = CUser::GetList("id", "asc",
 					array('ID' => $userId),
 					array('FIELDS' => array('ID', 'PERSONAL_PHOTO', 'NAME', 'LAST_NAME'))
 				);
@@ -267,7 +277,7 @@ class ListsElementEditAjaxController extends Controller
 				$listUser[$userId]['name'] = CUser::FormatName($nameTemplate, $user, false);
 			}
 		}
-		$users = CUser::getList(($b = 'ID'), ($o = 'ASC'),
+		$users = CUser::getList('ID', 'ASC',
 			array('GROUPS_ID' => 1, 'ACTIVE' => 'Y'),
 			array('FIELDS' => array('ID', 'PERSONAL_PHOTO', 'NAME', 'LAST_NAME'))
 		);

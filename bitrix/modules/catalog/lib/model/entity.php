@@ -1,9 +1,9 @@
 <?php
 namespace Bitrix\Catalog\Model;
 
-use Bitrix\Main,
-	Bitrix\Main\ORM,
-	Bitrix\Main\Localization\Loc;
+use Bitrix\Main;
+use Bitrix\Main\ORM;
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
@@ -11,7 +11,11 @@ abstract class Entity
 {
 	const PREFIX_OLD = 'OLD_';
 
-	const EVENT_ON_BUILD_CACHED_FIELD_LIST = 'OnBuildCachedFieldList';
+	public const EVENT_ON_BUILD_CACHED_FIELD_LIST = 'OnBuildCachedFieldList';
+
+	public const FIELDS_MAIN = 0x0001;
+	public const FIELDS_UF = 0x0002;
+	public const FIELDS_ALL = self::FIELDS_MAIN|self::FIELDS_UF;
 
 	private static $entity = [];
 
@@ -22,7 +26,7 @@ abstract class Entity
 	/** @var array User fields list */
 	private $tabletUserFields = [];
 	/** @var null|Main\DB\Result Database result object */
-	private $result = null;
+	private $result;
 	/** @var array Entity cache */
 	private $cache = [];
 	/** @var array internal */
@@ -32,7 +36,7 @@ abstract class Entity
 	private $fieldsCount = 0;
 	private $aliases = [];
 	private $fieldMask = [];
-	private $fetchCutMask = [];
+	private $fetchCutMask;
 
 	public function __construct()
 	{
@@ -53,7 +57,6 @@ abstract class Entity
 		$className = get_called_class();
 		if (empty(self::$entity[$className]))
 		{
-			/** @var Entity $entity */
 			$entity = new static;
 			self::$entity[$className] = $entity;
 		}
@@ -83,7 +86,7 @@ abstract class Entity
 	 * Entity fetch. Work with entity change cache.
 	 *
 	 * @param Main\Text\Converter|null $converter
-	 * @return array|bool|false
+	 * @return array|false
 	 */
 	public function fetch(Main\Text\Converter $converter = null)
 	{
@@ -400,6 +403,37 @@ abstract class Entity
 	public static function getTabletClassName(): string
 	{
 		return '';
+	}
+
+	/**
+	 * Returns list of tablet field names, include user fields.
+	 *
+	 * @param int $fields
+	 * @return array
+	 */
+	public static function getTabletFieldNames(int $fields = self::FIELDS_MAIN): array
+	{
+		$result = [];
+		$entity = static::getEntity();
+		if ($fields & self::FIELDS_MAIN)
+		{
+			$result = array_keys($entity->tabletFields);
+		}
+		if ($fields & self::FIELDS_UF)
+		{
+			$list = array_keys($entity->tabletUserFields);
+			if (!empty($list))
+			{
+				$result = (empty($result)
+					? $list
+					: array_merge($result, $list)
+				);
+			}
+			unset($list);
+		}
+
+		unset($entity);
+		return $result;
 	}
 
 	/**
@@ -799,7 +833,7 @@ abstract class Entity
 	 * @param bool $load
 	 * @return array
 	 */
-	private function getEntityCacheItem($id, bool $load = false)
+	private function getEntityCacheItem($id, bool $load = false): array
 	{
 		$result = [];
 		if (!isset($this->cache[$id]) && $load && !empty($this->fields))

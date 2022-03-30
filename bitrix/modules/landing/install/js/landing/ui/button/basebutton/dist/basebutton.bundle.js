@@ -91,12 +91,8 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      main_core.Dom.attr(_this.getLayout(), _this.options.attrs);
 	    }
 
-	    if (main_core.Type.isArray(_this.options.className)) {
-	      _this.options.className.forEach(_this.layout.classList.add, _this.layout.classList);
-	    }
-
-	    if (main_core.Type.isString(_this.options.className) && !!_this.options.className) {
-	      _this.layout.classList.add(_this.options.className);
+	    if (main_core.Type.isArray(_this.options.className) || main_core.Type.isStringFilled(_this.options.className)) {
+	      main_core.Dom.addClass(_this.layout, _this.options.className);
 	    }
 
 	    if (_this.options.active) {
@@ -165,18 +161,18 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	  }, {
 	    key: "disable",
 	    value: function disable() {
-	      main_core.Dom.addClass(this.layout, 'landing-ui-disable');
+	      main_core.Dom.addClass(this.layout, 'landing-ui-disabled');
 	    }
 	  }, {
 	    key: "enable",
 	    value: function enable() {
-	      main_core.Dom.removeClass(this.layout, 'landing-ui-disable');
+	      main_core.Dom.removeClass(this.layout, 'landing-ui-disabled');
 	      main_core.Dom.attr(this.layout, 'disabled', null);
 	    }
 	  }, {
 	    key: "isEnabled",
 	    value: function isEnabled() {
-	      return !main_core.Dom.hasClass(this.layout, 'landing-ui-disable');
+	      return !main_core.Dom.hasClass(this.layout, 'landing-ui-disabled');
 	    }
 	  }, {
 	    key: "show",

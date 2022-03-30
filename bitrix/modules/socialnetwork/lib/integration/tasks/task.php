@@ -1,4 +1,5 @@
 <?php
+
 /**
 * Bitrix Framework
 * @package bitrix
@@ -7,53 +8,104 @@
 */
 namespace Bitrix\Socialnetwork\Integration\Tasks;
 
+use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Loader;
+use Bitrix\Main\UserCounterTable;
 use Bitrix\Socialnetwork\Livefeed\Provider;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventResult;
+use Bitrix\Socialnetwork\LogCommentTable;
 use Bitrix\Socialnetwork\LogTable;
 
 class Task
 {
-	public static function onTaskUpdateViewed(Event $event)
+	public static function onTaskUpdateViewed(Event $event): EventResult
 	{
-		$result = new EventResult(
-			EventResult::UNDEFINED,
-			[],
-			'socialnetwork'
-		);
+		$result = new EventResult(EventResult::UNDEFINED, [], 'socialnetwork');
 
-		$taskId = intval($event->getParameter('taskId'));
-		$userId = intval($event->getParameter('userId'));
+		$taskId = (int)$event->getParameter('taskId');
+		$userId = (int)$event->getParameter('userId');
 
-		if (
-			$taskId <= 0
-			|| $userId <= 0
-		)
+		if ($taskId <= 0 || $userId <= 0)
 		{
 			return $result;
 		}
 
-		if ($liveFeedEntity = Provider::init([
-			'ENTITY_TYPE' => Provider::DATA_ENTITY_TYPE_TASKS_TASK,
-			'ENTITY_ID' => $taskId
-		]))
+		if (
+			$liveFeedEntity = Provider::init([
+				'ENTITY_TYPE' => Provider::DATA_ENTITY_TYPE_TASKS_TASK,
+				'ENTITY_ID' => $taskId,
+			])
+		)
 		{
-			$liveFeedEntity->setContentView([
-				"userId" => $userId
+			$liveFeedEntity->setContentView(['user_id' => $userId]);
+			self::updateUserCounter([
+				'userId' => $userId,
+				'logId' => $liveFeedEntity->getLogId(),
 			]);
 		}
 
-		$result = new EventResult(
-			EventResult::SUCCESS,
-			[],
-			'socialnetwork'
-		);
-
-		return $result;
+		return new EventResult(EventResult::SUCCESS, [], 'socialnetwork');
 	}
 
-	public static function onTaskUserOptionChanged(Event $event)
+	private static function updateUserCounter(array $params = []): void
+	{
+		$logId = (int)($params['logId'] ?? 0);
+		$userId = (int)($params['userId'] ?? 0);
+		$siteId = SITE_ID;
+
+		if (
+			$logId <= 0
+			|| $userId <= 0
+		)
+		{
+			return;
+		}
+
+		UserCounterTable::delete([
+			'USER_ID' => $userId,
+			'SITE_ID' => SITE_ID,
+			'CODE' => '**L' . $logId,
+		]);
+
+		$query = new \Bitrix\Main\Entity\Query(UserCounterTable::getEntity());
+		$query->addFilter('=USER_ID', $userId);
+		$query->addFilter('=SITE_ID', $siteId);
+		$query->addSelect('CODE');
+
+		$query->registerRuntimeField(
+			'comment',
+			new \Bitrix\Main\Entity\ReferenceField('LC',
+				LogCommentTable::getEntity(),
+				[
+					'=ref.LOG_ID' => new SqlExpression('?i', $logId),
+				],
+				[ 'join_type' => 'INNER' ]
+			)
+		);
+
+		$query->whereExpr("%s = CONCAT('**LC', %s)", [ 'CODE', 'comment.ID' ]);
+		$res = $query->exec();
+
+		while ($counterFields = $res->fetch())
+		{
+			UserCounterTable::delete([
+				'USER_ID' => $userId,
+				'SITE_ID' => $siteId,
+				'CODE' => $counterFields['CODE'],
+			]);
+		}
+
+		UserCounterTable::update([
+			'USER_ID' => $userId,
+			'SITE_ID' => $siteId,
+			'CODE' => '**',
+		], [
+			'SENT' => 0,
+		]);
+	}
+
+	public static function onTaskUserOptionChanged(Event $event): EventResult
 	{
 		$result = new EventResult(
 			EventResult::UNDEFINED,
@@ -103,13 +155,11 @@ class Task
 
 		\CSocNetLogFollow::set($userId, 'L'.$logId, ($added ? 'N' : 'Y'), $followDate);
 
-		$result = new EventResult(
+		return new EventResult(
 			EventResult::SUCCESS,
 			[],
 			'socialnetwork'
 		);
-
-		return $result;
 	}
 }
-?>
+

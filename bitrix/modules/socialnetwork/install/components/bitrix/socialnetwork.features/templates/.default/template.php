@@ -1,4 +1,10 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -10,9 +16,12 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\UI;
 
-UI\Extension::load("ui.buttons");
-UI\Extension::load("ui.alerts");
-UI\Extension::load("socialnetwork.common");
+UI\Extension::load([
+	'socialnetwork.common',
+	'ui.buttons',
+	'ui.alerts',
+	'ui.info-helper',
+]);
 
 if ($arResult["NEED_AUTH"] == "Y")
 {
@@ -20,16 +29,18 @@ if ($arResult["NEED_AUTH"] == "Y")
 }
 elseif ($arResult["FatalError"] <> '')
 {
-	?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?
+	?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?php
 }
 else
 {
+	$isProject = ($arResult['Group']['PROJECT'] === 'Y');
+
 	if (
 		$arResult["ErrorMessage"] <> ''
 		&& $arResult["ShowForm"] != "Input"
 	)
 	{
-		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?
+		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?php
 	}
 
 	if ($arResult["ShowForm"] == "Input")
@@ -46,7 +57,7 @@ else
 			});
 		</script>
 
-		<div id="sonet_features_error_block" class="ui-alert ui-alert-xs ui-alert-danger ui-alert-icon-danger<?=($arResult["ErrorMessage"] <> '' ? "" : " sonet-ui-form-error-block-invisible")?>"><?=$arResult["ErrorMessage"]?></div><?
+		<div id="sonet_features_error_block" class="ui-alert ui-alert-xs ui-alert-danger ui-alert-icon-danger<?=($arResult["ErrorMessage"] <> '' ? "" : " sonet-ui-form-error-block-invisible")?>"><?=$arResult["ErrorMessage"]?></div><?php
 
 		$uri = new Bitrix\Main\Web\Uri(POST_FORM_ACTION_URI);
 		if (!empty($arResult["groupTypeCode"]))
@@ -58,35 +69,57 @@ else
 		}
 		$actionUrl = $uri->getUri();
 		?><form method="post" name="sonet-features-form" id="sonet-features-form" action="<?=$actionUrl?>" enctype="multipart/form-data">
-			<div class="sn-features-wrap"><?
+			<div class="sn-features-wrap"><?php
 
 				$hasActiveFeatures = false;
 
 				if (
-					$arResult["ENTITY_TYPE"] == "G"
+					$arResult["ENTITY_TYPE"] === "G"
 					&& !empty($arResult["Group"])
-					&& $arResult["Group"]["CLOSED"] != "Y"
+					&& $arResult["Group"]["CLOSED"] !== "Y"
 				)
 				{
 					?><div class="sn-features-row">
-						<h4 class="sn-features-title"><?=Loc::getMessage($arResult["Group"]["PROJECT"] == 'Y' ? 'SONET_C4_INVITE_TITLE_PROJECT' : 'SONET_C4_INVITE_TITLE')?></h4>
+						<h4 class="sn-features-title"><?= ($isProject ? Loc::getMessage('SONET_C4_INVITE_TITLE_PROJECT') : Loc::getMessage('SONET_C4_INVITE_TITLE')) ?></h4>
 						<div class="sn-features-input-box">
-							<div class="sn-features-caption"><?=Loc::getMessage($arResult["Group"]["PROJECT"] == 'Y' ? 'SONET_C4_INVITE_OPERATION_PROJECT' : 'SONET_C4_INVITE_OPERATION')?></div>
-							<select name="GROUP_INITIATE_PERMS" id="GROUP_INITIATE_PERMS" class="sn-features-select"><?
+							<div class="sn-features-caption"><?= ($isProject ? Loc::getMessage('SONET_C4_INVITE_OPERATION_PROJECT') : Loc::getMessage('SONET_C4_INVITE_OPERATION')) ?></div>
+							<select name="GROUP_INITIATE_PERMS" id="GROUP_INITIATE_PERMS" class="sn-features-select"><?php
 								foreach ($arResult["InitiatePermsList"] as $key => $value)
 								{
-									?><option id="GROUP_INITIATE_PERMS_OPTION_<?=$key?>" value="<?=$key?>"<?=($key == $arResult["Group"]["INITIATE_PERMS"]) ? " selected" : "" ?>><?=$value?></option><?
+									?><option id="GROUP_INITIATE_PERMS_OPTION_<?=$key?>" value="<?=$key?>"<?=($key == $arResult["Group"]["INITIATE_PERMS"]) ? " selected" : "" ?>><?=$value?></option><?php
 								}
 							?></select>
 						</div>
-					</div><?
+					</div><?php
+
+					if (
+						(
+							!\Bitrix\Main\Loader::includeModule('extranet')
+							|| !CExtranet::IsExtranetSite()
+						)
+						&& !ModuleManager::isModuleInstalled('im')
+					)
+					{
+						?><div class="sn-features-row">
+							<div class="sn-features-input-box">
+								<div class="sn-features-caption"><?= Loc::getMessage('SONET_C4_SPAM_OPERATION') ?></div>
+								<select name="GROUP_SPAM_PERMS" id="GROUP_SPAM_PERMS" class="sn-features-select"><?php
+									foreach ($arResult['SpamPermsList'] as $key => $value)
+									{
+										?><option id="GROUP_SPAM_PERMS_OPTION_<?= $key ?>" value="<?= $key ?>"<?= ($key === $arResult['Group']['SPAM_PERMS'] ? ' selected' : '') ?>><?= $value ?></option><?php
+									}
+								?></select>
+							</div>
+						</div><?php
+					}
 				}
 
 				foreach ($arResult["Features"] as $feature => $arFeature)
 				{
 					if (
-						$arResult["ENTITY_TYPE"] == "G"
+						$arResult["ENTITY_TYPE"] === "G"
 						&& !isset($arFeature["note"])
+						&& !isset($arFeature["limit"])
 						&& (
 							empty($arFeature["Operations"])
 							|| (
@@ -96,7 +129,7 @@ else
 						)
 					)
 					{
-						?><input type="hidden" name="<?=$feature?>_active" value="<?=($arFeature["Active"] ? "Y" : "") ?>" /><?
+						?><input type="hidden" name="<?=$feature?>_active" value="<?=($arFeature["Active"] ? "Y" : "") ?>" /><?php
 					}
 					elseif (
 						$arFeature["Active"]
@@ -109,14 +142,14 @@ else
 
 						if (
 							$feature == 'tasks'
-							&& $arResult['tasksLimitExceeded']
+							&& $arResult["Features"][$feature]['limit']
 						)
 						{
 							$APPLICATION->IncludeComponent('bitrix:ui.info.helper', '', []);
 
 							$featureBlockClass .= ' sn-features-lock';
 							$featureSubTitleText = Loc::getMessage('SONET_C4_TASK_FEATURE_DISABLED', [
-								'#LINK_START#' => '<a href="#" onclick="BX.UI.InfoHelper.show(\'limit_tasks_access_permissions\');">',
+								'#LINK_START#' => '<a href="#" onclick="BX.UI.InfoHelper.show(\'' . $arResult["Features"][$feature]['limit'] . '\');">',
 								'#LINK_END#' => '</a>',
 							]);
 						}
@@ -132,7 +165,7 @@ else
 							<div class="sn-features-title-box">
 								<h4 class="sn-features-title"><?=$featureName?></h4>
 								<span class="sn-features-subtitle"><?=$featureSubTitleText?></span>
-							</div><?
+							</div><?php
 							if (
 								$arResult["ENTITY_TYPE"] == "U"
 								&& !(
@@ -167,19 +200,20 @@ else
 									<div class="settings-block-enable-checkbox-wrap">
 										<input class="settings-right-enable-checkbox" bx-feature="<?=$feature?>" type="checkbox" id="<?=$feature?>_active_id" name="<?=$feature?>_active" value="Y"<?=($arFeature["Active"] ? " checked" : "") ?>>
 									</div>
-								</div><?
+								</div><?php
 							}
 							else
 							{
-								?><input type="hidden" name="<?=$feature?>_active" value="Y" /><?
+								?><input type="hidden" name="<?=$feature?>_active" value="Y" /><?php
 							}
 
 							$displayValue = ($arFeature["Active"] ? 'block' : 'none');
+							$onClick = (!empty($arFeature['limit']) ? "onclick=\"BX.UI.InfoHelper.show('" . CUtil::JSescape($arFeature['limit']) . "');\"" : '');
 
-							?><div id="<?=$feature?>_body" style="display: <?=$displayValue?>"><?
+							?><div id="<?=$feature?>_body" style="display: <?=$displayValue?>" <?= $onClick ?>><?php
 								if (isset($arFeature["note"]))
 								{
-									?><div class="settings-blocks-note"><?=htmlspecialcharsbx($arFeature['note'])?></div><?
+									?><div class="settings-blocks-note"><?=htmlspecialcharsbx($arFeature['note'])?></div><?php
 								}
 
 								if (
@@ -198,7 +232,7 @@ else
 											&& ModuleManager::isModuleInstalled('tasks')
 										)
 										{
-											?><input type="hidden" name="<?= $feature ?>_<?= $operation ?>_perm" value="<?=$perm?>"><?
+											?><input type="hidden" name="<?= $feature ?>_<?= $operation ?>_perm" value="<?=$perm?>"><?php
 										}
 										else
 										{
@@ -210,9 +244,11 @@ else
 													: Loc::getMessage("SONET_FEATURES_".$feature."_".$operation)
 											);
 
+											$disabled = (!empty($arFeature['limit']) ? 'disabled' : '');
+
 											?><div class="sn-features-input-box">
 												<div class="sn-features-caption"><?=$title?></div>
-												<select name="<?=$feature?>_<?=$operation?>_perm" class="sn-features-select"><?
+												<select name="<?=$feature?>_<?=$operation?>_perm" class="sn-features-select" <?= $disabled ?>><?php
 
 													foreach ($arResult["PermsVar"] as $key => $value)
 													{
@@ -221,42 +257,51 @@ else
 															|| !in_array($key, $arResult["arSocNetFeaturesSettings"][$feature]["operations"][$operation]["restricted"][$arResult["ENTITY_TYPE"]])
 														)
 														{
-															?><option value="<?=$key?>"<?=($key == $perm) ? " selected" : "" ?>><?=$value?></option><?
+															?><option value="<?=$key?>"<?=($key == $perm) ? " selected" : "" ?>><?=$value?></option><?php
 														}
 													}
 
 												?></select>
-											</div><?
+											</div><?php
 										}
 									}
 								}
 
-							?></div><?
+							?></div><?php
 
-						?></div><?
+						?></div><?php
 					}
 				}
-			?></div><?
+			?></div><?php
 
 			if ($hasActiveFeatures)
 			{
-				?><div class="sonet-slider-footer-fixed">
-					<input type="hidden" name="ajax_request" value="Y">
-					<input type="hidden" name="save" value="Y">
-					<input type="hidden" name="SONET_USER_ID" value="<?=$arParams["USER_ID"]?>">
-					<input type="hidden" name="SONET_GROUP_ID" value="<?=$arParams["GROUP_ID"]?>">
-					<?=bitrix_sessid_post()?>
-					<span class="sonet-ui-btn-cont sonet-ui-btn-cont-center"><?
-						?><button class="ui-btn ui-btn-success" id="sonet_group_features_form_button_submit"><?=Loc::getMessage("SONET_C4_SUBMIT") ?></button><?
-						?><button class="ui-btn ui-btn-light-border" id="sonet_group_features_form_button_cancel" bx-url="<?=htmlspecialcharsbx($arResult["ENTITY_TYPE"] == "G" ? $arResult["Urls"]["Group"] : $arResult["Urls"]["User"])?>"><?=Loc::getMessage("SONET_C4_T_CANCEL") ?></button><?
-					?></span><? // class="sonet-ui-btn-cont"
-				?></div><? // sonet-slider-footer-fixed
+				$buttons = [
+					[
+						'TYPE' => 'custom',
+						'LAYOUT' => '<button class="ui-btn ui-btn-success" id="sonet_group_features_form_button_submit">' . Loc::getMessage('SONET_C4_SUBMIT') . '</button>',
+					],
+					[
+						'TYPE' => 'custom',
+						'LAYOUT' => '<button class="ui-btn ui-btn-light-border" id="sonet_group_features_form_button_cancel" bx-url="' . htmlspecialcharsbx($arResult['ENTITY_TYPE'] === 'G' ? $arResult['Urls']['Group'] : $arResult['Urls']['User']) . '">' . Loc::getMessage('SONET_C4_T_CANCEL') . '</button>',
+					],
+				];
+
+				$APPLICATION->IncludeComponent('bitrix:ui.button.panel', '', [
+					'BUTTONS' => $buttons,
+				]);
+
+				?><input type="hidden" name="ajax_request" value="Y">
+				<input type="hidden" name="save" value="Y">
+				<input type="hidden" name="SONET_USER_ID" value="<?=$arParams["USER_ID"]?>">
+				<input type="hidden" name="SONET_GROUP_ID" value="<?=$arParams["GROUP_ID"]?>">
+				<?=bitrix_sessid_post()?><?php
 			}
 			else
 			{
-				?><div class="settings-group-main-wrap"><?=GetMessage("SONET_C4_NO_FEATURES");?></div><?
+				?><div class="settings-group-main-wrap"><?=GetMessage("SONET_C4_NO_FEATURES");?></div><?php
 			}
-		?></form><?
+		?></form><?php
 	}
 	else
 	{
@@ -264,14 +309,13 @@ else
 		{
 			echo GetMessage("SONET_C4_GR_SUCCESS");
 			?><br><br>
-			<a href="<?= $arResult["Urls"]["Group"] ?>"><?= $arResult["Group"]["NAME"]; ?></a><?
+			<a href="<?= $arResult["Urls"]["Group"] ?>"><?= $arResult["Group"]["NAME"]; ?></a><?php
 		}
 		else
 		{
 			echo GetMessage("SONET_C4_US_SUCCESS");
 			?><br><br>
-			<a href="<?= $arResult["Urls"]["User"] ?>"><?= $arResult["User"]["NAME_FORMATTED"]; ?></a><?
+			<a href="<?= $arResult["Urls"]["User"] ?>"><?= $arResult["User"]["NAME_FORMATTED"]; ?></a><?php
 		}
 	}
 }
-?>

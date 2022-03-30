@@ -1,5 +1,5 @@
 import {Type, Dom} from 'main.core';
-import {Util} from "calendar.util";
+import {Util} from 'calendar.util';
 
 export class UserSelector
 {
@@ -170,56 +170,6 @@ export class UserSelector
 		});
 	}
 
-	// checkItemsSelected(items, itemsLast, selected, callback)
-	// {
-	// 	let codes = [], code;
-	// 	for (code in selected)
-	// 	{
-	// 		if (selected.hasOwnProperty(code))
-	// 		{
-	// 			if (selected[code] === 'users' && !items.users[code])
-	// 			{
-	// 				codes.push(code);
-	// 			}
-	// 		}
-	// 	}
-	//
-	// 	if (codes.length > 0)
-	// 	{
-	// 		let loader = this.DOM.socnetDestinationWrap.appendChild(BX.adjust(Util.getLoader(40), {style: {height: '50px'}}));
-	//
-	//
-	//
-	//
-	//
-	// 		this.calendar.request({
-	// 			type: 'get',
-	// 			data: {
-	// 				action: 'get_destination_items',
-	// 				codes: codes
-	// 			},
-	// 			handler: BX.delegate(function(response)
-	// 			{
-	// 				if (loader)
-	// 				{
-	// 					Dom.remove(loader);
-	// 				}
-	//
-	// 				this.params.items = this.calendar.util.getSocnetDestinationConfig('items');
-	// 				this.params.itemsLast = this.calendar.util.getSocnetDestinationConfig('itemsLast');
-	//
-	// 				if (Type.isFunction(callback))
-	// 				{
-	// 					callback();
-	// 				}
-	// 			}, this)
-	// 		});
-	// 		return false;
-	// 	}
-	//
-	// 	return true;
-	// }
-
 	closeAll()
 	{
 		if (top.BX.SocNetLogDestination.isOpenDialog())
@@ -284,20 +234,6 @@ export class UserSelector
 
 	openDialogCallback()
 	{
-		if (top.BX.SocNetLogDestination.popupWindow)
-		{
-			// Fix zIndex for slider issues
-			top.BX.SocNetLogDestination.popupWindow.params.zIndex = this.zIndex;
-			top.BX.SocNetLogDestination.popupWindow.popupContainer.style.zIndex = this.zIndex;
-		}
-
-		if (top.BX.SocNetLogDestination.popupSearchWindow)
-		{
-			// Fix zIndex for slider issues
-			top.BX.SocNetLogDestination.popupSearchWindow.params.zIndex = this.zIndex;
-			top.BX.SocNetLogDestination.popupSearchWindow.popupContainer.style.zIndex = this.zIndex;
-		}
-
 		BX.style(this.socnetDestinationInputWrap, 'display', 'inline-block');
 		BX.style(this.socnetDestinationLink, 'display', 'none');
 		BX.focus(this.socnetDestinationInput);

@@ -9,9 +9,7 @@
 	var data = BX.Landing.Utils.data;
 	var offsetTop = BX.Landing.Utils.offsetTop;
 	var offsetLeft = BX.Landing.Utils.offsetLeft;
-	var bind = BX.Landing.Utils.bind;
-	var unbind = BX.Landing.Utils.unbind;
-	
+
 	/**
 	 * Implements interface for works with dropdown
 	 *
@@ -47,7 +45,6 @@
 		if (this.content !== "")
 		{
 			this.setValue(this.content);
-			this.onMouseWheel = this.onMouseWheel.bind(this);
 		}
 	};
 
@@ -58,14 +55,23 @@
 		onInputClick: function(event)
 		{
 			event.stopPropagation();
-			if (!this.popup || (this.popupRoot && !this.popupRoot.contains(this.popup.popupWindow.popupContainer)))
+			if (
+				!this.popup
+				|| (!this.contentRoot && this.popupRoot && !this.popupRoot.contains(this.popup.popupWindow.popupContainer))
+			)
 			{
 				this.popup = new BX.PopupMenuWindow({
 					id: "dropdown_" + (+new Date()),
 					bindElement: this.input,
+					bindOptions: {
+						forceBindPosition: true
+					},
+					targetContainer: this.contentRoot,
+					maxHeight: 196,
 					items: this.items.map(function(item) {
 						return {
-							text: item.html ? item.html : escapeText(item.name),
+							html: item.html,
+							text: !item.html ? escapeText(item.name) : undefined,
 							onclick: function() {
 								this.onItemClick(item)
 							}.bind(this)
@@ -79,9 +85,12 @@
 					}
 				});
 
-				this.popupRoot = this.layout.parentElement.parentElement.parentElement;
-				this.popupRoot.appendChild(this.popup.popupWindow.popupContainer);
-				this.popupRoot.style.position = "relative";
+				if (!this.contentRoot)
+				{
+					this.popupRoot = this.layout.parentElement.parentElement.parentElement;
+					this.popupRoot.appendChild(this.popup.popupWindow.popupContainer);
+					this.popupRoot.style.position = "relative";
+				}
 			}
 
 			this.layout.classList.add("landing-ui-active");
@@ -96,17 +105,14 @@
 				this.popup.show();
 			}
 
-			this.popup.layout.menuContainer.style.maxHeight = "calc((36px * 5) + 16px)";
-			this.popup.popupWindow.contentContainer.style.overflowX = "hidden";
-
-			bind(this.popup.popupWindow.popupContainer, "mouseover", this.onMouseOver.bind(this));
-			bind(this.popup.popupWindow.popupContainer, "mouseleave", this.onMouseLeave.bind(this));
-
 			var rect = this.input.getBoundingClientRect();
-			var left = offsetLeft(this.input, this.popupRoot);
-			var top = offsetTop(this.input, this.popupRoot);
-			this.popup.popupWindow.popupContainer.style.top = top + rect.height + "px";
-			this.popup.popupWindow.popupContainer.style.left = left + "px";
+			if (!this.contentRoot)
+			{
+				var left = offsetLeft(this.input, this.popupRoot);
+				var top = offsetTop(this.input, this.popupRoot);
+				this.popup.popupWindow.popupContainer.style.top = top + rect.height + "px";
+				this.popup.popupWindow.popupContainer.style.left = left + "px";
+			}
 			this.popup.popupWindow.popupContainer.style.width = rect.width + "px";
 		},
 
@@ -165,48 +171,6 @@
 			if (this.popup)
 			{
 				this.popup.close();
-			}
-		},
-
-		/**
-		 * Handles mouse over event
-		 */
-		onMouseOver: function()
-		{
-			var mouseEvent = "onwheel" in window ? "wheel" : "mousewheel";
-			bind(this.popup.popupWindow.popupContainer, mouseEvent, this.onMouseWheel);
-			bind(this.popup.popupWindow.popupContainer, "touchmove", this.onMouseWheel);
-		},
-
-
-		/**
-		 * Handles mouse leave event
-		 */
-		onMouseLeave: function()
-		{
-			var mouseEvent = "onwheel" in window ? "wheel" : "mousewheel";
-			unbind(this.popup.popupWindow.popupContainer, mouseEvent, this.onMouseWheel);
-			unbind(this.popup.popupWindow.popupContainer, "touchmove", this.onMouseWheel);
-		},
-
-
-		/**
-		 * Handle mouse wheel event
-		 * @param event
-		 */
-		onMouseWheel: function(event)
-		{
-			event.stopPropagation();
-			event.preventDefault();
-
-			if (this.popup)
-			{
-				var delta = BX.Landing.UI.Panel.Content.getDeltaFromEvent(event);
-				var scrollTop = this.popup.popupWindow.contentContainer.scrollTop;
-
-				requestAnimationFrame(function() {
-					this.popup.popupWindow.contentContainer.scrollTop = scrollTop - delta.y;
-				}.bind(this));
 			}
 		}
 	};

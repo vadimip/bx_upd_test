@@ -2,6 +2,10 @@
 
 use Bitrix\Main\Localization\Loc;
 
+\Bitrix\Main\UI\Extension::load([
+	'ui.info-helper'
+]);
+
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
 $newPath = \CComponentEngine::makePathFromTemplate(
@@ -27,13 +31,13 @@ if (!$arResult['CAN_CONNECT_NEW_MAILBOX'])
 		</div>
 		<div class="mail-add-services">
 			<div class="mail-add-list">
-				<? foreach ($arParams['SERVICES'] as $id => $settings): ?>
+				<? foreach ($arParams['SERVICES'] as $settings): ?>
 					<? if ($settings['type'] != 'imap') continue; ?>
 					<a class="mail-add-item"
 						<? if ($arResult['CAN_CONNECT_NEW_MAILBOX']): ?>
-							href="<?=htmlspecialcharsbx(\CHTTP::urlAddParams($newPath, array('id' => $id))) ?>"
+							href="<?=htmlspecialcharsbx(\CHTTP::urlAddParams($newPath, array('id' => $settings['id']))) ?>"
 						<? else: ?>
-							onclick="showLicenseInfoPopup('limit')"
+							onclick="showLicenseInfoPopup()"
 						<? endif ?>>
 						<? if ($settings['icon']): ?>
 							<img class="mail-add-img" src="<?=$settings['icon'] ?>" alt="<?=htmlspecialcharsbx($settings['name']) ?>">
@@ -79,7 +83,7 @@ if (!$arResult['CAN_CONNECT_NEW_MAILBOX'])
 				else
 				{
 					window.location.href = BX.util.add_url_param(
-						'<?=\CUtil::jsEscape($arParams['PATH_TO_MAIL_MSG_LIST']) ?>'.replace('#id#', event.data.id),
+						'<?=\CUtil::jsEscape($arParams['PATH_TO_MAIL_MSG_LIST']) ?>'.replace('#id#', event.data.id).replace('#start_sync_with_showing_stepper#', true),
 						urlParams
 					);
 				}
@@ -87,20 +91,13 @@ if (!$arResult['CAN_CONNECT_NEW_MAILBOX'])
 		}
 	);
 
-	function showLicenseInfoPopup(id)
+	function showLicenseInfoPopup()
 	{
-		B24 && B24.licenseInfoPopup && B24.licenseInfoPopup.show(
-			'mail_setup_' + id,
-			'<?=\CUtil::jsEscape(Loc::getMessage('MAIL_MAILBOX_LICENSE_CONNECTED_MAILBOXES_LIMIT_TITLE')) ?>',
-			'<?=\CUtil::jsEscape(Loc::getMessage(
-				'MAIL_MAILBOX_LICENSE_CONNECTED_MAILBOXES_LIMIT_BODY',
-				array('#LIMIT#' => $arResult['MAX_ALLOWED_CONNECTED_MAILBOXES'])
-			)) ?>'
-		);
+		BX.UI.InfoHelper.show('limit_contact_center_mail_box_number');
 	}
 
 	<? if (!$arResult['CAN_CONNECT_NEW_MAILBOX']): ?>
-		showLicenseInfoPopup('limit');
+		showLicenseInfoPopup();
 	<? endif ?>
 
 </script>

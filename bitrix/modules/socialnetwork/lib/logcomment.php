@@ -7,9 +7,26 @@
  */
 namespace Bitrix\Socialnetwork;
 
-use Bitrix\Main\Entity;
+use Bitrix\Main\ORM;
+use Bitrix\Socialnetwork\Item\LogIndex;
 
-class LogCommentTable extends Entity\DataManager
+/**
+ * Class LogCommentTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_LogComment_Query query()
+ * @method static EO_LogComment_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_LogComment_Result getById($id)
+ * @method static EO_LogComment_Result getList(array $parameters = array())
+ * @method static EO_LogComment_Entity getEntity()
+ * @method static \Bitrix\Socialnetwork\EO_LogComment createObject($setDefaultValues = true)
+ * @method static \Bitrix\Socialnetwork\EO_LogComment_Collection createCollection()
+ * @method static \Bitrix\Socialnetwork\EO_LogComment wakeUpObject($row)
+ * @method static \Bitrix\Socialnetwork\EO_LogComment_Collection wakeUpCollection($rows)
+ */
+class LogCommentTable extends ORM\Data\DataManager
 {
 	public static function getTableName()
 	{
@@ -63,5 +80,27 @@ class LogCommentTable extends Entity\DataManager
 		);
 
 		return $fieldsMap;
+	}
+
+	public static function onAfterDelete(ORM\Event $event)
+	{
+		$result = new ORM\EventResult;
+		$primary = $event->getParameter('primary');
+		$commentId = (!empty($primary['ID']) ? (int)$primary['ID'] : 0);
+
+		if ($commentId > 0)
+		{
+			LogIndex::deleteIndex(array(
+				'itemType' => LogIndexTable::ITEM_TYPE_COMMENT,
+				'itemId' => $commentId
+			));
+
+			LogTagTable::deleteByItem(array(
+				'itemType' => LogTagTable::ITEM_TYPE_COMMENT,
+				'itemId' => $commentId
+			));
+		}
+
+		return $result;
 	}
 }

@@ -1,4 +1,5 @@
-<?
+<?php
+
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 /** @var CBitrixComponent $this */
 /** @var array $arParams */
@@ -88,11 +89,20 @@ else
 			&& Bitrix\Tasks\Util\Restriction\Bitrix24Restriction\Limit\TaskLimit::isLimitExceeded()
 		);
 
-		if ($arParams["PAGE_ID"] == "group_features")
+		$tasksLimited = (
+			$arResult['tasksLimitExceeded']
+			|| (
+				ModuleManager::isModuleInstalled('tasks')
+				&& Loader::includeModule('bitrix24')
+				&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('socialnetwork_project_tasks_perms')
+			)
+		);
+
+		if ($arParams["PAGE_ID"] === 'group_features')
 		{
 			$arGroup = CSocNetGroup::GetByID($arParams["GROUP_ID"]);
 
-			if (!\Bitrix\Socialnetwork\Item\Workgroup::getEditFeaturesAvailability())
+			if (!\Bitrix\Socialnetwork\Helper\Workgroup::getEditFeaturesAvailability())
 			{
 				$arResult["FatalError"] = GetMessage("SONET_C3_PERMS").".";
 			}
@@ -104,10 +114,13 @@ else
 				)
 			)
 			{
-				$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($USER->GetID(), $arGroup, CSocNetUser::IsCurrentUserModuleAdmin());
+				$arResult["CurrentUserPerms"] = \Bitrix\Socialnetwork\Helper\Workgroup::getPermissions([
+					'groupId' => $arParams['GROUP_ID'],
+				]);
 				$arResult["InitiatePermsList"] = \Bitrix\Socialnetwork\Item\Workgroup::getInitiatePermOptionsList(array(
-					'project' => ($arGroup["PROJECT"] == 'Y')
+					'project' => ($arGroup['PROJECT'] === 'Y')
 				));
+				$arResult['SpamPermsList'] = \Bitrix\Socialnetwork\Item\Workgroup::getSpamPermOptionsList();
 
 				if ($arResult["CurrentUserPerms"]["UserCanModifyGroup"])
 				{
@@ -157,6 +170,14 @@ else
 						{
 							$arResult["Features"][$feature]['note'] = GetMessage("SONET_WEBDAV_RIGHS_NOTE");
 							continue;
+						}
+
+						if (
+							$feature === 'tasks'
+							&& $tasksLimited
+						)
+						{
+							$arResult["Features"][$feature]['limit'] = 'limit_tasks_access_permissions';
 						}
 
 						if (
@@ -225,7 +246,7 @@ else
 						}
 
 						if (
-							$feature == 'calendar' 
+							$feature == 'calendar'
 							&& (
 								!IsModuleInstalled("intranet")
 								|| COption::GetOptionString("intranet", "calendar_2", "N") == "Y"
@@ -328,16 +349,31 @@ else
 
 			$errorMessage = "";
 
-			if (
-				$arParams["PAGE_ID"] == "group_features"
-				&& $_POST["GROUP_INITIATE_PERMS"] <> ''
-				&& in_array($_POST["GROUP_INITIATE_PERMS"], UserToGroupTable::getRolesMember())
-			)
+			if ($arParams['PAGE_ID'] === "group_features")
 			{
-				CSocNetGroup::update($arResult["Group"]["ID"], array(
-					'INITIATE_PERMS' => $_POST["GROUP_INITIATE_PERMS"],
-					'=DATE_UPDATE' => $DB->currentTimeFunction()
-				));
+				$updateFields = [];
+
+				if (
+					(string)$_POST['GROUP_SPAM_PERMS'] !== ''
+					&& in_array((string)$_POST['GROUP_SPAM_PERMS'], array_merge(UserToGroupTable::getRolesMember(), [ SONET_ROLES_ALL ]), true)
+				)
+				{
+					$updateFields['SPAM_PERMS'] = (string)$_POST['GROUP_SPAM_PERMS'];
+				}
+
+				if (
+					(string)$_POST['GROUP_INITIATE_PERMS'] !== ''
+					&& in_array($_POST['GROUP_INITIATE_PERMS'], UserToGroupTable::getRolesMember())
+				)
+				{
+					$updateFields['INITIATE_PERMS'] = $_POST['GROUP_INITIATE_PERMS'];
+				}
+
+				if (!empty($updateFields))
+				{
+					$updateFields['=DATE_UPDATE'] = \CDatabase::CurrentTimeFunction();
+					CSocNetGroup::update($arResult['Group']['ID'], $updateFields);
+				}
 			}
 
 			foreach ($arResult["Features"] as $feature => $arFeature)
@@ -352,7 +388,7 @@ else
 
 				if (
 					$feature == 'tasks'
-					&& $arResult['tasksLimitExceeded']
+					&& $tasksLimited
 				)
 				{
 					continue;
@@ -481,4 +517,3 @@ else
 }
 
 $this->IncludeComponentTemplate();
-?>

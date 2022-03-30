@@ -1,5 +1,9 @@
-<?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Socialnetwork\Component\LogList;
 
@@ -12,20 +16,6 @@ use Bitrix\Socialnetwork\Component\LogList;
 /** @global CDatabase $DB */
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
-
-if (!function_exists('__SLGetUFMeta'))
-{
-	function __SLGetUFMeta()
-	{
-		global $USER_FIELD_MANAGER;
-		static $arUFMeta;
-		if (!$arUFMeta)
-		{
-			$arUFMeta = $USER_FIELD_MANAGER->GetUserFields("SONET_COMMENT", 0, LANGUAGE_ID);
-		}
-		return $arUFMeta;
-	}
-}
 
 if (!function_exists('__SLTransportSort'))
 {
@@ -88,7 +78,7 @@ if (!function_exists('__SLEGetTransport'))
 
 if (!function_exists('__SLEGetLogRecord'))
 {
-	function __SLEGetLogRecord($logID, $arParams, $arCurrentUserSubscribe)
+	function __SLEGetLogRecord($logId, $arParams, $arCurrentUserSubscribe)
 	{
 		global $APPLICATION, $CACHE_MANAGER, $USER_FIELD_MANAGER, $DB, $USER;
 
@@ -132,12 +122,12 @@ if (!function_exists('__SLEGetLogRecord'))
 			}
 		}
 
-		$cache_time = 31536000;
+		$cacheTime = 31536000;
 		$arEvent = array();
 
-		$cache = new CPHPCache;
+		$cache = new \CPHPCache;
 
-		$arCacheID = array();
+		$cachedFields = [];
 		$arKeys = array(
 			"AVATAR_SIZE",
 			"DESTINATION_LIMIT",
@@ -152,18 +142,22 @@ if (!function_exists('__SLEGetLogRecord'))
 		);
 		foreach($arKeys as $param_key)
 		{
-			if (array_key_exists($param_key, $arParams))
-				$arCacheID[$param_key] = $arParams[$param_key];
-			else
-				$arCacheID[$param_key] = false;
+			$cachedFields[$param_key] = (array_key_exists($param_key, $arParams) ? $arParams[$param_key] : false);
 		}
-		$cache_id = "log_post_".$logID."_".md5(serialize($arCacheID))."_".SITE_TEMPLATE_ID."_".SITE_ID."_".LANGUAGE_ID."_".FORMAT_DATETIME."_".CTimeZone::GetOffset();
-		$cache_path = "/sonet/log/".intval(intval($logID) / 1000)."/".$logID."/entry/";
 
-		if (
-			is_object($cache)
-			&& $cache->InitCache($cache_time, $cache_id, $cache_path)
-		)
+		$cacheId = implode('_', [
+			'log_post',
+			$logId,
+			md5(serialize($cachedFields)),
+			SITE_TEMPLATE_ID,
+			SITE_ID,
+			LANGUAGE_ID,
+			FORMAT_DATETIME,
+			\CTimeZone::getOffset()
+		]);
+		$cachePath = '/sonet/log/' . (int)((int)$logId / 1000) . '/' . $logId . '/entry/';
+
+		if ($cache->InitCache($cacheTime, $cacheId, $cachePath))
 		{
 			$arCacheVars = $cache->GetVars();
 			$arEvent["FIELDS_FORMATTED"] = $arCacheVars["FIELDS_FORMATTED"];
@@ -212,13 +206,10 @@ if (!function_exists('__SLEGetLogRecord'))
 		}
 		else
 		{
-			if (is_object($cache))
-			{
-				$cache->StartDataCache($cache_time, $cache_id, $cache_path);
-			}
+			$cache->StartDataCache($cacheTime, $cacheId, $cachePath);
 
 			$arFilter = array(
-				"ID" => $logID
+				"ID" => $logId
 			);
 
 			$arListParams = array(
@@ -268,7 +259,7 @@ if (!function_exists('__SLEGetLogRecord'))
 
 				if (defined("BX_COMP_MANAGED_CACHE"))
 				{
-					$CACHE_MANAGER->StartTagCache($cache_path);
+					$CACHE_MANAGER->StartTagCache($cachePath);
 					$CACHE_MANAGER->RegisterTag("USER_NAME_".intval($arEvent["USER_ID"]));
 					$CACHE_MANAGER->RegisterTag("SONET_LOG_".intval($arEvent["ID"]));
 
@@ -295,7 +286,7 @@ if (!function_exists('__SLEGetLogRecord'))
 						)
 					)
 					{
-						$rsSite = CSite::GetList($by="sort", $order="desc", Array("ACTIVE" => "Y"));
+						$rsSite = CSite::GetList("sort", "desc", Array("ACTIVE" => "Y"));
 						while($arSite = $rsSite->Fetch())
 						{
 							$arSiteWorkgroupsPage[$arSite["ID"]] = COption::GetOptionString("socialnetwork", "workgroups_page", $arSite["DIR"]."workgroups/", $arSite["ID"]);
@@ -516,7 +507,7 @@ if (!function_exists('__SLEGetLogRecord'))
 							$arEvent["FIELDS_FORMATTED"]["TAGS"] = array();
 							$res = \Bitrix\Socialnetwork\LogTagTable::getList(array(
 								'filter' => array(
-									'LOG_ID' => $logID,
+									'LOG_ID' => $logId,
 								),
 								'select' => array('NAME')
 							));
@@ -525,7 +516,7 @@ if (!function_exists('__SLEGetLogRecord'))
 							{
 								$arEvent["FIELDS_FORMATTED"]["TAGS"][] = array(
 									'NAME' => $logTagFields['NAME'],
-									'URL' => \CComponentEngine::makePathFromTemplate($arParams["PATH_TO_LOG_TAG"], array("tag" => urlencode($arCatTmp["NAME"])))
+									'URL' => \CComponentEngine::makePathFromTemplate($arParams["PATH_TO_LOG_TAG"], array("tag" => urlencode($logTagFields["NAME"])))
 								);
 							}
 						}
@@ -625,7 +616,6 @@ if (!function_exists('__SLEGetLogRecord'))
 
 					$arEvent["FIELDS_FORMATTED"]["DATETIME_FORMATTED"] = $dateTimeFormated;
 
-
 					$arCommentEvent = CSocNetLogTools::FindLogCommentEventByLogEventID($arEvent["EVENT_ID"]);
 					if (
 						!array_key_exists("HAS_COMMENTS", $arEvent["FIELDS_FORMATTED"])
@@ -633,28 +623,62 @@ if (!function_exists('__SLEGetLogRecord'))
 					)
 					{
 						$arEvent["FIELDS_FORMATTED"]["HAS_COMMENTS"] = (
-						$arCommentEvent
-						&& (
-							!array_key_exists("ENABLE_COMMENTS", $arEvent)
-							|| $arEvent["ENABLE_COMMENTS"] != "N"
-						)
-							? "Y"
-							: "N"
+							$arCommentEvent
+							&& (
+								!array_key_exists('ENABLE_COMMENTS', $arEvent)
+								|| $arEvent['ENABLE_COMMENTS'] !== 'N'
+							)
+								? 'Y'
+								: 'N'
 						);
+					}
+				}
+
+				$arEvent['FIELDS_FORMATTED']['closedWorkgroupsOnly'] = false;
+
+				if (\Bitrix\Main\Config\Option::get('socialnetwork', 'work_with_closed_groups', 'N') !== 'Y')
+				{
+					$groupIdList = [];
+					$res = \Bitrix\Socialnetwork\LogRightTable::getList([
+						'filter' => [
+							'=LOG_ID' => $logId,
+						],
+						'select' => [ 'GROUP_CODE' ],
+					]);
+					while ($logRightsFields = $res->fetch())
+					{
+						if (!preg_match('/^SG(\d+)/', $logRightsFields['GROUP_CODE'], $matches))
+						{
+							continue;
+						}
+						$groupIdList[] = (int)$matches[1];
+					}
+					if (!empty($groupIdList))
+					{
+						$arEvent['FIELDS_FORMATTED']['closedWorkgroupsOnly'] = true;
+
+						$res = \Bitrix\Socialnetwork\WorkgroupTable::getList([
+							'filter' => [
+								'ID' => $groupIdList,
+								'=CLOSED' => 'N',
+							],
+							'select' => [ 'ID' ]
+						]);
+						if ($res->fetch())
+						{
+							$arEvent['FIELDS_FORMATTED']['closedWorkgroupsOnly'] = false;
+						}
 					}
 				}
 			}
 
-			if (is_object($cache))
+			$arCacheData = [
+				'FIELDS_FORMATTED' => $arEvent['FIELDS_FORMATTED'],
+			];
+			$cache->EndDataCache($arCacheData);
+			if(defined("BX_COMP_MANAGED_CACHE"))
 			{
-				$arCacheData = Array(
-					"FIELDS_FORMATTED" => $arEvent["FIELDS_FORMATTED"]
-				);
-				$cache->EndDataCache($arCacheData);
-				if(defined("BX_COMP_MANAGED_CACHE"))
-				{
-					$CACHE_MANAGER->EndTagCache();
-				}
+				$CACHE_MANAGER->EndTagCache();
 			}
 		}
 
@@ -773,10 +797,21 @@ if (!function_exists('__SLEGetLogRecord'))
 			}
 		}
 
+		if (
+			$arEvent['FIELDS_FORMATTED']['CAN_ADD_COMMENTS'] === 'Y'
+			&& (
+				isset($arEvent['FIELDS_FORMATTED']['closedWorkgroupsOnly'])
+				&& $arEvent['FIELDS_FORMATTED']['closedWorkgroupsOnly']
+			)
+		)
+		{
+			$arEvent['FIELDS_FORMATTED']['CAN_ADD_COMMENTS'] = 'N';
+		}
+
 		$arEvent["FIELDS_FORMATTED"]["FAVORITES"] = $arParams["EVENT"]["FAVORITES"];
 		$arEvent["FIELDS_FORMATTED"]["PINNED"] = $arParams["EVENT"]["PINNED"];
 
-		if ($arParams["USE_FOLLOW"] == "Y")
+		if ($arParams['USE_FOLLOW'] === 'Y')
 		{
 			$arEvent["FIELDS_FORMATTED"]["EVENT"]["FOLLOW"] = $arParams["EVENT"]["FOLLOW"];
 			$arEvent["FIELDS_FORMATTED"]["EVENT"]["DATE_FOLLOW_X1"] = $arParams["EVENT"]["DATE_FOLLOW_X1"];
@@ -784,7 +819,7 @@ if (!function_exists('__SLEGetLogRecord'))
 		}
 
 		if (
-			$arParams["CHECK_PERMISSIONS_DEST"] == "N"
+			$arParams['CHECK_PERMISSIONS_DEST'] === 'N'
 			&& !$bCurrentUserIsAdmin
 			&& is_object($GLOBALS["USER"])
 			&& is_array($arEvent["FIELDS_FORMATTED"]["EVENT_FORMATTED"])
@@ -800,7 +835,7 @@ if (!function_exists('__SLEGetLogRecord'))
 			)
 		)
 		{
-			$arEvent["FIELDS_FORMATTED"]["EVENT_FORMATTED"]["DESTINATION_HIDDEN"] = 0;
+			$arEvent['FIELDS_FORMATTED']['EVENT_FORMATTED']['DESTINATION_HIDDEN'] = 0;
 
 			$arGroupID = CSocNetLogTools::GetAvailableGroups();
 
@@ -812,12 +847,11 @@ if (!function_exists('__SLEGetLogRecord'))
 				foreach($arEvent["FIELDS_FORMATTED"]["EVENT_FORMATTED"]["DESTINATION"] as $key => $arDestination)
 				{
 					if (
-						array_key_exists("TYPE", $arDestination)
-						&& array_key_exists("ID", $arDestination)
+						isset($arDestination['TYPE'], $arDestination['ID'])
 						&& (
 							(
-								$arDestination["TYPE"] == "SG"
-								&& !in_array(intval($arDestination["ID"]), $arGroupID)
+								$arDestination['TYPE'] === "SG"
+								&& !in_array((int)$arDestination['ID'], $arGroupID)
 							)
 							|| (
 								in_array($arDestination["TYPE"], array("CRMCOMPANY", "CRMLEAD", "CRMCONTACT", "CRMDEAL"))
@@ -835,30 +869,30 @@ if (!function_exists('__SLEGetLogRecord'))
 										)
 									)
 									|| (
-										$arDestination["TYPE"] == "CRMDEAL"
+										$arDestination['TYPE'] === 'CRMDEAL'
 										&& !CCrmDeal::CheckReadPermission($arDestination["ID"])
 									)
 								)
 							)
 							|| (
 								in_array($arDestination["TYPE"], array("DR", "D"))
-								&& $isExtranetUser == "Y"
+								&& $isExtranetUser === 'Y'
 							)
 							|| (
-								$arDestination["TYPE"] == "U"
+								$arDestination['TYPE'] === 'U'
 								&& $arDestination["ID"] != $USER->GetId()
 								&& isset($arUserIdVisible)
 								&& is_array($arUserIdVisible)
-								&& !in_array(intval($arDestination["ID"]), $arUserIdVisible)
+								&& !in_array((int)$arDestination['ID'], $arUserIdVisible)
 							)
 							|| (
-								$arDestination["TYPE"] == "U"
+								$arDestination['TYPE'] === 'U'
 								&& $arDestination["ID"] != $USER->GetId()
 								&& isset($arDestination["IS_EXTRANET"])
-								&& $arDestination["IS_EXTRANET"] == "Y"
+								&& $arDestination['IS_EXTRANET'] === 'Y'
 								&& isset($arAvailableExtranetUserID)
 								&& is_array($arAvailableExtranetUserID)
-								&& !in_array(intval($arDestination["ID"]), $arAvailableExtranetUserID)
+								&& !in_array((int)$arDestination['ID'], $arAvailableExtranetUserID)
 							)
 						)
 					)
@@ -868,7 +902,7 @@ if (!function_exists('__SLEGetLogRecord'))
 					}
 					elseif (
 						isset($arParams["PUBLIC_MODE"])
-						&& $arParams["PUBLIC_MODE"] == "Y"
+						&& $arParams['PUBLIC_MODE'] === 'Y'
 						&& !empty($arDestination["URL"])
 					)
 					{
@@ -927,412 +961,6 @@ if (!function_exists('__SLEGetLogRecord'))
 		}
 
 		return $arEvent["FIELDS_FORMATTED"];
-	}
-}
-
-if (!function_exists('__SLEGetLogCommentRecord'))
-{
-	function __SLEGetLogCommentRecord($arComment, $arParams, &$arAssets)
-	{
-		global $DB, $APPLICATION;
-
-		static $arUserCache = array();
-
-		// for the same post log_update - time only, if not - date and time
-		$timestamp = MakeTimeStamp(array_key_exists("LOG_DATE_FORMAT", $arComment)
-			? $arComment["LOG_DATE_FORMAT"]
-			: $arComment["LOG_DATE"]
-		);
-
-		$timeFormated = FormatDateFromDB($arComment["LOG_DATE"],
-			(
-			mb_stripos($arParams["DATE_TIME_FORMAT"], 'a')
-			|| (
-				$arParams["DATE_TIME_FORMAT"] == 'FULL'
-				&& IsAmPmMode()
-			) !== false
-					? (mb_strpos(FORMAT_DATETIME, 'TT') !== false ? 'G:MI TT' : 'G:MI T')
-					: 'HH:MI'
-			)
-		);
-
-		$dateTimeFormated = FormatDate(
-			(!empty($arParams['DATE_TIME_FORMAT'])
-				? ($arParams['DATE_TIME_FORMAT'] == 'FULL'
-					? $DB->DateFormatToPHP(str_replace(':SS', '', FORMAT_DATETIME))
-					: $arParams['DATE_TIME_FORMAT']
-				)
-				: $DB->DateFormatToPHP(FORMAT_DATETIME)
-			),
-			$timestamp
-		);
-		if (
-			strcasecmp(LANGUAGE_ID, 'EN') !== 0
-			&& strcasecmp(LANGUAGE_ID, 'DE') !== 0
-		)
-		{
-			$dateTimeFormated = ToLower($dateTimeFormated);
-		}
-		// strip current year
-		if (
-			!empty($arParams['DATE_TIME_FORMAT'])
-			&& (
-				$arParams['DATE_TIME_FORMAT'] == 'j F Y G:i'
-				|| $arParams['DATE_TIME_FORMAT'] == 'j F Y g:i a'
-			)
-		)
-		{
-			$dateTimeFormated = ltrim($dateTimeFormated, '0');
-			$curYear = date('Y');
-			$dateTimeFormated = str_replace(array('-'.$curYear, '/'.$curYear, ' '.$curYear, '.'.$curYear), '', $dateTimeFormated);
-		}
-
-		$path2Entity = (
-			$arComment["ENTITY_TYPE"] == SONET_ENTITY_GROUP
-				? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP"], array("group_id" => $arComment["ENTITY_ID"]))
-				: CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arComment["ENTITY_ID"]))
-		);
-
-		if (intval($arComment["USER_ID"]) > 0)
-		{
-			$suffix = (
-				is_array($GLOBALS["arExtranetUserID"])
-				&& in_array($arComment["USER_ID"], $GLOBALS["arExtranetUserID"])
-					? GetMessage("SONET_LOG_EXTRANET_SUFFIX")
-					: ""
-			);
-
-			$arTmpUser = array(
-				"NAME" => $arComment["~CREATED_BY_NAME"],
-				"LAST_NAME" => $arComment["~CREATED_BY_LAST_NAME"],
-				"SECOND_NAME" => $arComment["~CREATED_BY_SECOND_NAME"],
-				"LOGIN" => $arComment["~CREATED_BY_LOGIN"]
-			);
-			$bUseLogin = $arParams["SHOW_LOGIN"] != "N" ? true : false;
-			$arCreatedBy = array(
-				"FORMATTED" => CUser::FormatName($arParams["NAME_TEMPLATE"], $arTmpUser, $bUseLogin).$suffix,
-				"URL" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arComment["USER_ID"], "id" => $arComment["USER_ID"]))
-			);
-
-			$arCreatedBy["TOOLTIP_FIELDS"] = array(
-				"ID" => $arComment["USER_ID"],
-				"NAME" => $arComment["~CREATED_BY_NAME"],
-				"LAST_NAME" => $arComment["~CREATED_BY_LAST_NAME"],
-				"SECOND_NAME" => $arComment["~CREATED_BY_SECOND_NAME"],
-				"LOGIN" => $arComment["~CREATED_BY_LOGIN"],
-				"PERSONAL_GENDER" => $arComment["~CREATED_BY_PERSONAL_GENDER"],
-				"USE_THUMBNAIL_LIST" => "N",
-				"PATH_TO_SONET_MESSAGES_CHAT" => $arParams["PATH_TO_MESSAGES_CHAT"],
-				"PATH_TO_SONET_USER_PROFILE" => $arParams["PATH_TO_USER"],
-				"PATH_TO_VIDEO_CALL" => $arParams["PATH_TO_VIDEO_CALL"],
-				"DATE_TIME_FORMAT" => $arParams["DATE_TIME_FORMAT"],
-				"SHOW_YEAR" => $arParams["SHOW_YEAR"],
-				"CACHE_TYPE" => $arParams["CACHE_TYPE"],
-				"CACHE_TIME" => $arParams["CACHE_TIME"],
-				"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"].$suffix,
-				"SHOW_LOGIN" => $arParams["SHOW_LOGIN"],
-				"PATH_TO_CONPANY_DEPARTMENT" => $arParams["PATH_TO_CONPANY_DEPARTMENT"],
-				"INLINE" => "Y",
-				"EXTERNAL_AUTH_ID" => $arComment["~CREATED_BY_EXTERNAL_AUTH_ID"]
-			);
-			if (
-				isset($arParams["ENTRY_HAS_CRM_USER"])
-				&& $arParams["ENTRY_HAS_CRM_USER"]
-				&& IsModuleInstalled('crm')
-			)
-			{
-				$ar = array();
-
-				if (isset($arUserCache[$arComment["USER_ID"]]))
-				{
-					$ar = $arUserCache[$arComment["USER_ID"]];
-				}
-				else
-				{
-					$arSelectParams = array(
-						"FIELDS" => array("ID"),
-						"SELECT" => array("UF_USER_CRM_ENTITY")
-					);
-
-					$res = CUser::getList(
-						($by="id"),
-						($order="asc"),
-						array("ID_EQUAL_EXACT" => intval($arComment["USER_ID"])),
-						$arSelectParams
-					);
-					if ($ar = $res->fetch())
-					{
-						$arUserCache[$ar["ID"]] = $ar;
-					}
-				}
-
-				if (!empty($ar))
-				{
-					$arCreatedBy["TOOLTIP_FIELDS"] = array_merge($arCreatedBy["TOOLTIP_FIELDS"], $ar);
-				}
-			}
-		}
-		else
-		{
-			$arCreatedBy = array("FORMATTED" => GetMessage("SONET_C73_CREATED_BY_ANONYMOUS"));
-		}
-
-		$arTmpUser = array(
-			"NAME" => $arComment["~USER_NAME"],
-			"LAST_NAME" => $arComment["~USER_LAST_NAME"],
-			"SECOND_NAME" => $arComment["~USER_SECOND_NAME"],
-			"LOGIN" => $arComment["~USER_LOGIN"]
-		);
-
-		$arParamsTmp = $arParams;
-		$arParamsTmp["AVATAR_SIZE"] = (isset($arParams["AVATAR_SIZE_COMMON"]) ? $arParams["AVATAR_SIZE_COMMON"] : $arParams["AVATAR_SIZE"]);
-
-		$arTmpCommentEvent = array(
-			"EVENT" => $arComment,
-			"LOG_DATE" => $arComment["LOG_DATE"],
-			"LOG_DATE_TS" => MakeTimeStamp($arComment["LOG_DATE"]),
-			"LOG_DATE_DAY" => ConvertTimeStamp(MakeTimeStamp($arComment["LOG_DATE"]), "SHORT"),
-			"LOG_TIME_FORMAT" => $timeFormated,
-			"LOG_DATETIME_FORMAT" => $dateTimeFormated,
-			"TITLE_TEMPLATE" => "",
-			"TITLE" => "",
-			"TITLE_FORMAT" => "", // need to use url here
-			"ENTITY_NAME" => (($arComment["ENTITY_TYPE"] == SONET_ENTITY_GROUP) ? $arComment["GROUP_NAME"] : CUser::FormatName($arParams['NAME_TEMPLATE'], $arTmpUser, $bUseLogin)),
-			"ENTITY_PATH" => $path2Entity,
-			"CREATED_BY" => $arCreatedBy,
-			"AVATAR_SRC" => CSocNetLogTools::FormatEvent_CreateAvatar($arComment, $arParamsTmp)
-		);
-
-		$arEvent = CSocNetLogTools::FindLogCommentEventByID($arComment["EVENT_ID"]);
-		$arFIELDS_FORMATTED = array();
-
-		if (
-			is_array($arEvent)
-			&& array_key_exists("CLASS_FORMAT", $arEvent)
-			&& array_key_exists("METHOD_FORMAT", $arEvent)
-		)
-		{
-			$arLog = (
-				$arParams["USER_COMMENTS"] == "Y"
-					? array()
-					: array(
-						"TITLE" => $arComment["~LOG_TITLE"],
-						"URL" => $arComment["~LOG_URL"],
-						"PARAMS" => $arComment["~LOG_PARAMS"]
-					)
-			);
-
-			$arFIELDS_FORMATTED = call_user_func(array($arEvent["CLASS_FORMAT"], $arEvent["METHOD_FORMAT"]), $arComment, $arParams, false, $arLog);
-
-			if ($arParams["USE_COMMENTS"] != "Y")
-			{
-				if (
-					array_key_exists("CREATED_BY", $arFIELDS_FORMATTED)
-					&& isset($arFIELDS_FORMATTED["CREATED_BY"]["TOOLTIP_FIELDS"])
-				)
-				{
-					$arTmpCommentEvent["CREATED_BY"]["TOOLTIP_FIELDS"] = $arFIELDS_FORMATTED["CREATED_BY"]["TOOLTIP_FIELDS"];
-				}
-			}
-		}
-
-		if (
-			$commentAuxProvider = \Bitrix\Socialnetwork\CommentAux\Base::findProvider(
-				array(
-					'POST_TEXT' => $arComment['MESSAGE'],
-					'SHARE_DEST' => $arComment['SHARE_DEST'],
-					'SOURCE_ID' => (int)$arComment['SOURCE_ID'],
-					'EVENT_ID' => $arComment['EVENT_ID'],
-					'RATING_TYPE_ID' => $arComment['RATING_TYPE_ID'],
-				),
-				array(
-					'eventId' => $arComment['EVENT_ID']
-				)
-			)
-		)
-		{
-			$commentAuxProvider->setOptions(array(
-				'suffix' => (!empty($arParams['COMMENT_ENTITY_SUFFIX']) ? $arParams['COMMENT_ENTITY_SUFFIX'] : ''),
-				'logId' => $arComment['LOG_ID'],
-				'cache' => true
-			));
-
-			$arFIELDS_FORMATTED["EVENT_FORMATTED"]["FULL_MESSAGE_CUT"] = nl2br($commentAuxProvider->getText());
-		}
-		else
-		{
-			$message = (
-				is_array($arFIELDS_FORMATTED)
-				&& array_key_exists("EVENT_FORMATTED", $arFIELDS_FORMATTED)
-				&& array_key_exists("MESSAGE", $arFIELDS_FORMATTED["EVENT_FORMATTED"])
-					? $arFIELDS_FORMATTED["EVENT_FORMATTED"]["MESSAGE"]
-					: $arTmpCommentEvent["EVENT"]["MESSAGE"]
-			);
-
-			if ($message <> '')
-			{
-				$arFIELDS_FORMATTED["EVENT_FORMATTED"]["FULL_MESSAGE_CUT"] = CSocNetTextParser::closetags(htmlspecialcharsback($message));
-			}
-		}
-
-		if (is_array($arTmpCommentEvent))
-		{
-			$arFIELDS_FORMATTED["EVENT_FORMATTED"]["DATETIME"] = (
-				$arTmpCommentEvent["LOG_DATE_DAY"] == ConvertTimeStamp()
-					? $timeFormated
-					: $dateTimeFormated
-			);
-			$arTmpCommentEvent["EVENT_FORMATTED"] = $arFIELDS_FORMATTED["EVENT_FORMATTED"];
-			$arTmpCommentEvent["EVENT_FORMATTED"]["URLPREVIEW"] = false;
-
-			if (
-				isset($arComment["UF"]["UF_SONET_COM_URL_PRV"])
-				&& !empty($arComment["UF"]["UF_SONET_COM_URL_PRV"]["VALUE"])
-			)
-			{
-				$arCss = $APPLICATION->sPath2css;
-				$arJs = $APPLICATION->arHeadScripts;
-
-				$urlPreviewText = \Bitrix\Socialnetwork\ComponentHelper::getUrlPreviewContent($arComment["UF"]["UF_SONET_COM_URL_PRV"], array(
-					"MOBILE" => "N",
-					"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
-					"PATH_TO_USER" => $arParams["~PATH_TO_USER"]
-				));
-
-				if (!empty($urlPreviewText))
-				{
-					$arTmpCommentEvent["EVENT_FORMATTED"]["URLPREVIEW"] = true;
-					$arTmpCommentEvent["EVENT_FORMATTED"]["FULL_MESSAGE_CUT"] .= $urlPreviewText;
-				}
-
-				$arAssets["CSS"] = array_merge($arAssets["CSS"], array_diff($APPLICATION->sPath2css, $arCss));
-				$arAssets["JS"] = array_merge($arAssets["JS"], array_diff($APPLICATION->arHeadScripts, $arJs));
-
-				unset($arComment["UF"]["UF_SONET_COM_URL_PRV"]);
-			}
-
-			$arTmpCommentEvent["UF"] = $arComment["UF"];
-
-			if (
-				isset($arTmpCommentEvent["EVENT_FORMATTED"])
-				&& is_array($arTmpCommentEvent["EVENT_FORMATTED"])
-			)
-			{
-				$arFields2Cache = array(
-					"DATETIME",
-					"MESSAGE",
-					"FULL_MESSAGE_CUT",
-					"ERROR_MSG",
-					"URLPREVIEW",
-				);
-				foreach ($arTmpCommentEvent["EVENT_FORMATTED"] as $field => $value)
-				{
-					if (!in_array($field, $arFields2Cache))
-					{
-						unset($arTmpCommentEvent["EVENT_FORMATTED"][$field]);
-					}
-				}
-			}
-
-			if (
-				isset($arTmpCommentEvent["EVENT"])
-				&& is_array($arTmpCommentEvent["EVENT"])
-			)
-			{
-				if (!empty($arTmpCommentEvent["EVENT"]["URL"]))
-				{
-					$arTmpCommentEvent["EVENT"]["URL"] = str_replace(
-						"#GROUPS_PATH#",
-						COption::GetOptionString("socialnetwork", "workgroups_page", "/workgroups/", SITE_ID),
-						$arTmpCommentEvent["EVENT"]["URL"]
-					);
-				}
-
-				$arFields2Cache = array(
-					"ID",
-					"SOURCE_ID",
-					"EVENT_ID",
-					"USER_ID",
-					"LOG_DATE",
-					"RATING_TYPE_ID",
-					"RATING_ENTITY_ID",
-					"URL",
-					"SHARE_DEST"
-				);
-
-				if (
-					isset($arParams["MAIL"])
-					&& $arParams["MAIL"] == "Y"
-				)
-				{
-					$arFields2Cache[] = "MESSAGE";
-				}
-
-				foreach ($arTmpCommentEvent["EVENT"] as $field => $value)
-				{
-					if (!in_array($field, $arFields2Cache))
-					{
-						unset($arTmpCommentEvent["EVENT"][$field]);
-					}
-				}
-			}
-
-			if (
-				isset($arTmpCommentEvent["CREATED_BY"])
-				&& is_array($arTmpCommentEvent["CREATED_BY"])
-			)
-			{
-				$arFields2Cache = array(
-					"TOOLTIP_FIELDS",
-					"FORMATTED",
-					"URL"
-				);
-				foreach ($arTmpCommentEvent["CREATED_BY"] as $field => $value)
-				{
-					if (!in_array($field, $arFields2Cache))
-					{
-						unset($arTmpCommentEvent["CREATED_BY"][$field]);
-					}
-				}
-
-				if (
-					isset($arTmpCommentEvent["CREATED_BY"]["TOOLTIP_FIELDS"])
-					&& is_array($arTmpCommentEvent["CREATED_BY"]["TOOLTIP_FIELDS"])
-				)
-				{
-					$arFields2Cache = array(
-						"ID",
-						"PATH_TO_SONET_USER_PROFILE",
-						"NAME",
-						"LAST_NAME",
-						"SECOND_NAME",
-						"PERSONAL_GENDER",
-						"LOGIN",
-						"EMAIL",
-						"EXTERNAL_AUTH_ID",
-						"UF_USER_CRM_ENTITY",
-						"UF_DEPARTMENT"
-					);
-					foreach ($arTmpCommentEvent["CREATED_BY"]["TOOLTIP_FIELDS"] as $field => $value)
-					{
-						if (!in_array($field, $arFields2Cache))
-						{
-							unset($arTmpCommentEvent["CREATED_BY"]["TOOLTIP_FIELDS"][$field]);
-						}
-					}
-				}
-			}
-		}
-
-		foreach($arTmpCommentEvent["EVENT"] as $key => $value)
-		{
-			if (mb_strpos($key, "~") === 0)
-			{
-				unset($arTmpCommentEvent["EVENT"][$key]);
-			}
-		}
-
-		return $arTmpCommentEvent;
 	}
 }
 

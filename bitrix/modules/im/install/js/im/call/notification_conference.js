@@ -88,6 +88,7 @@
 	BX.Call.NotificationConference.prototype.createPopup = function(content)
 	{
 		this.popup = new BX.PopupWindow("bx-messenger-call-notify", null, {
+			targetContainer: document.body,
 			content: content,
 			closeIcon: false,
 			noAllPaddings: true,
@@ -150,9 +151,9 @@
 
 	BX.Call.NotificationConferenceContent = function(config)
 	{
-		this.callerAvatar = config.callerAvatar;
-		this.callerName = config.callerName;
-		this.callerColor = config.callerColor;
+		this.callerAvatar = config.callerAvatar || '';
+		this.callerName = config.callerName || BX.message('IM_CL_USER');
+		this.callerColor = config.callerColor || '#525252';
 
 		this.elements = {
 			root: null,
@@ -169,6 +170,25 @@
 	BX.Call.NotificationConferenceContent.prototype.render = function()
 	{
 		var backgroundImage = this.callerAvatar || '/bitrix/js/im/images/default-call-background.png';
+		var avatarImageStyles;
+		if (this.callerAvatar)
+		{
+			avatarImageStyles = {
+				backgroundImage: "url('"+this.callerAvatar+"')",
+				backgroundColor: '#fff',
+				backgroundSize: 'cover',
+			}
+		}
+		else
+		{
+			avatarImageStyles = {
+				backgroundImage: "url('"+(this.callerAvatar || "/bitrix/js/im/images/default-avatar-videoconf-big.png")+"')",
+				backgroundColor: this.callerColor,
+				backgroundSize: '80px',
+    			backgroundRepeat: 'no-repeat',
+    			backgroundPosition: 'center center',
+			}
+		}
 
 		this.elements.root = BX.create("div", {
 			props: {className: "bx-messenger-call-window"},
@@ -203,19 +223,9 @@
 										BX.create("div", {
 											props: {className: "bx-messenger-call-window-photo-left"},
 											children: [
-												BX.create("div", {
+												this.elements.avatar = BX.create("div", {
 													props: {className: "bx-messenger-call-window-photo-block"},
-													children: [
-														this.elements.avatar = BX.create("img", {
-															props: {
-																className: "bx-messenger-call-window-overlay-photo-img",
-																src: this.callerAvatar || "/bitrix/js/im/images/default-avatar-videoconf-big.png"
-															},
-															style: {
-																backgroundColor: this.callerColor
-															}
-														}),
-													]
+													style: avatarImageStyles,
 												}),
 											]
 										}),
@@ -301,6 +311,7 @@
 	{
 		if(BX.desktop)
 		{
+			BXDesktopWindow.ExecuteCommand("close");
 			BX.desktop.onCustomEvent("main", Events.onButtonClick, [{
 				button: 'answerConference',
 			}]);
@@ -317,6 +328,7 @@
 	{
 		if(BX.desktop)
 		{
+			BXDesktopWindow.ExecuteCommand("close");
 			BX.desktop.onCustomEvent("main", Events.onButtonClick, [{
 				button: 'skipConference',
 			}]);

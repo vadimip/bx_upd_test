@@ -1,10 +1,9 @@
 // @flow
 'use strict';
 
-import {ajax, Dom, Loc, Tag} from "main.core";
+import {Dom, Loc, Tag, Event} from "main.core";
 import {InterfaceTemplate} from "./interfacetemplate";
 import ConnectionControls from "../controls/connectioncontrols";
-import {Popup} from "main.popup";
 import { MessageBox } from 'ui.dialogs.messagebox';
 
 export default class GoogleTemplate extends InterfaceTemplate
@@ -27,10 +26,18 @@ export default class GoogleTemplate extends InterfaceTemplate
 		});
 
 		this.sectionStatusObject = {};
+		this.sectionList = [];
 	}
 
 	createConnection()
 	{
+		BX.ajax.runAction('calendar.api.calendarajax.analytical', {
+			analyticsLabel: {
+				click_to_connection_button: 'Y',
+				connection_type: 'google',
+			}
+		});
+
 		BX.util.popup(this.provider.getSyncLink(), 500, 600);
 	}
 
@@ -42,22 +49,7 @@ export default class GoogleTemplate extends InterfaceTemplate
 		const bodyHeader = this.getContentInfoBodyHeader();
 		const content = bodyHeader.querySelector('.calendar-sync-slider-header');
 
-		if (this.provider.hasSetSyncCaldavSettings())
-		{
-			button.addEventListener('click', () =>
-			{
-				this.createConnection();
-			});
-		}
-		else
-		{
-			button.addEventListener('click', () =>
-			{
-				this.showAlertPopup();
-			});
-		}
-
-
+		Event.bind(button, 'click', this.handleConnectButton.bind(this));
 		Dom.append(button, buttonWrapper);
 		Dom.append(buttonWrapper, content);
 
@@ -124,7 +116,7 @@ export default class GoogleTemplate extends InterfaceTemplate
 	getContentActiveBodySections(connectionId)
 	{
 		const sectionList = [];
-		this.provider.getConnection().getSections().forEach(section => {
+		this.sectionList.forEach(section => {
 			sectionList.push(Tag.render`
 				<li class="calendar-sync-slider-item">
 					<label class="ui-ctl ui-ctl-checkbox ui-ctl-xs">
@@ -136,6 +128,23 @@ export default class GoogleTemplate extends InterfaceTemplate
 		});
 
 		return sectionList;
+	}
+	
+	getSectionsForGoogle()
+	{
+		return new Promise((resolve) => {
+			BX.ajax.runAction('calendar.api.calendarajax.getAllSectionsForGoogle')
+			.then(
+				(response) => {
+					this.sectionList = response.data;
+					resolve(response.data);
+				},
+				(response) => {
+					resolve(response.errors);
+				}
+			);
+			
+		})
 	}
 
 	onClickCheckSection(event)
@@ -165,5 +174,17 @@ export default class GoogleTemplate extends InterfaceTemplate
 			},
 		});
 		messageBox.show();
+	}
+
+	handleConnectButton()
+	{
+		if (this.provider.hasSetSyncCaldavSettings())
+		{
+			this.createConnection();
+		}
+		else
+		{
+			this.showAlertPopup();
+		}
 	}
 }

@@ -9,6 +9,8 @@ use Bitrix\Main\Engine\ActionFilter;
 use Bitrix\Main\Engine\Contract\Controllerable;
 use Bitrix\Main\Localization\LanguageTable;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Rest\Engine\Access;
+use Bitrix\Rest\Engine\Access\HoldEntity;
 use Bitrix\Main\Loader;
 use Bitrix\Rest\Preset\Data\Element;
 use Bitrix\Rest\Preset\Provider;
@@ -84,7 +86,9 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 	protected function processResultData()
 	{
 		global $USER;
-		$result = [];
+		$result = [
+			'ERROR_MESSAGE' => [],
+		];
 		$isAdmin = CRestUtil::isAdmin();
 		$userId = $USER->GetID();
 		$params = $this->arParams;
@@ -136,6 +140,15 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 			if ($presetData['OPTIONS']['QUERY_NEEDED'] !== 'D')
 			{
 				$result['QUERY_NEEDED'] = $presetData['OPTIONS']['QUERY_NEEDED'];
+				$result['ERROR_MESSAGE'][] = Loc::getMessage(
+					'REST_INTEGRATION_EDIT_ATTENTION_USES_WEBHOOK',
+					[
+						'#URL#' =>
+							'<a href="'.\Bitrix\UI\Util::getArticleUrlByCode('12337906').'" >'
+							. Loc::getMessage('REST_INTEGRATION_EDIT_ATTENTION_USES_WEBHOOK_URL_MESSAGE')
+							. '</a>'
+					]
+				);
 			}
 			else
 			{
@@ -217,18 +230,6 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 		}
 		if ($presetData['OPTIONS']['APPLICATION_NEEDED'] !== 'D')
 		{
-			$result['APPLICATION_LANG'] = [];
-			$dbRes = LanguageTable::getList(
-				[
-					'order' => ['DEF' => 'DESC', 'NAME' => 'ASC'],
-					'filter' => ['=ACTIVE' => 'Y'],
-					'select' => ['LID', 'NAME']
-				]
-			);
-			while ($lang = $dbRes->fetch())
-			{
-				$result['APPLICATION_LANG'][$lang['LID']] = $lang['NAME'];
-			}
 			$blockList[] = 'APPLICATION';
 
 			$result['ALLOW_ZIP_APPLICATION'] = \Bitrix\Main\ModuleManager::isModuleInstalled("bitrix24");
@@ -240,6 +241,30 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 		$result['BLOCK_LIST'] = $blockList;
 
 		$result['SCOPE_NEEDED'] = $presetData['OPTIONS']['SCOPE_NEEDED'] !== 'D' ? 'Y' : 'N';
+
+		if ($presetData['OPTIONS']['APPLICATION_NEEDED'] !== 'D' || $presetData['OPTIONS']['WIDGET_NEEDED'] !== 'D')
+		{
+			$result['LANG_LIST_AVAILABLE'] = [];
+			$dbRes = LanguageTable::getList(
+				[
+					'order' => [
+						'DEF' => 'DESC',
+						'NAME' => 'ASC',
+					],
+					'filter' => [
+						'=ACTIVE' => 'Y',
+					],
+					'select' => [
+						'LID',
+						'NAME',
+					],
+				]
+			);
+			while ($lang = $dbRes->fetch())
+			{
+				$result['LANG_LIST_AVAILABLE'][$lang['LID']] = $lang['NAME'];
+			}
+		}
 
 		/* Set title */
 		if ($this->arParams['SET_TITLE'])
@@ -253,13 +278,28 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 		$result['IS_HTTPS'] = $context->getRequest()->isHttps();
 		if (!$result['IS_HTTPS'])
 		{
-			$result['ERROR_MESSAGE'] = Loc::getMessage('REST_INTEGRATION_EDIT_ERROR_NO_HTTPS');
+			$result['ERROR_MESSAGE'][] = Loc::getMessage('REST_INTEGRATION_EDIT_ERROR_NO_HTTPS');
 		}
 		$result['IS_NEW_OPEN'] = $this->request->getPost('NEW_OPEN') === 'Y';
 
 		$result['LANG_LIST'] = $this->getLanguageList();
 		$result['URI_METHOD_INFO'] = Provider::URI_METHOD_INFO . '?lang=' . $lang . '&method=';
 		$result['URI_EXAMPLE_DOWNLOAD'] = Provider::URI_EXAMPLE_DOWNLOAD . '?encode=' . SITE_CHARSET . '&type=';
+
+		if (
+				(
+					!empty($result['PASSWORD_DATA_PASSWORD'])
+					&& HoldEntity::is(HoldEntity::TYPE_WEBHOOK, $result['PASSWORD_DATA_PASSWORD'])
+				)
+				|| (
+					!empty($result['APPLICATION_DATA_CLIENT_ID'])
+					&& HoldEntity::is(HoldEntity::TYPE_APP, $result['APPLICATION_DATA_CLIENT_ID'])
+				)
+		)
+		{
+			$result['ERROR_MESSAGE'][] = Loc::getMessage('REST_INTEGRATION_EDIT_HOLD_DUE_TO_OVERLOAD');
+		}
+
 		$this->arResult = $result;
 
 		return true;
@@ -277,8 +317,8 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 		else
 		{
 			$dbSites = \CSite::getList(
-				$by = 'sort',
-				$order = 'asc',
+				'sort',
+				'asc',
 				[
 					'DEFAULT' => 'Y',
 					'ACTIVE' => 'Y'
@@ -387,6 +427,16 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 	{
 		$requestData = $this->getRequestData();
 
+		if (
+			!Access::isAvailable()
+			|| !Access::isAvailableCount(Access::ENTITY_TYPE_INTEGRATION, $requestData['ID'])
+		)
+		{
+			return [
+				'helperCode' => Access::getHelperCode(Access::ACTION_INSTALL, Access::ENTITY_TYPE_INTEGRATION, $requestData['ID'])
+			];
+		}
+
 		return Provider::saveIntegration($requestData, $this->arParams['ELEMENT_CODE'], $this->arParams['ID']);
 	}
 
@@ -394,6 +444,16 @@ class RestIntegrationEditComponent extends CBitrixComponent implements Controlle
 	{
 		$result = [];
 		$code = $this->request->getPost('code');
+
+		if (
+			!Access::isAvailable()
+			|| !Access::isAvailableCount(Access::ENTITY_TYPE_INTEGRATION)
+		)
+		{
+			$result['helperCode'] = Access::getHelperCode(Access::ACTION_INSTALL, Access::ENTITY_TYPE_INTEGRATION);
+			return $result;
+		}
+
 		if (!empty($code))
 		{
 			$presetData = Element::get($code);

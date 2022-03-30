@@ -3129,7 +3129,6 @@ if (Main\Loader::includeModule('sale'))
 
 			foreach ($products as $productId => $productData)
 			{
-
 				if (!empty($productData['STORE_DATA_LIST']))
 				{
 					if (!static::isExistsBarcode($productData['STORE_DATA_LIST']))
@@ -3142,18 +3141,31 @@ if (Main\Loader::includeModule('sale'))
 							)
 						);
 					}
-					continue;
 				}
-				elseif ($canAutoShipList[$productId] === false && count($productStoreDataList[$productId]) > 1)
+				elseif ($canAutoShipList[$productId] === false)
 				{
-					$result->addError(
-						new Sale\ResultError(
-							Main\Localization\Loc::getMessage(
-								"DDCT_DEDUCTION_STORE_ERROR",
-								self::getProductCatalogInfo($productId)
-							), "DEDUCTION_STORE_ERROR1"
-						)
-					);
+					if (!isset($productStoreDataList[$productId]))
+					{
+						$result->addError(
+							new Sale\ResultError(
+								Main\Localization\Loc::getMessage(
+									"DDCT_DEDUCTION_STORE_EMPTY_ERROR",
+									self::getProductCatalogInfo($productId)
+								), "DEDUCTION_STORE_ERROR1"
+							)
+						);
+					}
+					elseif (count($productStoreDataList[$productId]) > 1)
+					{
+						$result->addError(
+							new Sale\ResultError(
+								Main\Localization\Loc::getMessage(
+									"DDCT_DEDUCTION_STORE_ERROR",
+									self::getProductCatalogInfo($productId)
+								), "DEDUCTION_STORE_ERROR1"
+							)
+						);
+					}
 				}
 			}
 
@@ -4550,7 +4562,7 @@ if (Main\Loader::includeModule('sale'))
 			{
 				if (!$priceData)
 					continue;
-				$priceResultList[$basketCode]['PRODUCT_PRICE_ID'] = $priceData['PRICE']['ID'];
+				$priceResultList[$basketCode]['PRODUCT_PRICE_ID'] = $priceData['RESULT_PRICE']['ID'];
 				$priceResultList[$basketCode]['NOTES'] = $priceData['PRICE']['CATALOG_GROUP_NAME'];
 				$priceResultList[$basketCode]['DISCOUNT_NAME'] = null;
 				$priceResultList[$basketCode]['DISCOUNT_COUPON'] = null;

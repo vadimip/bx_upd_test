@@ -52,6 +52,7 @@ class RestConfigurationComponent extends CBitrixComponent
 				'section' => [],
 				'import' => [],
 				'import_app' => [],
+				'import_zip' => [],
 				'import_rollback' => [],
 				'import_manifest' => [],
 				'export' => [],
@@ -65,6 +66,7 @@ class RestConfigurationComponent extends CBitrixComponent
 			'section' => 'section/#MANIFEST_CODE#/',
 			'import' => 'import/',
 			'import_app' => 'import/#APP#/',
+			'import_zip' => 'import_zip/#ZIP_ID#/',
 			'import_rollback' => 'import_rollback/#APP#/',
 			'import_manifest' => 'import_#MANIFEST_CODE#/',
 			'export' => 'export_#MANIFEST_CODE#/',
@@ -134,7 +136,7 @@ class RestConfigurationComponent extends CBitrixComponent
 					$manifestList,
 					function($manifest) use ($code)
 					{
-						return in_array($code, $manifest['PLACEMENT']);
+						return in_array($code, $manifest['PLACEMENT']) && $manifest['ACTIVE'] === 'Y';
 					}
 				);
 				if(!$manifestList)
@@ -155,6 +157,18 @@ class RestConfigurationComponent extends CBitrixComponent
 				$analyticFrom .= '_' . mb_strtolower($code);
 			}
 		}
+		elseif ($componentPage == 'section')
+		{
+			if (!empty($variableList['MANIFEST_CODE']))
+			{
+				$manifest = Manifest::get($variableList['MANIFEST_CODE']);
+				if (!empty($manifest['CODE']))
+				{
+					$appTag[] = $manifest['CODE'];
+				}
+			}
+		}
+		$variableList['ADDITIONAL_PARAMS'] = $this->request->get('additional') ?? [];
 
 		if (!empty($this->request->get('from')))
 		{

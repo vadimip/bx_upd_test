@@ -209,13 +209,30 @@
 						}
 						else
 						{
+							var fileType = null;
+							var substitution = null;
+
 							for (ii = 0; ii < files.length; ii++)
 							{
 								file = files[ii];
-								if (file.propertyName == this.propertyName)
+								if (file.propertyName === this.propertyName)
 								{
-									text += "[DISK FILE ID=" + (file.fieldValue ? file.fieldValue : "n" + file.fileId) + "]";
+									substitution = '&nbsp;';
+
+									if (BX.type.isNotEmptyString(file.type))
+									{
+										fileType = BX.MobileUtils.getType(BX.MobileUtils.getFileMimeType(file.type));
+										if (
+											fileType === 'image'
+											|| fileType === 'video'
+										)
+										{
+											substitution = '[DISK FILE ID=' + (file.fieldValue ? file.fieldValue : 'n' + file.fileId) + ']';
+										}
+									}
 								}
+
+								text += substitution;
 							}
 						}
 						data.text = text;
@@ -224,46 +241,32 @@
 				prepareToSaveUF : function(attachments, queue) {
 					if (attachments.length > 0)
 					{
-						var ii,
-							file,
-							files = [];
-
-						for (ii = 0; ii < attachments.length; ii++)
-						{
-							file = attachments[ii];
-							if (!file["propertyName"] && (!file["disk"] || file["base64"])) // I am sorry
+						var files = [];
+						attachments.forEach(function(file) {
+							file["propertyName"] = (file["propertyName"] || this.propertyName);
+							file["fieldName"] = (file["fieldName"] || (file["propertyName"] + (this.params["MULTIPLE"] === "Y" ? "[]" : "")));
+							if (!file["fieldValue"])
 							{
-								file["propertyName"] = this.propertyName;
-								files.push(file);
+								var f = (file["VALUE"] ? file : (file["dataAttributes"] && file["dataAttributes"]["VALUE"]) ? file["dataAttributes"] : null);
+								if (f)
+								{
+									file["name"] = f["NAME"];
+									file["ext"] = file["name"].split('.').pop();
+									file["ext"] = (file["ext"] === file["name"] ? '' : file["ext"]);
+									file["id"] = f["ID"];
+									file["fileId"] = f["ID"];
+									file["xmlID"] = 0;
+									file["type"] = file["ext"];
+									file["fieldValue"] = f["VALUE"];
+									file["url"] = f["URL"]["URL"];
+								}
+								else if (!file["base64"])
+								{
+									return;
+								}
 							}
-							else if (!file["propertyName"] && file["VALUE"]) // I am sorry
-							{
-								file["name"] = file["NAME"];
-								file["ext"] = (file["name"].lastIndexOf('.') > 0 ? file["name"].substr(file["name"].lastIndexOf('.') + 1).toLowerCase() : "");
-								file["id"] = file["ID"];
-								file["fileId"] = file["ID"];
-								file["xmlID"] = 0;
-								file["type"] = file["ext"];
-								file["propertyName"] = this.propertyName;
-								file["fieldName"] = this.propertyName + (this.params["MULTIPLE"] == "Y" ? "[]" : "");
-								file["fieldValue"] = file["VALUE"];
-								file["url"] = file["URL"]["URL"];
-							}
-							else if (!file["propertyName"] && file["dataAttributes"] && file["dataAttributes"]["VALUE"]) // I am sorry
-							{
-								var f = file["dataAttributes"];
-								file["name"] = f["NAME"];
-								file["ext"] = (file["name"].lastIndexOf('.') > 0 ? file["name"].substr(file["name"].lastIndexOf('.') + 1).toLowerCase() : "");
-								file["id"] = f["ID"];
-								file["fileId"] = f["ID"];
-								file["xmlID"] = 0;
-								file["type"] = file["ext"];
-								file["propertyName"] = this.propertyName;
-								file["fieldName"] = this.propertyName + (this.params["MULTIPLE"] == "Y" ? "[]" : "");
-								file["fieldValue"] = f["VALUE"];
-								file["url"] = f["URL"]["URL"];
-							}
-						}
+							files.push(file);
+						}.bind(this));
 
 						if (files.length > 0)
 						{
@@ -558,7 +561,7 @@
 							cancelname: BX.message("MPFButtonCancel"),
 							multiple: "NO",
 							alphabet_index: "YES",
-							url: BX.message('MobileSiteDir') + 'mobile/index.php?mobile_action=get_user_list'
+							url: BX.message('MobileSiteDir') + 'mobile/index.php?mobile_action=get_user_list&use_name_format=Y'
 						}
 					},
 					smileButton: {},
@@ -651,9 +654,14 @@
 					this.stopCheckWriting();
 				},
 				show : function(text, attachments) {
+
+					var textArea = document.createElement('textarea');
+					textArea.innerHTML = text;
 					this.formSettings.message = {
-						text: text
+						text: textArea.value
 					};
+					textArea.remove();
+
 					this.formSettings.attachedFiles = [];
 					this.formSettings.extraData = {};
 					if (attachments)
@@ -870,6 +878,7 @@
 					this.comment.attachments = attachments;
 					this.comment.extraData = extraData;
 					BXMobileApp.onCustomEvent('Comments.UploadQueue::setItem', {
+						commentNodeId: this.comment.node.id,
 						commentVirtualId: attachmentsData.commentVirtualId,
 						formId: this.form.id,
 						formUniqueId: this.uniqueId,
@@ -1048,6 +1057,7 @@
 				if (formInstance.comment.id[0] == params.entityId)
 				{
 					formInstance.addError(params.commentData, params.errorText);
+					BX.onCustomEvent(window, 'OnUploadQueueError', [ params ]);
 					break;
 				}
 			}

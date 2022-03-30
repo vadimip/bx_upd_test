@@ -19,8 +19,8 @@
 	z-index: 9;
 	-webkit-transform: translate(-50%,-50%) translateZ(0);
 	transform: translate(-50%,-50%) translateZ(0);
-    will-change: transform;
-    transform-style: preserve-3d;
+	will-change: transform;
+	transform-style: preserve-3d;
 }
 
 .ui-graph-circle-counter .ui-graph-circle-number {

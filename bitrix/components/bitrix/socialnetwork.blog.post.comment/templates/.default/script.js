@@ -7,11 +7,10 @@ window.checkForQuote = function(e, node, ENTITY_XML_ID, author_id) {
 		mplCheckForQuote(e, node, ENTITY_XML_ID, author_id)
 };
 
-window.__blogLinkEntity = function(entities, formId) {
-	if (!!window["UC"] && !!window["UC"]["f" + formId])
+window.__blogLinkEntity = function(entities, xmlId) {
+	if (!!window["UC"] && !!window["UC"][xmlId])
 	{
-		window["UC"]["f" + formId].linkEntity(entities);
-		var form = window["UC"]["f" + formId].eventNode;
+		var form = window["UC"][xmlId].eventNode;
 		if (BX(form) && !form.hasOwnProperty("__blogLinkEntity"))
 		{
 			form["__blogLinkEntity"] = true;
@@ -27,23 +26,20 @@ window.__blogLinkEntity = function(entities, formId) {
 		{
 			if (entities.hasOwnProperty(ii))
 			{
-				var replyFunction = window['UC'][ii].reply.bind(window['UC'][ii]);
-				BX.bind(BX('blog-post-addc-add-' + entities[ii][1]), "click", replyFunction);
-
-				var node = BX('blg-post-' + entities[ii][1]);
-				if (BX.DD && !node.hasAttribute("dropzone"))
-				{
-					var dropZone = new BX.DD.dropFiles(node);
-					dropZone.replyHandler = replyFunction;
-					dropZone.dragEnterHandler = (function(event) {
-						BX.removeCustomEvent(this, 'dragEnter', this.dragEnterHandler);
-						this.replyHandler(event);
-					}.bind(dropZone));
-					BX.addCustomEvent(dropZone, 'dragEnter', dropZone.dragEnterHandler);
-					BX.addCustomEvent(dropZone, 'dragLeave', function() {
-						BX.addCustomEvent(this, 'dragEnter', this.dragEnterHandler);
-					}.bind(dropZone));
-				}
+				(function(placeHolder, node, replyFunction) {
+					BX.bind(placeHolder, 'click', replyFunction);
+					if (BX.DD && !node.hasAttribute("dropzone"))
+					{
+						var dropZone = new BX.DD.dropFiles(node);
+						BX.addCustomEvent(dropZone, 'dropFiles', function(event) {
+							replyFunction();
+						});
+					}
+				})(
+					BX('blog-post-addc-add-' + entities[ii][1]),
+					BX('blg-post-' + entities[ii][1]),
+					window['UC'][ii].reply.bind(window['UC'][ii])
+				);
 			}
 		}
 	}
@@ -61,31 +57,37 @@ window.__blogEditComment = function(key, postId){
 	};
 	BX.onCustomEvent(window, 'OnUCAfterRecordEdit', ['BLOG_' + postId, key, data, 'EDIT']);
 };
-window.__blogOnUCFormClear = function(obj) {
-	LHEPostForm.reinitDataBefore(obj.editorId);
-};
 
-window.__blogOnUCFormAfterShow = function(obj, text, data){
-	data = (!!data ? data : {});
+window.__blogOnUCFormAfterShow = function(obj, text, data)
+{
+	data = (BX.type.isNotEmptyObject(data) && BX.type.isNotEmptyObject(data.UF) ? data.UF : {});
 	BX.onCustomEvent(window, "OnBeforeSocialnetworkCommentShowedUp", ['socialnetwork_blog']);
-	var
-		post_data = {
-			ENTITY_XML_ID : obj.id[0],
-			ENTITY_TYPE : obj.entitiesId[obj.id[0]][0],
-			ENTITY_ID : obj.entitiesId[obj.id[0]][1],
-			parentId : obj.id[1],
-			comment_post_id : obj.entitiesId[obj.id[0]][1],
-			edit_id : obj.id[1],
-			act : (obj.id[1] > 0 ? 'edit' : 'add'),
-			logId : obj.entitiesId[obj.id[0]][2]
-		};
+
+	var post_data = {
+		ENTITY_XML_ID : obj.currentEntity.ENTITY_XML_ID,
+		ENTITY_TYPE : obj.currentEntity.ENTITY_XML_ID.split('_')[0],
+		ENTITY_ID : obj.currentEntity.ENTITY_XML_ID.split('_')[1],
+		parentId : obj.id[1],
+		comment_post_id : obj.currentEntity.ENTITY_XML_ID.split('_')[1],
+		edit_id : obj.id[1],
+		act : (obj.id[1] > 0 ? 'edit' : 'add'),
+//		logId : obj.entitiesId[obj.id[0]][2]
+	};
 	for (var ii in post_data)
 	{
 		if (!obj.form[ii])
-			obj.form.appendChild(BX.create('INPUT', {attrs : {name : ii, type: "hidden"}}));
+		{
+			obj.form.appendChild(BX.create('INPUT', {
+				attrs: {
+					name: ii,
+					type: 'hidden',
+				},
+			}));
+		}
+
 		obj.form[ii].value = post_data[ii];
 	}
-	obj.form.action = SBPC.actionUrl.replace(/#source_post_id#/, post_data['comment_post_id']);
+//	obj.form.action = SBPC.actionUrl.replace(/#source_post_id#/, post_data['comment_post_id']);
 
 	var im = BX('captcha');
 	if (!!im)
@@ -98,7 +100,8 @@ window.__blogOnUCFormAfterShow = function(obj, text, data){
 		});
 	}
 
-	onLightEditorShow(text, data);
+	LHEPostForm.reinitData(SBPC.editorId, text, data);
+//	onLightEditorShow(text, data);
 };
 
 window.__blogOnUCFormSubmit =  function(obj, post_data) {
@@ -106,8 +109,13 @@ window.__blogOnUCFormSubmit =  function(obj, post_data) {
 };
 
 window.__blogOnUCAfterRecordAdd = function(ENTITY_XML_ID, response) {
-	if (response.errorMessage.length > 0)
+	if (
+		response.errorMessage
+		&& response.errorMessage.length > 0
+	)
+	{
 		return;
+	}
 
 	if (BX('blg-post-inform-' + ENTITY_XML_ID.substr(5)))
 	{
@@ -123,8 +131,9 @@ window.__blogOnUCAfterRecordAdd = function(ENTITY_XML_ID, response) {
 		}
 	}
 };
-
-window.onLightEditorShow = function(content, data){
+/*
+window.onLightEditorShow = function(content, data)
+{
 	var res = {};
 	if (data["arFiles"])
 	{
@@ -185,7 +194,7 @@ window.onLightEditorShow = function(content, data){
 		}
 	}
 };
-
+*/
 BX.SocialnetworkBlogPostComment = {
 };
 

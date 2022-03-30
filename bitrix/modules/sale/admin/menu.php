@@ -169,6 +169,61 @@ if ($APPLICATION->GetGroupRight("sale")!="D")
 		"items_id" => "update_system_market",
 	);
 
+	$hasShops = false;
+	$shops = [];
+	$siteIterator = \Bitrix\Main\SiteTable::getList([
+		'select' => ['LID', 'NAME', 'SORT'],
+		'order' => ['SORT' => 'ASC'],
+	]);
+	while ($site = $siteIterator->fetch())
+	{
+		$saleSite = \Bitrix\Main\Config\Option::get('sale', 'SHOP_SITE_'.$site['LID']);
+		if ($site['LID'] === $saleSite)
+		{
+			$hasShops = true;
+			break;
+		}
+	}
+
+	if ($hasShops)
+	{
+		$aMenu[] = array(
+			"parent_menu" => "global_menu_marketing",
+			"sort" => 1200,
+			"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES"),
+			"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES"),
+			"icon" => "sale_menu_icon_facebook",
+			"items_id" => "facebook_audiences",
+			"items" => [
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_TO_CART"),
+					"url" => "facebook_audiences_add_to_cart.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_TO_CART"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_INITIATE_CHECKOUT"),
+					"url" => "facebook_audiences_initiate_checkout.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_INITIATE_CHECKOUT"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_PAYMENT_INFO"),
+					"url" => "facebook_audiences_add_payment_info.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_ADD_PAYMENT_INFO"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CUSTOMIZE_PRODUCT"),
+					"url" => "facebook_audiences_customize_product.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CUSTOMIZE_PRODUCT"),
+				],
+				[
+					"text" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CONTACT"),
+					"url" => "facebook_audiences_contact.php?lang=" . LANGUAGE_ID,
+					"title" => GetMessage("SALE_MENU_MARKETING_FACEBOOK_AUDIENCES_CONTACT"),
+				],
+			]
+		);
+	}
+
 	/* Catalog Begin*/
 	// included in catalog/general/admin.php
 	/* Catalog End*/
@@ -410,6 +465,16 @@ if ($APPLICATION->GetGroupRight("sale") == "W" || $discountView || $bViewAll)
 	{
 		if ($APPLICATION->GetGroupRight('sale') > 'D')
 		{
+			if ($APPLICATION->GetGroupRight('sale') >= 'W')
+			{
+				$arMenu["items"][] = array(
+					"text" => GetMessage("SALE_MENU_DISCOUNT_PRESETS_NEW"),
+					"title" => GetMessage("SALE_MENU_DISCOUNT_PRESETS_NEW"),
+					"url" => "sale_discount_preset_list.php?lang=".LANGUAGE_ID,
+					"more_url" => array("sale_discount_preset_detail.php"),
+					"items_id" => "sale_discount_preset_list",
+				);
+			}
 			$arMenu["items"][] = array(
 				"text" => GetMessage("SALE_MENU_DISCOUNT"),
 				"title" => GetMessage("SALE_MENU_DISCOUNT_TITLE"),
@@ -454,8 +519,8 @@ if ($boolStore || $bViewAll)
 	$arMenu = array(
 		"parent_menu" => "global_menu_store",
 		"sort" => 550,
-		"text" => GetMessage("SALE_STORE"),
-		"title" => GetMessage("SALE_STORE_DESCR"),
+		"text" => GetMessage("SALE_STORE_1"),
+		"title" => GetMessage("SALE_STORE_DESCR_1"),
 		"icon" => "sale_menu_icon_store",
 		"page_icon" => "sale_page_icon_store",
 		"items_id" => "menu_catalog_store",
@@ -484,7 +549,7 @@ if ($APPLICATION->GetGroupRight("sale") != "D")
 		if (IsModuleInstalled('report'))
 		{
 			$arSaleReports = array();
-			if(method_exists($adminMenu, "IsSectionActive"))
+			if($adminMenu && method_exists($adminMenu, "IsSectionActive"))
 			{
 				if($adminMenu->IsSectionActive("menu_sale_report") && CModule::IncludeModule("report"))
 				{
@@ -920,48 +985,6 @@ if ($APPLICATION->GetGroupRight("sale") == "W" ||
 				"title" => GetMessage("SALE_TRADING_PLATFORMS_DESCR"),
 				"items_id" => "menu_sale_trading_platforms",
 				"items"=>array(
-					array(
-						"text" => "eBay",
-						"title" => "eBay",
-						"items_id" => "menu_sale_trading_platforms_ebay",
-						"url" => "sale_ebay.php?lang=".LANGUAGE_ID,
-						"more_url" => array("sale_ebay_actions.php", "sale_ebay.php"),
-						"items"  => array(
-							array(
-								"text" => GetMessage("SALE_MENU_EBAY_WIZARD"),
-								"title" => GetMessage("SALE_MENU_EBAY_EXCHANGE_DESCR"),
-								"url" => "sale_ebay_wizard.php?lang=".LANGUAGE_ID,
-								"more_url" => array("sale_ebay_wizard.php"),
-								"items_id" => "sale_ebay_wizard",
-								"sort" => 733,
-							),
-							array(
-								"text" => GetMessage("SALE_MENU_EBAY_SETT"),
-								"title" => GetMessage("SALE_MENU_EBAY_SETT_DESCR"),
-								"url" => "sale_ebay_general.php?lang=".LANGUAGE_ID,
-								"more_url" => array("sale_ebay_general.php"),
-								"items_id" => "sale_ebay_general",
-								"sort" => 734,
-							),
-							array(
-								"text" => GetMessage("SALE_MENU_EBAY_POLICY"),
-								"title" => GetMessage("SALE_MENU_EBAY_POLICY_DESCR"),
-								"url" => "sale_ebay_policy.php?lang=".LANGUAGE_ID,
-								"more_url" => array("sale_ebay_policy.php"),
-								"items_id" => "sale_ebay_policy",
-								"sort" => 735,
-							),
-							array(
-								"text" => GetMessage("SALE_MENU_EBAY_EXCHANGE"),
-								"title" => GetMessage("SALE_MENU_EBAY_EXCHANGE_DESCR"),
-								"url" => "sale_ebay_exchange.php?lang=".LANGUAGE_ID,
-								"more_url" => array("sale_ebay_exchange.php"),
-								"items_id" => "sale_ebay_exchange",
-								"sort" => 736,
-							)
-						),
-						"sort" => 732,
-					),
 					array(
 						"text" => GetMessage("SALE_MENU_VK"),
 						"title" => GetMessage("SALE_MENU_VK_DESC"),

@@ -9,11 +9,13 @@ return [
 		'./dist/registry.bundle.js',
 	],
 	'rel' => [
-		'main.polyfill.core',
-		'ui.vue',
-		'im.const',
+		'im.lib.logger',
+		'main.core.events',
 		'im.lib.utils',
+		'ui.vue',
 		'ui.vue.vuex',
+		'main.core',
+		'im.const',
 	],
-	'skip_core' => true,
+	'skip_core' => false,
 ];

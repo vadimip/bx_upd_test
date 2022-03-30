@@ -48,7 +48,8 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 
 		if (!\CRestUtil::isAdmin())
 		{
-			throw new SystemException(new Error(Loc::getMessage('REST_STATISTIC_ACCESS_DENIED')));
+			ShowError(Loc::getMessage('REST_STATISTIC_ACCESS_DENIED'));
+			return false;
 		}
 
 		return true;
@@ -148,42 +149,33 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 	{
 		$allApp = [];
 		$cacheTime = 3600;
-		$cacheId = 'allApp_OnlyActive_' . $this->arParams['ONLY_ACTIVE'];
-		$cacheDir = 'bitrix/rest_stat/';
-		$cache = Cache::createInstance();
-		if ($cache->initCache($cacheTime, $cacheId, $cacheDir))
+		$filter = [];
+		if ($this->arParams['ONLY_ACTIVE'] === 'Y')
 		{
-			$allApp = $cache->getVars();
+			$filter['=ACTIVE'] = 'Y';
 		}
-		elseif ($cache->startDataCache())
-		{
-			$filter = [];
-			if ($this->arParams['ONLY_ACTIVE'] === 'Y')
-			{
-				$filter['=ACTIVE'] = 'Y';
-			}
 
-			$resAppData = AppTable::getList(
-				[
-					'order' => 'APP_NAME',
-					'filter' => $filter,
-					'select' => [
-						'ID',
-						'CODE',
-						'ACTIVE',
-						'APP_NAME',
-						'STATUS'
-					]
+		$resAppData = AppTable::getList(
+			[
+				'order' => 'APP_NAME',
+				'filter' => $filter,
+				'select' => [
+					'ID',
+					'CODE',
+					'ACTIVE',
+					'APP_NAME',
+					'STATUS'
+				],
+				'cache' => [
+					'ttl' => $cacheTime
 				]
-			);
-			$prefix = self::PREFIX;
-			while ($appData = $resAppData->Fetch())
-			{
-				$appData['NAME'] = (!empty($appData['APP_NAME'])) ? $appData['APP_NAME'] : $appData['CODE'];
-				$allApp[$prefix . $appData['ID']] = $appData;
-			}
-
-			$cache->endDataCache($allApp);
+			]
+		);
+		$prefix = self::PREFIX;
+		while ($appData = $resAppData->Fetch())
+		{
+			$appData['NAME'] = (!empty($appData['APP_NAME'])) ? $appData['APP_NAME'] : $appData['CODE'];
+			$allApp[$prefix . $appData['ID']] = $appData;
 		}
 
 		return $allApp;
@@ -351,8 +343,9 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 		{
 			if (empty($filter['STAT_DATE_to']))
 			{
-				$date = date("Y-m-d", time() - $this->arParams['MAX_SECOND_RANGE_DATE_FILTER']);
-				$filter['STAT_DATE_from'] = new DateTime($date . " 00:00:00", "Y-m-d H:i:s");
+				$date = new DateTime();
+				$date->add('-' . (int)$this->arParams['MAX_DAYS_RANGE_DATE_FILTER'] . 'D');
+				$filter['STAT_DATE_from'] = $date;
 			}
 			else
 			{
@@ -362,11 +355,9 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 
 		if (empty($filter['STAT_DATE_to']))
 		{
-			$date = date(
-				"Y-m-d",
-				strtotime($filter['STAT_DATE_from']) + $this->arParams['MAX_SECOND_RANGE_DATE_FILTER']
-			);
-			$filter['STAT_DATE_to'] = new DateTime($date . " 23:59:59", "Y-m-d H:i:s");
+			$date = clone $filter['STAT_DATE_from'];
+			$date->add((int)$this->arParams['MAX_DAYS_RANGE_DATE_FILTER'] . 'D');
+			$filter['STAT_DATE_to'] = $date;
 		}
 		else
 		{
@@ -833,8 +824,10 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 		try
 		{
 			$this->processResultData('grid');
-			$this->checkRequiredParams();
-			$this->includeComponentTemplate();
+			if ($this->checkRequiredParams())
+			{
+				$this->includeComponentTemplate();
+			}
 		}
 		catch (SystemException $e)
 		{
@@ -857,15 +850,17 @@ class CRestStatisticComponent extends CBitrixComponent implements Controllerable
 
 		try
 		{
-			$this->checkRequiredParams();
-			$this->processResultData('graphs');
-			if (isset($this->arResult['CHART_DATA']['DATA']))
+			if ($this->checkRequiredParams())
 			{
-				$result['dataProvider'] = $this->arResult['CHART_DATA']['DATA'];
-			}
-			if (isset($this->arResult['CHART_DATA']['ID_LIST']))
-			{
-				$result['idList'] = $this->arResult['CHART_DATA']['ID_LIST'];
+				$this->processResultData('graphs');
+				if (isset($this->arResult['CHART_DATA']['DATA']))
+				{
+					$result['dataProvider'] = $this->arResult['CHART_DATA']['DATA'];
+				}
+				if (isset($this->arResult['CHART_DATA']['ID_LIST']))
+				{
+					$result['idList'] = $this->arResult['CHART_DATA']['ID_LIST'];
+				}
 			}
 		}
 		catch (SystemException $e)

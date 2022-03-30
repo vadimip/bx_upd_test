@@ -132,8 +132,12 @@ class User
 	public function getStatus()
 	{
 		$fields = $this->getFields();
+		if (!$fields)
+		{
+			return 'offline';
+		}
 
-		return $fields? $fields['status']: '';
+		return $fields['status']?: 'online';
 	}
 
 	/**
@@ -141,16 +145,7 @@ class User
 	 */
 	public function getIdle()
 	{
-		$fields = $this->getFields();
-
-		if ($fields && $fields['idle'])
-		{
-			return $fields['idle'];
-		}
-		else
-		{
-			return false;
-		}
+		return $this->getOnlineFields()['idle'];
 	}
 
 	/**
@@ -158,16 +153,7 @@ class User
 	 */
 	public function getLastActivityDate()
 	{
-		$fields = $this->getFields();
-
-		if ($fields && $fields['last_activity_date'])
-		{
-			return $fields['last_activity_date'];
-		}
-		else
-		{
-			return false;
-		}
+		return $this->getOnlineFields()['last_activity_date'];
 	}
 
 	/**
@@ -175,16 +161,7 @@ class User
 	 */
 	public function getMobileLastDate()
 	{
-		$fields = $this->getFields();
-
-		if ($fields && $fields['mobile_last_date'])
-		{
-			return $fields['mobile_last_date'];
-		}
-		else
-		{
-			return false;
-		}
+		return $this->getOnlineFields()['mobile_last_date'];
 	}
 
 	/**
@@ -378,16 +355,7 @@ class User
 	 */
 	public function isAbsent()
 	{
-		$fields = $this->getFields();
-
-		if ($fields && $fields['absent'])
-		{
-			return $fields['absent'];
-		}
-		else
-		{
-			return false;
-		}
+		return \CIMContactList::formatAbsentResult($this->getId());
 	}
 
 	/**
@@ -489,6 +457,7 @@ class User
 
 		$result = [
 			'ID' => $this->getId(),
+			'ACTIVE' => $this->isActive(),
 			'NAME' => $this->getFullName(false),
 			'FIRST_NAME' => $this->getName(false),
 			'LAST_NAME' => $this->getLastName(false),
@@ -503,11 +472,11 @@ class User
 			'CONNECTOR' => $this->isConnector(),
 			'EXTERNAL_AUTH_ID' => $this->getExternalAuthId(),
 			'STATUS' => $this->getStatus(),
-			'IDLE' => $this->getIdle(),
-			'LAST_ACTIVITY_DATE' => $this->getLastActivityDate(),
-			'MOBILE_LAST_DATE' => $this->getMobileLastDate(),
-			'DEPARTMENTS' => $this->getDepartments(),
+			'IDLE' => $options['SKIP_ONLINE'] === 'Y'? false: $this->getIdle(),
+			'LAST_ACTIVITY_DATE' => $options['SKIP_ONLINE'] === 'Y'? false: $this->getLastActivityDate(),
+			'MOBILE_LAST_DATE' => $options['SKIP_ONLINE'] === 'Y'? false: $this->getMobileLastDate(),
 			'ABSENT' => $this->isAbsent(),
+			'DEPARTMENTS' => $this->getDepartments(),
 			'PHONES' => $this->getPhones(),
 		];
 		if ($options['HR_PHOTO'])
@@ -560,7 +529,8 @@ class User
 				'ID' => self::getId(),
 				'PHONES' => 'Y',
 				'EXTRA_FIELDS' => 'Y',
-				'DATE_ATOM' => 'N'
+				'DATE_ATOM' => 'N',
+				'SHOW_ONLINE' => 'N',
 			));
 			if (isset($userData['users'][self::getId()]))
 			{
@@ -574,35 +544,35 @@ class User
 	 * @param string $avatarUrl
 	 * @param string $hash
 	 *
-	 * @return int|string
+	 * @return int
 	 */
 	public static function uploadAvatar($avatarUrl = '', $hash = '')
 	{
 		if (!$ar = parse_url($avatarUrl))
 		{
-			return '';
+			return 0;
 		}
 
 		if (!preg_match('#\.(png|jpg|jpeg|gif|webp)$#i', $ar['path'], $matches))
 		{
-			return '';
+			return 0;
 		}
 
-		$hash = md5($hash.$avatarUrl);
+		$hash = md5($hash. $avatarUrl);
 
-		$orm = \Bitrix\Im\Model\ExternalAvatarTable::getList(Array(
-			'select' => Array('*', 'FILE_EXISTS' => 'FILE.ID'),
-			'filter' => Array('=LINK_MD5' => $hash)
-		));
+		$orm = \Bitrix\Im\Model\ExternalAvatarTable::getList([
+			'select' => ['*', 'FILE_EXISTS' => 'FILE.ID'],
+			'filter' => ['=LINK_MD5' => $hash]
+		]);
 		if ($cache = $orm->fetch())
 		{
-			if ($cache['FILE_EXISTS'])
+			if ((int)$cache['FILE_EXISTS'] > 0)
 			{
-				return $cache['AVATAR_ID'];
+				return (int)$cache['AVATAR_ID'];
 			}
 			else
 			{
-				\Bitrix\Im\Model\ExternalAvatarTable::delete($cache['ID']);
+				\Bitrix\Im\Model\ExternalAvatarTable::delete((int)$cache['ID']);
 			}
 		}
 
@@ -611,29 +581,32 @@ class User
 			$tempPath =  \CFile::GetTempName('', $hash.'.'.$matches[1]);
 
 			$http = new \Bitrix\Main\Web\HttpClient();
-			$http->setPrivateIp(false);
+			if (!defined('BOT_CLIENT_URL'))
+			{
+				$http->setPrivateIp(false);
+			}
 			if ($http->download($avatarUrl, $tempPath))
 			{
 				$recordFile = \CFile::MakeFileArray($tempPath);
 			}
 			else
 			{
-				return '';
+				return 0;
 			}
 		}
 		catch (\Bitrix\Main\IO\IoException $exception)
 		{
-			return '';
+			return 0;
 		}
 
 		if (!\CFile::IsImage($recordFile['name'], $recordFile['type']))
 		{
-			return '';
+			return 0;
 		}
 
 		if (is_array($recordFile) && $recordFile['size'] && $recordFile['size'] > 0 && $recordFile['size'] < 1000000)
 		{
-			$recordFile = array_merge($recordFile, array('MODULE_ID' => 'imbot'));
+			$recordFile = array_merge($recordFile, ['MODULE_ID' => 'imbot']);
 		}
 		else
 		{
@@ -645,12 +618,12 @@ class User
 			$recordFile = \CFile::SaveFile($recordFile, 'botcontroller', true);
 		}
 
-		if ($recordFile > 0)
+		if ((int)$recordFile > 0)
 		{
-			\Bitrix\Im\Model\ExternalAvatarTable::add(Array(
+			\Bitrix\Im\Model\ExternalAvatarTable::add([
 				'LINK_MD5' => $hash,
-				'AVATAR_ID' => intval($recordFile)
-			));
+				'AVATAR_ID' => (int)$recordFile
+			]);
 		}
 
 		return $recordFile;
@@ -673,9 +646,26 @@ class User
 			return false;
 		}
 
-		$list = \Bitrix\ImOpenLines\Config::getQueueList($userId);
+		return \Bitrix\ImOpenLines\Config::isOperator($userId);
+	}
 
-		return empty($list);
+	private function getOnlineFields()
+	{
+		$online = \CIMStatus::GetList(Array('ID' => $this->getId()));
+		if (!$online || !isset($online['users'][$this->getId()]))
+		{
+			return null;
+		}
+
+		$online = $online['users'][$this->getId()];
+
+		return [
+			'id' => $this->getId(),
+			'color' => $online['color']?: '',
+			'idle' => $online['idle']?: false,
+			'last_activity_date' => $online['last_activity_date']?: false,
+			'mobile_last_date' => $online['mobile_last_date']?: false,
+		];
 	}
 
 	public static function getList($params)
@@ -716,6 +706,7 @@ class User
 		{
 			return false;
 		}
+
 		$filter = $ormParams['filter'];
 		$filter['ACTIVE'] = 'Y';
 
@@ -757,14 +748,12 @@ class User
 		}
 
 		$orm = \Bitrix\Main\UserTable::getList($ormParams);
-
 		$bots = \Bitrix\Im\Bot::getListCache();
-		$nameTemplate = \CSite::GetNameFormat(false);
 
 		$users = array();
 		while ($user = $orm->fetch())
 		{
-			if (isset($extranetUsers[$user['ID']]))
+			if (\CIMContactList::IsExtranet($user))
 			{
 				continue;
 			}
@@ -881,13 +870,7 @@ class User
 
 		$filter['=ACTIVE'] = 'Y';
 		$filter['=CONFIRM_CODE'] = false;
-		foreach (\Bitrix\Main\UserTable::getExternalUserTypes() as $authId)
-		{
-			if ($authId != \Bitrix\Im\Bot::EXTERNAL_AUTH_ID)
-			{
-				$filter['!=EXTERNAL_AUTH_ID'][] = $authId;
-			}
-		}
+		$filter['!=EXTERNAL_AUTH_ID'] = \Bitrix\Im\Model\UserTable::filterExternalUserTypes([\Bitrix\Im\Bot::EXTERNAL_AUTH_ID]);
 
 		$filterByUsers = [];
 
@@ -1207,6 +1190,7 @@ class User
 
 		return $fields['NAME'];
 	}
+
 	public static function formatFullNameFromDatabase($fields)
 	{
 		if (is_null(self::$formatNameTemplate))

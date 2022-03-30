@@ -6,7 +6,7 @@ Bitrix\Main\UI\Extension::load("ui.icons.b24");
 
 $APPLICATION->SetPageProperty('BodyClass', $APPLICATION->GetPageProperty('BodyClass').' pagetitle-toolbar-field-view calendar-pagetitle-view');
 
-$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
+$isBitrix24Template = (SITE_TEMPLATE_ID === "bitrix24");
 if($isBitrix24Template)
 {
 $this->SetViewTarget("inside_pagetitle");
@@ -64,28 +64,21 @@ if($isBitrix24Template)
 ?>
 
 <?
-$stepperHtml = \Bitrix\Main\Update\Stepper::getHtml(array("calendar" => array('Bitrix\Calendar\Update\IndexCalendar')),\Bitrix\Main\Localization\Loc::getMessage("EC_CALENDAR_INDEX"));
-if ($stepperHtml)
-{
-	echo '<div class="calendar-stepper-block">'.$stepperHtml.'</div>';
-}
-
-if ($stepperHtml = \Bitrix\Main\Update\Stepper::getHtml(["calendar" => ['Bitrix\Calendar\Update\SectionStructureUpdate']],
-	\Bitrix\Main\Localization\Loc::getMessage("CALENDAR_UPDATE_STRUCTURE_TITLE")))
-{
-	echo '<div class="calendar-stepper-block">'.$stepperHtml.'</div>';
-}
-?>
-
-<?
 $arResult['CALENDAR']->Show();
 
 if($ex = $APPLICATION->GetException())
-	return ShowError($ex->GetString());
+{
+	if ($ex->GetID() === 'calendar_wrong_type')
+	{
+		return CCalendarSceleton::showCalendarGridError(GetMessage("EC_CALENDAR_NOT_PERMISSIONS_TO_VIEW_GRID_TITLE"), GetMessage("EC_CALENDAR_NOT_PERMISSIONS_TO_VIEW_GRID_CONTENT"));
+	}
+
+	return CCalendarSceleton::showCalendarGridError($ex->GetString());
+}
 
 // Set title and navigation
-$arParams["SET_TITLE"] = $arParams["SET_TITLE"] == "Y" ? "Y" : "N";
-$arParams["SET_NAV_CHAIN"] = $arParams["SET_NAV_CHAIN"] == "Y" ? "Y" : "N"; //Turn OFF by default
+$arParams["SET_TITLE"] = $arParams["SET_TITLE"] === "Y" ? "Y" : "N";
+$arParams["SET_NAV_CHAIN"] = $arParams["SET_NAV_CHAIN"] === "Y" ? "Y" : "N"; //Turn OFF by default
 
 if ($arParams["STR_TITLE"])
 {
@@ -93,15 +86,15 @@ if ($arParams["STR_TITLE"])
 }
 else
 {
-	if (!$arParams['OWNER_ID'] && $arParams['CALENDAR_TYPE'] == "group")
-		return ShowError(GetMessage('EC_GROUP_ID_NOT_FOUND'));
-	if (!$arParams['OWNER_ID'] && $arParams['CALENDAR_TYPE'] == "user")
-		return ShowError(GetMessage('EC_USER_ID_NOT_FOUND'));
+	if (!$arParams['OWNER_ID'] && $arParams['CALENDAR_TYPE'] === "group")
+		return CCalendarSceleton::showCalendarGridError(GetMessage('EC_GROUP_ID_NOT_FOUND'));
+	if (!$arParams['OWNER_ID'] && $arParams['CALENDAR_TYPE'] === "user")
+		return CCalendarSceleton::showCalendarGridError(GetMessage('EC_USER_ID_NOT_FOUND'));
 
-	if ($arParams['CALENDAR_TYPE'] == "group" || $arParams['CALENDAR_TYPE'] == "user")
+	if ($arParams['CALENDAR_TYPE'] === "group" || $arParams['CALENDAR_TYPE'] === "user")
 	{
 		$feature = "calendar";
-		$arEntityActiveFeatures = CSocNetFeatures::GetActiveFeaturesNames((($arParams['CALENDAR_TYPE'] == "group") ? SONET_ENTITY_GROUP : SONET_ENTITY_USER), $arParams['OWNER_ID']);
+		$arEntityActiveFeatures = CSocNetFeatures::GetActiveFeaturesNames((($arParams['CALENDAR_TYPE'] === "group") ? SONET_ENTITY_GROUP : SONET_ENTITY_USER), $arParams['OWNER_ID']);
 		$strFeatureTitle = ((array_key_exists($feature, $arEntityActiveFeatures) && $arEntityActiveFeatures[$feature] <> '') ? $arEntityActiveFeatures[$feature] : GetMessage("EC_SONET_CALENDAR"));
 		$arParams["STR_TITLE"] = $strFeatureTitle;
 	}
@@ -109,8 +102,8 @@ else
 		$arParams["STR_TITLE"] = GetMessage("EC_SONET_CALENDAR");
 }
 
-$bOwner = $arParams["CALENDAR_TYPE"] == 'user' || $arParams["CALENDAR_TYPE"] == 'group';
-if ($arParams["SET_TITLE"] == "Y" || ($bOwner && $arParams["SET_NAV_CHAIN"] == "Y"))
+$bOwner = $arParams["CALENDAR_TYPE"] === 'user' || $arParams["CALENDAR_TYPE"] === 'group';
+if ($arParams["SET_TITLE"] === "Y" || ($bOwner && $arParams["SET_NAV_CHAIN"] === "Y"))
 {
 	$ownerName = '';
 	if ($bOwner)
@@ -118,12 +111,12 @@ if ($arParams["SET_TITLE"] == "Y" || ($bOwner && $arParams["SET_NAV_CHAIN"] == "
 		$ownerName = CCalendar::GetOwnerName($arParams["CALENDAR_TYPE"], $arParams["OWNER_ID"]);
 	}
 
-	if($arParams["SET_TITLE"] == "Y")
+	if($arParams["SET_TITLE"] === "Y")
 	{
 		$title_short = (empty($arParams["STR_TITLE"]) ? GetMessage("WD_TITLE") : $arParams["STR_TITLE"]);
 		$title = ($ownerName ? $ownerName.': ' : '').$title_short;
 
-		if ($arParams["HIDE_OWNER_IN_TITLE"] == "Y")
+		if ($arParams["HIDE_OWNER_IN_TITLE"] === "Y")
 		{
 			$APPLICATION->SetPageProperty("title", $title);
 			$APPLICATION->SetTitle($title_short);
@@ -134,10 +127,10 @@ if ($arParams["SET_TITLE"] == "Y" || ($bOwner && $arParams["SET_NAV_CHAIN"] == "
 		}
 	}
 
-	if ($bOwner && $arParams["SET_NAV_CHAIN"] == "Y")
+	if ($bOwner && $arParams["SET_NAV_CHAIN"] === "Y")
 	{
 		$set = CCalendar::GetSettings();
-		if($arParams["CALENDAR_TYPE"] == 'group')
+		if($arParams["CALENDAR_TYPE"] === 'group')
 		{
 			$APPLICATION->AddChainItem($ownerName, CComponentEngine::MakePathFromTemplate($set['path_to_group'], array("group_id" => $arParams["OWNER_ID"])));
 			$APPLICATION->AddChainItem($arParams["STR_TITLE"], CComponentEngine::MakePathFromTemplate($set['path_to_group_calendar'], array("group_id" => $arParams["OWNER_ID"], "path" => "")));
@@ -148,6 +141,8 @@ if ($arParams["SET_TITLE"] == "Y" || ($bOwner && $arParams["SET_NAV_CHAIN"] == "
 			$APPLICATION->AddChainItem($arParams["STR_TITLE"], CComponentEngine::MakePathFromTemplate($set['path_to_user_calendar'], array("user_id" => $arParams["OWNER_ID"], "path" => "")));
 		}
 	}
+
+	$APPLICATION->SetPageProperty('BodyClass', $APPLICATION->GetPageProperty('BodyClass').' no-background');
 }
 ?>
 
@@ -218,3 +213,33 @@ else
 	}
 }
 ?>
+
+<?$spotlight = new \Bitrix\Main\UI\Spotlight("CALENDAR_NEW_ROOM");?>
+<?if(!$spotlight->isViewed(CCalendar::GetCurUserId()))
+{
+	CJSCore::init("spotlight");
+	?>
+	<script type="text/javascript">
+		BX.ready(function ()
+		{
+			var target = BX("top_menu_id_calendar_menu_rooms");
+			if (target)
+			{
+				target =  target.querySelector(".main-buttons-item-link");
+			}
+			if (target && BX.type.isDomNode(target))
+			{
+				setTimeout(function(){
+					var calendarRoomSpotlight = new BX.SpotLight({
+						targetElement: target,
+						targetVertex: "middle-center",
+						content: '<?=Loc::getMessage('EC_CALENDAR_SPOTLIGHT_ROOMS')?>',
+						id: "CALENDAR_NEW_ROOM",
+						autoSave: true
+					});
+					calendarRoomSpotlight.show();
+				}, 2000);
+			}
+		});
+	</script>
+<? }?>

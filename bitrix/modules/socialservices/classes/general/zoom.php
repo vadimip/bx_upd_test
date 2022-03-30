@@ -538,7 +538,9 @@ class CSocServZoom extends CSocServAuth
 	}
 
 	/**
-	 * Notifies Zoom that we comply with the user’s data policy after the user uninstalls Bitrix24 app.
+	 * Notifies Zoom that we comply with the user's data policy after the user uninstalls Bitrix24 app.
+	 *
+	 * @deprecated by Zoom since August 7, 2021.
 	 *
 	 * @param array $payload
 	 *
@@ -563,6 +565,9 @@ class CZoomInterface extends CSocServOAuthTransport
 	private const USER_INFO_URL = 'users/me';
 	private const CREATE_MEETING_ENDPOINT = 'users/me/meetings';
 	private const UPDATE_MEETING_ENDPOINT = 'meetings/';
+
+	private const CACHE_TIME_CONNECT_INFO = "86400"; //One day
+	public const CACHE_DIR_CONNECT_INFO = "/socialservices/zoom/";
 
 	protected $userId = false;
 	protected $responseData = array();
@@ -819,6 +824,13 @@ class CZoomInterface extends CSocServOAuthTransport
 		return $requestResult->getData();
 	}
 
+	/**
+	 * @deprecated by Zoom since August 7, 2021.
+	 * @param array $params
+	 *
+	 * @return Result
+	 * @throws ArgumentException
+	 */
 	public function sendComplianceNotify(array $params): Result
 	{
 		$requestParams = [
@@ -911,21 +923,28 @@ class CZoomInterface extends CSocServOAuthTransport
 	 * @throws ObjectPropertyException
 	 * @throws SystemException
 	 */
-	public static function isConnected($userId): bool
+	public static function isConnected(int $userId): bool
 	{
-		$user = UserTable::getRow([
-			'filter' => [
-				'=USER_ID' => $userId,
-				'=EXTERNAL_AUTH_ID' => self::SERVICE_ID
-			]
-		]);
-
-		if ($user !== null)
+		$cache = \Bitrix\Main\Data\Cache::createInstance();
+		$cacheId = self::SERVICE_ID .'|'. $userId;
+		$user = null;
+		if ($cache->initCache(self::CACHE_TIME_CONNECT_INFO, $cacheId, self::CACHE_DIR_CONNECT_INFO))
 		{
-			return true;
+			$user = $cache->getVars()['user'];
+		}
+		elseif ($cache->startDataCache())
+		{
+			$user = UserTable::getRow([
+					'filter' => [
+						'=USER_ID' => $userId,
+						'=EXTERNAL_AUTH_ID' => self::SERVICE_ID
+					]
+				]);
+
+			$cache->endDataCache(['user' => $user]);
 		}
 
-		return false;
+		return $user !== null;
 	}
 
 	public function GetAppInfo(): bool

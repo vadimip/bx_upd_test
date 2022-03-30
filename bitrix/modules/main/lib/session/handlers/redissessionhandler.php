@@ -116,7 +116,11 @@ class RedisSessionHandler extends AbstractSessionHandler
 
 	protected function closeConnection(): void
 	{
-		$this->connection->close();
+		if ($this->isConnected())
+		{
+			$this->connection->close();
+		}
+
 		$this->connection = null;
 	}
 
@@ -144,7 +148,7 @@ class RedisSessionHandler extends AbstractSessionHandler
 			$lockWait -= $waitStep;
 			if ($lockWait < 0)
 			{
-				$errorText = 'Unable to get session lock within 60 seconds.';
+				$errorText = '';
 				if ($lock !== 1)
 				{
 					$lockedUri = $this->connection->get($sid . $sessionId . ".lock");

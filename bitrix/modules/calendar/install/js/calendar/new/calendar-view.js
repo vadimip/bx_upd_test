@@ -35,7 +35,7 @@
 			this.setTitle('');
 		},
 
-		refresh: function()
+		redraw: function()
 		{
 			this.displayEntries();
 		},
@@ -154,35 +154,67 @@
 						params.closeCallback();
 					}
 				}, this), 300);
-				return;
 			}
-
-			BX.Calendar.EntryManager.openCompactEditForm({
-				type: this.calendar.util.type,
-				ownerId: this.calendar.util.ownerId,
-				sections: this.calendar.sectionController.sections,
-				trackingUserList: this.calendar.util.getSuperposedTrackedUsers(),
-				entryTime: params.entryTime || null,
-				closeCallback: params.closeCallback,
-				userSettings: this.calendar.util.config.userSettings,
-				locationFeatureEnabled: this.calendar.util.isRichLocationEnabled(),
-				locationList: this.calendar.util.getLocationList(),
-				iblockMeetingRoomList: this.calendar.util.getMeetingRoomList(),
-			});
+			else
+			{
+				if (this.calendar.util.type === 'location')
+				{
+					BX.Calendar.EntryManager.openCompactEditForm({
+						type: 'user',
+						isLocationCalendar: true,
+						locationAccess: this.calendar.util.config.locationAccess,
+						ownerId: this.calendar.util.userId,
+						sections: this.calendar.roomsManager.getSections(),
+						roomsManager: this.calendar.roomsManager,
+						trackingUserList: this.calendar.util.getSuperposedTrackedUsers(),
+						entryTime: params.entryTime || null,
+						closeCallback: params.closeCallback,
+						userSettings: this.calendar.util.config.userSettings,
+						locationFeatureEnabled: this.calendar.util.isRichLocationEnabled(),
+						locationList: BX.Calendar.Controls.Location.getLocationList(),
+						iblockMeetingRoomList: this.calendar.util.getMeetingRoomList(),
+						plannerFeatureEnabled: this.calendar.util.config.plannerFeatureEnabled
+					});
+				}
+				else
+				{
+					BX.Calendar.EntryManager.openCompactEditForm({
+						type: this.calendar.util.type,
+						isLocationCalendar: false,
+						locationAccess: this.calendar.util.config.locationAccess,
+						ownerId: this.calendar.util.ownerId,
+						sections: this.calendar.sectionManager.getSections(),
+						trackingUserList: this.calendar.util.getSuperposedTrackedUsers(),
+						entryTime: params.entryTime || null,
+						closeCallback: params.closeCallback,
+						userSettings: this.calendar.util.config.userSettings,
+						locationFeatureEnabled: this.calendar.util.isRichLocationEnabled(),
+						locationList: BX.Calendar.Controls.Location.getLocationList(),
+						iblockMeetingRoomList: this.calendar.util.getMeetingRoomList(),
+						plannerFeatureEnabled: this.calendar.util.config.plannerFeatureEnabled
+					});
+				}
+			}
 		},
 
 		showCompactViewForm : function(params)
 		{
 			BX.Calendar.EntryManager.openCompactViewForm({
 				entry: params.entry,
+				calendarContext: BX.Calendar.Util.getCalendarContext(),
 				type: this.calendar.util.type,
+				isLocationCalendar: this.calendar.util.type === 'location',
+				locationAccess: this.calendar.util.config.locationAccess,
 				ownerId: this.calendar.util.ownerId,
-				sections: this.calendar.sectionController.sections,
+				sections: this.calendar.util.type === 'location'
+					? this.calendar.roomsManager.getSections()
+					: this.calendar.sectionManager.getSections(),
 				trackingUserList: this.calendar.util.getSuperposedTrackedUsers(),
 				userSettings: this.calendar.util.config.userSettings,
 				locationFeatureEnabled: this.calendar.util.isRichLocationEnabled(),
-				locationList: this.calendar.util.getLocationList(),
-				iblockMeetingRoomList: this.calendar.util.getMeetingRoomList()
+				locationList: BX.Calendar.Controls.Location.getLocationList(),
+				iblockMeetingRoomList: this.calendar.util.getMeetingRoomList(),
+				plannerFeatureEnabled: this.calendar.util.config.plannerFeatureEnabled
 			});
 		},
 
@@ -197,19 +229,29 @@
 			{
 				params = {};
 			}
-
-			if (this.simpleEntryPopup && this.simpleEntryPopup.isShown())
+			if (this.calendar.util.type === 'location')
 			{
-				params.entry = this.simpleEntryPopup.getEntry();
-				this.simpleEntryPopup.close();
+				BX.Calendar.EntryManager.openEditSlider({
+					entry: params.entry,
+					type: 'user',
+					isLocationCalendar: true,
+					locationAccess: this.calendar.util.config.locationAccess,
+					roomsManager: this.calendar.roomsManager,
+					ownerId: this.calendar.util.ownerId,
+					userId: parseInt(this.calendar.currentUser.id)
+				});
 			}
-
-			BX.Calendar.EntryManager.openEditSlider({
-				entry: params.entry,
-				type: this.calendar.util.type,
-				ownerId: this.calendar.util.ownerId,
-				userId: parseInt(this.calendar.currentUser.id)
-			});
+			else
+			{
+				BX.Calendar.EntryManager.openEditSlider({
+					entry: params.entry,
+					type: this.calendar.util.type,
+					isLocationCalendar: false,
+					locationAccess: this.calendar.util.config.locationAccess,
+					ownerId: this.calendar.util.ownerId,
+					userId: parseInt(this.calendar.currentUser.id)
+				});
+			}
 		},
 
 		handleEntryClick: function(params)

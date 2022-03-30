@@ -8,11 +8,8 @@
 
 use Bitrix\Main\Session\Legacy\HealerEarlySessionStart;
 
-require_once(mb_substr(__FILE__, 0, mb_strlen(__FILE__) - mb_strlen("/include.php"))."/bx_root.php");
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/start.php");
-
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/virtual_io.php");
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/virtual_file.php");
+require_once(__DIR__."/bx_root.php");
+require_once(__DIR__."/start.php");
 
 $application = \Bitrix\Main\Application::getInstance();
 $application->initializeExtendedKernel(array(
@@ -58,12 +55,12 @@ if($arLang["CULTURE_ID"] == '')
 $lang = $arLang["LID"];
 if (!defined("SITE_ID"))
 	define("SITE_ID", $arLang["LID"]);
-define("SITE_DIR", $arLang["DIR"]);
-define("SITE_SERVER_NAME", $arLang["SERVER_NAME"]);
+define("SITE_DIR", ($arLang["DIR"] ?? ''));
+define("SITE_SERVER_NAME", ($arLang["SERVER_NAME"] ?? ''));
 define("SITE_CHARSET", $arLang["CHARSET"]);
 define("FORMAT_DATE", $arLang["FORMAT_DATE"]);
 define("FORMAT_DATETIME", $arLang["FORMAT_DATETIME"]);
-define("LANG_DIR", $arLang["DIR"]);
+define("LANG_DIR", ($arLang["DIR"] ?? ''));
 define("LANG_CHARSET", $arLang["CHARSET"]);
 define("LANG_ADMIN_LID", $arLang["LANGUAGE_ID"]);
 define("LANGUAGE_ID", $arLang["LANGUAGE_ID"]);
@@ -89,11 +86,9 @@ if (!defined("POST_FORM_ACTION_URI"))
 	define("POST_FORM_ACTION_URI", htmlspecialcharsbx(GetRequestUri()));
 }
 
-$GLOBALS["MESS"] = array();
-$GLOBALS["ALL_LANG_FILES"] = array();
-IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/tools.php");
-IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/database.php");
-IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/main.php");
+$GLOBALS["MESS"] = [];
+$GLOBALS["ALL_LANG_FILES"] = [];
+IncludeModuleLangFile(__DIR__."/tools.php");
 IncludeModuleLangFile(__FILE__);
 
 error_reporting(COption::GetOptionInt("main", "error_reporting", E_COMPILE_ERROR|E_ERROR|E_CORE_ERROR|E_PARSE) & ~E_STRICT & ~E_DEPRECATED);
@@ -103,30 +98,21 @@ if(!defined("BX_COMP_MANAGED_CACHE") && COption::GetOptionString("main", "compon
 	define("BX_COMP_MANAGED_CACHE", true);
 }
 
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/filter_tools.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/ajax_tools.php");
+// global functions
+require_once(__DIR__."/filter_tools.php");
 
-/*ZDUyZmZYjE4ZWQ5OWMzNWVkZTU5NmNhZjczMzVlZjQzZDcwMDQ=*/class CBXFeatures{ public static function IsFeatureEnabled($_828764655){ return true;} public static function IsFeatureEditable($_828764655){ return true;} public static function SetFeatureEnabled($_828764655, $_671803788= true){} public static function SaveFeaturesSettings($_1882765423, $_211901498){} public static function GetFeaturesList(){ return array();} public static function InitiateEditionsSettings($_390712756){} public static function ModifyFeaturesSettings($_390712756, $_1369443142){} public static function IsFeatureInstalled($_828764655){ return true;}}/**/			//Do not remove this
+define('BX_AJAX_PARAM_ID', 'bxajaxid');
+
+/*ZDUyZmZYmI5NzBhYjJlMTNjZjMwMjA0NjY2YWY2ZDNjOThjZDU=*/class CBXFeatures{ public static function IsFeatureEnabled($_1655897659){ return true;} public static function IsFeatureEditable($_1655897659){ return true;} public static function SetFeatureEnabled($_1655897659, $_229276893= true){} public static function SaveFeaturesSettings($_1636676770, $_2116127814){} public static function GetFeaturesList(){ return array();} public static function InitiateEditionsSettings($_249234901){} public static function ModifyFeaturesSettings($_249234901, $_1086467156){} public static function IsFeatureInstalled($_1655897659){ return true;}}/**/			//Do not remove this
 
 //component 2.0 template engines
-$GLOBALS["arCustomTemplateEngines"] = array();
+$GLOBALS["arCustomTemplateEngines"] = [];
 
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/urlrewriter.php");
+require_once(__DIR__."/autoload.php");
+require_once(__DIR__."/classes/general/menu.php");
+require_once(__DIR__."/classes/mysql/usertype.php");
 
-/**
- * Defined in dbconn.php
- * @param string $DBType
- */
-
-require_once(__DIR__.'/autoload.php');
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/".$DBType."/agent.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/user.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/".$DBType."/event.php");
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/menu.php");
-AddEventHandler("main", "OnAfterEpilog", array("\\Bitrix\\Main\\Data\\ManagedCache", "finalize"));
-require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/".$DBType."/usertype.php");
-
-if(file_exists(($_fname = $_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/classes/general/update_db_updater.php")))
+if(file_exists(($_fname = __DIR__."/classes/general/update_db_updater.php")))
 {
 	$US_HOST_PROCESS_MAIN = False;
 	include($_fname);
@@ -159,7 +145,10 @@ header("X-Powered-CMS: Bitrix Site Manager (".(LICENSE_KEY == "DEMO"? "DEMO" : m
 if (COption::GetOptionString("main", "update_devsrv", "") == "Y")
 	header("X-DevSrv-CMS: Bitrix");
 
-define("BX_CRONTAB_SUPPORT", defined("BX_CRONTAB"));
+if (!defined("BX_CRONTAB_SUPPORT"))
+{
+	define("BX_CRONTAB_SUPPORT", defined("BX_CRONTAB"));
+}
 
 //agents
 if(COption::GetOptionString("main", "check_agents", "Y") == "Y")
@@ -170,7 +159,7 @@ if(COption::GetOptionString("main", "check_agents", "Y") == "Y")
 //send email events
 if(COption::GetOptionString("main", "check_events", "Y") !== "N")
 {
-	$application->addBackgroundJob(["CEvent", "CheckEvents"], [], \Bitrix\Main\Application::JOB_PRIORITY_LOW-1);
+	$application->addBackgroundJob(['\Bitrix\Main\Mail\EventManager', 'checkEvents'], [], \Bitrix\Main\Application::JOB_PRIORITY_LOW-1);
 }
 
 $healerOfEarlySessionStart = new HealerEarlySessionStart();
@@ -238,7 +227,9 @@ elseif (($currTime - $kernelSession['SESS_TIME']) > 60)
 	$kernelSession['SESS_TIME'] = $currTime;
 }
 if(!isset($kernelSession["BX_SESSION_SIGN"]))
+{
 	$kernelSession["BX_SESSION_SIGN"] = bitrix_sess_sign();
+}
 
 //session control from security module
 if(
@@ -358,17 +349,17 @@ if(!defined("NOT_CHECK_PERMISSIONS") || NOT_CHECK_PERMISSIONS!==true)
 					$GLOBALS["APPLICATION"]->StoreCookies();
 					$kernelSession['BX_ADMIN_LOAD_AUTH'] = true;
 
+					// die() follows
 					CMain::FinalActions('<script type="text/javascript">window.onload=function(){(window.BX || window.parent.BX).AUTHAGENT.setAuthResult(false);};</script>');
-					die();
 				}
 			}
 		}
 		$GLOBALS["APPLICATION"]->SetAuthResult($arAuthResult);
 	}
-	elseif(!$GLOBALS["USER"]->IsAuthorized())
+	elseif(!$GLOBALS["USER"]->IsAuthorized() && isset($_REQUEST['bx_hit_hash']))
 	{
 		//Authorize by unique URL
-		$GLOBALS["USER"]->LoginHitByHash();
+		$GLOBALS["USER"]->LoginHitByHash($_REQUEST['bx_hit_hash']);
 	}
 }
 
@@ -400,7 +391,7 @@ if(($applicationID = $GLOBALS["USER"]->GetParam("APPLICATION_ID")) !== null)
 if(!defined("ADMIN_SECTION") || ADMIN_SECTION !== true)
 {
 	$siteTemplate = "";
-	if(is_string($_REQUEST["bitrix_preview_site_template"]) && $_REQUEST["bitrix_preview_site_template"] <> "" && $GLOBALS["USER"]->CanDoOperation('view_other_settings'))
+	if(isset($_REQUEST["bitrix_preview_site_template"]) && is_string($_REQUEST["bitrix_preview_site_template"]) && $_REQUEST["bitrix_preview_site_template"] <> "" && $GLOBALS["USER"]->CanDoOperation('view_other_settings'))
 	{
 		//preview of site template
 		$signer = new Bitrix\Main\Security\Sign\Signer();
@@ -431,6 +422,12 @@ if(!defined("ADMIN_SECTION") || ADMIN_SECTION !== true)
 	}
 	define("SITE_TEMPLATE_ID", $siteTemplate);
 	define("SITE_TEMPLATE_PATH", getLocalPath('templates/'.SITE_TEMPLATE_ID, BX_PERSONAL_ROOT));
+}
+else
+{
+	// prevents undefined constants
+	define('SITE_TEMPLATE_ID', '.default');
+	define('SITE_TEMPLATE_PATH', '/bitrix/templates/.default');
 }
 
 //magic parameters: show page creation time

@@ -1,6 +1,6 @@
 // @flow
-import {Runtime, Type, Event, Loc, Dom, Tag, Text} from 'main.core';
-import {Util} from "calendar.util";
+import {Runtime, Type, Event, Loc, Dom, Tag, Text, Browser} from 'main.core';
+import {Util} from 'calendar.util';
 import {EventEmitter, BaseEvent} from 'main.core.events';
 import {Selector} from './selector.js';
 import {PopupWindowManager} from "main.popup";
@@ -33,6 +33,7 @@ export class Planner extends EventEmitter
 	scrollStep = 10;
 	shown = false;
 	built = false;
+	locked = false;
 	shownScaleTimeFrom = 24;
 	shownScaleTimeTo = 0;
 	timelineCellWidthOrig = false;
@@ -41,6 +42,8 @@ export class Planner extends EventEmitter
 	limitScaleSizeMode = false;
 	useAnimation = true;
 	checkTimeCache = {};
+	entriesIndex = new Map();
+	solidStatus = false;
 
 	constructor(params = {}, initialUpdateParams = null)
 	{
@@ -48,47 +51,17 @@ export class Planner extends EventEmitter
 		this.setEventNamespace('BX.Calendar.Planner');
 		this.config = params;
 		this.id = params.id;
-		this.userId = params.userId || Loc.getMessage('USER_ID');
+		this.userId = parseInt(params.userId || Loc.getMessage('USER_ID'));
 		this.DOM.wrap = params.wrap;
 		this.SCALE_TIME_FORMAT = BX.isAmPmMode() ? 'g a' : 'G';
-		this.entriesIndex = new Map();
 
+		this.expandTimelineDebounce = Runtime.debounce(this.expandTimeline, this.EXPAND_DELAY, this);
 		this.setConfig(params);
-		// this.SetLoadedDataLimits(this.scaleDateFrom, this.scaleDateTo);
-
-		// BX.addCustomEvent('OnCalendarPlannerDoUpdate', BX.proxy(this.DoUpdate, this));
-		// BX.addCustomEvent('OnCalendarPlannerDoExpand', BX.proxy(this.DoExpand, this));
-		// BX.addCustomEvent('OnCalendarPlannerDoResize', BX.proxy(this.DoResize, this));
-		// BX.addCustomEvent('OnCalendarPlannerDoSetConfig', BX.proxy(this.DoSetConfig, this));
-		// BX.addCustomEvent('OnCalendarPlannerDoUninstall', BX.proxy(this.DoUninstall, this));
-
-		//BX.addCustomEvent('OnCalendarPlannerDoProposeTime', BX.proxy(this.DoProposeTime, this));
-		// if (initialUpdateParams)
-		// {
-		// 	initialUpdateParams.plannerId = this.id;
-		// 	if (initialUpdateParams.selector)
-		// 	{
-		// 		if (initialUpdateParams.selector.from && !initialUpdateParams.selector.from.getTime)
-		// 		{
-		// 			initialUpdateParams.selector.from = Util.parseDate(initialUpdateParams.selector.from);
-		// 		}
-		// 		if (initialUpdateParams.selector.to && !initialUpdateParams.selector.to.getTime)
-		// 		{
-		// 			initialUpdateParams.selector.to = Util.parseDate(initialUpdateParams.selector.to);
-		// 		}
-		// 	}
-		// 	this.useAnimation = false;
-		// 	this.DoUpdate(initialUpdateParams);
-		// 	setTimeout(BX.delegate(function(){this.useAnimation = true;}, this), 2000);
-		// }
 	}
 
 	show(options = {animation: false})
 	{
-		// if (!this.compactMode || this.useAnimation === false)
-		// {
 		let animation = false;
-		//}
 
 		if (this.hideAnimation)
 		{
@@ -107,7 +80,6 @@ export class Planner extends EventEmitter
 			this.resizePlannerWidth(this.width);
 		}
 
-		//this.HideSelector();
 		this.buildTimeline();
 
 		if (this.adjustWidth)
@@ -118,14 +90,22 @@ export class Planner extends EventEmitter
 		this.DOM.wrap.style.display = '';
 
 		if (this.readonly)
+		{
 			Dom.addClass(this.DOM.mainWrap, 'calendar-planner-readonly');
+		}
 		else
+		{
 			Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-readonly');
+		}
 
 		if (this.compactMode)
+		{
 			Dom.addClass(this.DOM.mainWrap, 'calendar-planner-compact');
+		}
 		else
+		{
 			Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-compact');
+		}
 
 		this.DOM.entriesOuterWrap.style.display = this.compactMode ? 'none' : '';
 
@@ -160,49 +140,6 @@ export class Planner extends EventEmitter
 
 		this.shown = true;
 	}
-
-	// Hide(animation)
-	// {
-	// 	if (this.showAnimation)
-	// 	{
-	// 		this.showAnimation.stop();
-	// 		this.showAnimation = null;
-	// 	}
-	//
-	// 	if (this.shown)
-	// 	{
-	// 		this.shown = false;
-	//
-	// 		if (animation)
-	// 		{
-	// 			if (this.hideAnimation)
-	// 			{
-	// 				this.hideAnimation.stop();
-	// 			}
-	// 			this.hideAnimation = new BX.easing({
-	// 				duration: 300,
-	// 				start: {height: this.height},
-	// 				finish: {height: 0},
-	// 				transition: BX.easing.makeEaseOut(BX.easing.transitions.quart),
-	// 				step: (state)=>{this.DOM.wrap.style.height = state.height + 'px';},
-	// 				complete: ()=>{
-	// 					this.hideAnimation = null;
-	// 					this.Hide(false);
-	// 				}
-	// 			});
-	// 			this.hideAnimation.animate();
-	// 		}
-	// 		else
-	// 		{
-	// 			this.DOM.wrap.style.display = 'none';
-	// 			Dom.clean(this.DOM.timelineScaleWrap);
-	// 			this.DOM.timelineInnerWrap.removeAttribute('style');
-	// 			this.DOM.wrap.removeAttribute('style');
-	// 			this.DOM.mainWrap.removeAttribute('style');
-	// 			this.DOM.entriesOuterWrap.removeAttribute('style');
-	// 		}
-	// 	}
-	// }
 
 	setConfig(params)
 	{
@@ -293,6 +230,7 @@ export class Planner extends EventEmitter
 		this.selectorAccuracy = parseInt(params.selectorAccuracy) || this.selectorAccuracy || 300; // 5 min
 		this.entriesListWidth = parseInt(params.entriesListWidth) || this.entriesListWidth || 200;
 		this.timelineCellWidth = params.timelineCellWidth || this.timelineCellWidth || 40;
+		this.solidStatus = params.solidStatus === true;
 
 		this.showEntiesHeader = params.showEntiesHeader === undefined ? true : !!params.showEntiesHeader;
 		this.showEntryName = params.showEntryName === undefined ? true : !!params.showEntryName;
@@ -313,6 +251,11 @@ export class Planner extends EventEmitter
 			this.allowAdjustCellWidth = this.readonly
 				&& this.compactMode
 				&& params.allowAdjustCellWidth !== false;
+		}
+
+		if (params.locked !== undefined)
+		{
+			this.locked = params.locked;
 		}
 
 		this.adjustCellWidth();
@@ -479,11 +422,15 @@ export class Planner extends EventEmitter
 		this.DOM.entrieListWrap = this.DOM.entriesOuterWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user-container-inner'}}));
 
 		// Fixed cont with specific width and height
-		this.DOM.timelineFixedWrap = this.DOM.mainWrap.appendChild(BX.create("DIV", {
-			props: {className: 'calendar-planner-timeline-wrapper'}, style: {
-				height: this.height + 'px'
-			}
-		}));
+		this.DOM.timelineFixedWrap = this.DOM.mainWrap.appendChild(
+			Tag.render`
+				<div class="calendar-planner-timeline-wrapper" style="height: ${this.height}px"></div>
+		`);
+
+		if (this.isLocked())
+		{
+			this.lock();
+		}
 
 		// Movable cont - used to move scale and data containers easy and at the same time
 		this.DOM.timelineInnerWrap = this.DOM.timelineFixedWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-inner-wrapper'}}));
@@ -511,6 +458,7 @@ export class Planner extends EventEmitter
 			getDateByPos: this.getDateByPos.bind(this),
 			getPosDateMap: ()=>{return this.posDateMap;},
 			useAnimation: this.useAnimation,
+			solidStatus: this.solidStatus,
 			getScaleInfo: ()=>{return {
 				scale: this.scaleType,
 				shownTimeFrom: this.shownScaleTimeFrom,
@@ -611,15 +559,14 @@ export class Planner extends EventEmitter
 			}
 
 			let mapDatePosRes = this.mapDatePos();
-			//this.datePosMap = mapDatePosRes.datePosMap;
 			this.posDateMap = mapDatePosRes.posDateMap;
 
-			let timelineOffset = this.DOM.timelineScaleWrap.offsetWidth;
+			const timelineOffset = this.DOM.timelineScaleWrap.offsetWidth;
 			this.DOM.timelineInnerWrap.style.width = timelineOffset + 'px';
 			this.DOM.entrieListWrap.style.top = (parseInt(this.DOM.timelineDataWrap.offsetTop) + 10) + 'px';
 
 			this.lastTimelineKey = this.getTimelineShownKey();
-			//this.checkRebuildTimeout(timelineOffset);
+			this.checkRebuildTimeout(timelineOffset);
 		}
 	}
 
@@ -628,10 +575,8 @@ export class Planner extends EventEmitter
 		return 'tm_' + this.scaleDateFrom.getTime() + '_' + this.scaleDateTo.getTime();
 	}
 
-	checkRebuildTimeout(timelineOffset, timeout = 200)
+	checkRebuildTimeout(timelineOffset, timeout = 300)
 	{
-		let _this = this;
-
 		if (!this._checkRebuildTimeoutCount)
 		{
 			this._checkRebuildTimeoutCount = 0;
@@ -642,11 +587,14 @@ export class Planner extends EventEmitter
 			this.rebuildTimeout = !!clearTimeout(this.rebuildTimeout);
 		}
 
-		if (this._checkRebuildTimeoutCount <= 5)
+		if (this._checkRebuildTimeoutCount <= 10
+			&& Type.isElementNode(this.DOM.timelineScaleWrap)
+			&& Dom.isShown(this.DOM.timelineScaleWrap)
+		)
 		{
 			this._checkRebuildTimeoutCount++;
 			this.rebuildTimeout = setTimeout(() => {
-				if (timelineOffset !== _this.DOM.timelineScaleWrap.offsetWidth)
+				if (timelineOffset !== this.DOM.timelineScaleWrap.offsetWidth)
 				{
 					if (this.rebuildTimeout)
 					{
@@ -654,7 +602,10 @@ export class Planner extends EventEmitter
 					}
 
 					this.rebuild();
-					this.FocusSelector(true, 200);
+					if (this.selector)
+					{
+						this.selector.focus(false, 300);
+					}
 				}
 				else
 				{
@@ -686,6 +637,7 @@ export class Planner extends EventEmitter
 			{
 				this.selector.update(params.selectorParams);
 			}
+
 			this.clearCacheTime();
 		}
 	}
@@ -739,147 +691,6 @@ export class Planner extends EventEmitter
 	{
 		return this.scaleType === '1day';
 	}
-
-	/**
-	 * Updates data on scale of planner
-	 *
-	 * @params array array of parameters
-	 * @params[entries] - array of entries to display on scale
-	 * @params[accessibility] - object contains informaton about accessibility for entries
-	 * @return null
-	 */
-	// UpdateData(params)
-	// {
-	// 	if (!params.accessibility)
-	// 	{
-	// 		params.accessibility = {};
-	// 	}
-	//
-	// 	this.accessibility = params.accessibility;
-	// 	this.entries = params.entries;
-	//
-	// 	let i, k, entry, acc, userId = this.userId;
-	// 	// Compact mode
-	// 	if (this.compactMode)
-	// 	{
-	// 		let data = [];
-	// 		for (k in params.accessibility)
-	// 		{
-	// 			if (params.accessibility.hasOwnProperty(k) && params.accessibility[k] && params.accessibility[k].length > 0)
-	// 			{
-	// 				for (i = 0; i < params.accessibility[k].length; i++)
-	// 				{
-	// 					data.push(Planner.prepareAccessibilityItem(params.accessibility[k][i]));
-	// 				}
-	// 			}
-	// 		}
-	//
-	// 		// Fuse access
-	// 		//data = this.FuseAccessibility(data);
-	// 		this.compactRowWrap = this.DOM.accessibilityWrap.appendChild(BX.create("DIV", {
-	// 			props: {className: 'calendar-planner-timeline-space'},
-	// 			style: {}
-	// 		}));
-	//
-	// 		// this.currentData = [data];
-	// 		// for (i = 0; i < data.length; i++)
-	// 		// {
-	// 		// 	this.addAccessibilityItem(data[i], this.compactRowWrap);
-	// 		// }
-	// 	}
-	// 	else
-	// 	{
-	// 		// sort entries list by amount of accessibilities data
-	// 		// Enties without accessibilitity data should be in the end of the array
-	// 		// But first in the list will be meeting room
-	// 		// And second (or first) will be owner-host of the event
-	//
-	// 		if (params.entries && params.entries.length)
-	// 		{
-	// 			params.entries.sort(function(a, b)
-	// 			{
-	// 				if (b.status === 'h' || b.id == userId && a.status !== 'h')
-	// 				{
-	// 					return 1;
-	// 				}
-	// 				if (a.status === 'h' || a.id == userId && b.status !== 'h')
-	// 				{
-	// 					return  -1;
-	// 				}
-	// 				return 0;
-	// 			});
-	//
-	// 			if (this.selectedEntriesWrap)
-	// 			{
-	// 				Dom.clean(this.selectedEntriesWrap);
-	//
-	// 				if (this.selector && this.selector.controlWrap)
-	// 				{
-	// 					Dom.clean(this.selector.controlWrap);
-	// 				}
-	// 			}
-	//
-	// 			let
-	// 				cutData = [],
-	// 				usersCount = 0,
-	// 				cutAmount = 0,
-	// 				dispDataCount = 0,
-	// 				cutDataTitle = [];
-	//
-	// 			for (i = 0; i < params.entries.length; i++)
-	// 			{
-	// 				entry = params.entries[i];
-	// 				acc = params.accessibility[entry.id] || [];
-	// 				entry.uid = this.getEntryUniqueId(entry);
-	//
-	// 				if (entry.type === 'user')
-	// 					usersCount++;
-	//
-	// 				if (this.MIN_ENTRY_ROWS && (i < this.MIN_ENTRY_ROWS || params.entries.length === this.MIN_ENTRY_ROWS + 1))
-	// 				{
-	// 					dispDataCount++;
-	// 					this.displayEntryRow(entry, acc);
-	// 				}
-	// 				else
-	// 				{
-	// 					cutAmount++;
-	// 					cutDataTitle.push(entry.name);
-	// 					if (acc.length > 0)
-	// 					{
-	// 						for (k = 0; k < acc.length; k++)
-	// 						{
-	// 							cutData.push(Planner.prepareAccessibilityItem(acc[k]));
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	//
-	// 			// Update entries title count
-	// 			if (this.entriesListTitleCounter)
-	// 			{
-	// 				this.entriesListTitleCounter.innerHTML = usersCount > this.MAX_ENTRY_ROWS ? '(' + usersCount + ')' : '';
-	// 			}
-	//
-	// 			if (cutAmount > 0)
-	// 			{
-	// 				if (dispDataCount === this.MAX_ENTRY_ROWS)
-	// 				{
-	// 					this.displayEntryRow({name: Loc.getMessage('EC_PL_ATTENDEES_LAST') + ' (' + cutAmount + ')', type: 'lastUsers', title: cutDataTitle.join(', ')}, cutData);
-	// 				}
-	// 				else
-	// 				{
-	// 					this.displayEntryRow({name: Loc.getMessage('EC_PL_ATTENDEES_SHOW_MORE') + ' (' + cutAmount + ')', type: 'moreLink'}, cutData);
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// 	this.adjustHeight();
-	//
-	// 	BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
-	// 		plannerId: this.id,
-	// 		entries: this.entries
-	// 	}]);
-	// }
 
 	static prepareAccessibilityItem(entry)
 	{
@@ -1100,15 +911,15 @@ export class Planner extends EventEmitter
 
 			if (this.showEntryName)
 			{
-				rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(BX.create("A", {
-					props: {
-						href: entry.url ? entry.url : '#',
-						className: 'calendar-planner-entry-name'
-					},
-					style: {
-						width: (this.entriesListWidth - 20) + 'px'
-					},
-					text: entry.name
+				rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}}))
+					.appendChild(BX.create("span", {
+						props: {
+							className: 'calendar-planner-entry-name'
+						},
+						style: {
+							width: (this.entriesListWidth - 20) + 'px'
+						},
+						text: entry.name
 				}));
 			}
 			else
@@ -1135,15 +946,17 @@ export class Planner extends EventEmitter
 
 			if (this.showEntryName)
 			{
-				rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(BX.create("span", {
-					props: {
-						className: 'calendar-planner-entry-name'
-					},
-					style: {
-						width: (this.entriesListWidth - 20) + 'px'
-					},
-					text: entry.name
-				}));
+				rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}}))
+					.appendChild(BX.create("span", {
+						props: {
+							className: 'calendar-planner-entry-name'
+						},
+						style: {
+							width: (this.entriesListWidth - 20) + 'px'
+						},
+						text: entry.name
+					})
+				);
 			}
 			else
 			{
@@ -1269,18 +1082,17 @@ export class Planner extends EventEmitter
 	bindEventHandlers()
 	{
 		Event.bind(this.DOM.wrap, 'click', this.handleClick.bind(this));
-		Event.bind(this.DOM.wrap, 'mousedown', BX.proxy(this.handleMousedown, this));
-		Event.bind(document, "mousemove", BX.proxy(this.handleMousemove, this));
-		Event.bind(document, "mouseup", BX.proxy(this.handleMouseup, this));
+		Event.bind(this.DOM.wrap, 'mousedown', this.handleMousedown.bind(this));
+		Event.bind(document, 'mousemove', this.handleMousemove.bind(this));
+		Event.bind(document, 'mouseup', this.handleMouseup.bind(this));
 
-		if ('onwheel' in document)
-		{
-			Event.bind(this.DOM.timelineFixedWrap, "wheel", this.mouseWheelTimelineHandler.bind(this));
-		}
-		else
-		{
-			Event.bind(this.DOM.timelineFixedWrap, "mousewheel", this.mouseWheelTimelineHandler.bind(this));
-		}
+
+			Event.bind(
+				this.DOM.timelineFixedWrap,
+				'onwheel' in document ? 'wheel' : 'mousewheel',
+				this.mouseWheelTimelineHandler.bind(this)
+			);
+
 	}
 
 	handleClick(e)
@@ -1429,34 +1241,52 @@ export class Planner extends EventEmitter
 		e = e || window.event;
 		if (this.shown && !this.readonly)
 		{
-			let delta = e.deltaY || e.detail || e.wheelDelta;
-			if (Math.abs(delta) > 0)
+			if (Browser.isMac())
 			{
-				let newScroll = this.DOM.timelineFixedWrap.scrollLeft + Math.round(delta / 3);
-				this.DOM.timelineFixedWrap.scrollLeft = Math.max(newScroll, 0);
 				this.checkTimelineScroll();
-				return BX.PreventDefault(e);
+			}
+			else
+			{
+				const delta = e.deltaY || e.detail || e.wheelDelta;
+				if (Math.abs(delta) > 0)
+				{
+					this.DOM.timelineFixedWrap.scrollLeft = Math.max(
+						this.DOM.timelineFixedWrap.scrollLeft + Math.round(delta / 3),
+						0
+					);
+					this.checkTimelineScroll();
+					return BX.PreventDefault(e);
+				}
 			}
 		}
 	}
 
-
 	checkTimelineScroll()
 	{
-		let
-			minScroll = this.scrollStep,
-			maxScroll = this.DOM.timelineFixedWrap.scrollWidth - this.DOM.timelineFixedWrap.offsetWidth - this.scrollStep;
+		const minScroll = this.scrollStep;
+		const maxScroll = this.DOM.timelineFixedWrap.scrollWidth
+							- this.DOM.timelineFixedWrap.offsetWidth
+							- this.scrollStep;
 
 		// Check and expand only if it is visible
 		if (this.DOM.timelineFixedWrap.offsetWidth > 0)
 		{
 			if (this.DOM.timelineFixedWrap.scrollLeft <= minScroll)
 			{
-				Runtime.debounce(()=>{this.expandTimeline('left')}, this.EXPAND_DELAY)();
+				this.expandTimelineDirection = 'past';
 			}
 			else if (this.DOM.timelineFixedWrap.scrollLeft >= maxScroll)
 			{
-				Runtime.debounce(()=>{this.expandTimeline('right')}, this.EXPAND_DELAY)();
+				this.expandTimelineDirection = 'future';
+			}
+
+			if (this.expandTimelineDirection)
+			{
+				if (!this.isLoaderShown())
+				{
+					this.showLoader();
+				}
+				this.expandTimelineDebounce();
 			}
 		}
 	}
@@ -1637,11 +1467,10 @@ export class Planner extends EventEmitter
 
 		if (date && typeof date === 'object')
 		{
-			let
-				i, curInd = 0,
-				timestamp = date.getTime();
+			let curInd = 0;
+			const timestamp = date.getTime();
 
-			for (i = 0; i < this.scaleData.length; i++)
+			for (let i = 0; i < this.scaleData.length; i++)
 			{
 				if (timestamp >= this.scaleData[i].timestamp)
 				{
@@ -1656,7 +1485,8 @@ export class Planner extends EventEmitter
 			if (this.scaleData[curInd] && this.scaleData[curInd].cell)
 			{
 				x = this.scaleData[curInd].cell.offsetLeft;
-				let cellWidth = this.scaleData[curInd].cell.offsetWidth, deltaTs = Math.round((timestamp - this.scaleData[curInd].timestamp) / 1000);
+				const cellWidth = this.scaleData[curInd].cell.offsetWidth;
+				const deltaTs = Math.round((timestamp - this.scaleData[curInd].timestamp) / 1000);
 
 				if (deltaTs > 0)
 				{
@@ -1764,42 +1594,19 @@ export class Planner extends EventEmitter
 		}
 	}
 
-	// ExpandFromCompactMode()
-	// {
-	// 	this.readonly = false;
-	// 	this.compactMode = false;
-	// 	this.showTimelineDayTitle = true;
-	// 	Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-readonly');
-	// 	Dom.removeClass(this.DOM.mainWrap, 'calendar-planner-compact');
-	// 	this.DOM.entriesOuterWrap.style.display = '';
-	//
-	// 	if (this.scaleDateFrom && this.scaleDateFrom.getTime)
-	// 	{
-	// 		this.scaleDateFrom = new Date(this.scaleDateFrom.getTime() - Util.getDayLength() * this.SCALE_OFFSET_BEFORE /* days before */);
-	// 	}
-	//
-	// 	if (this.scaleDateTo && this.scaleDateTo.getTime)
-	// 	{
-	// 		this.scaleDateTo = new Date(this.scaleDateTo.getTime() + Util.getDayLength() * this.SCALE_OFFSET_AFTER /* days after */);
-	// 	}
-	//
-	// 	this.rebuild();
-	//
-	// 	this.FocusSelector(false, 300);
-	// }
-
-	expandTimeline(direction, scaleDateFrom, scaleDateTo)
+	expandTimeline(scaleDateFrom, scaleDateTo)
 	{
-		let
-			loadedTimelineSize,
-			scrollLeft;
+		let loadedTimelineSize;
+		let scrollLeft;
+		const prevScaleDateFrom = this.scaleDateFrom;
+		const prevScaleDateTo = this.scaleDateTo;
 
 		if (!scaleDateFrom)
-			scaleDateFrom = this.loadedDataFrom || this.scaleDateFrom;
+			scaleDateFrom = this.scaleDateFrom;
 		if (!scaleDateTo)
-			scaleDateTo = this.loadedDataTo || this.scaleDateTo;
+			scaleDateTo = this.scaleDateTo;
 
-		if (direction === 'left')
+		if (this.expandTimelineDirection === 'past')
 		{
 			let oldScaleDateFrom = new Date(this.scaleDateFrom.getTime());
 			this.scaleDateFrom = new Date(scaleDateFrom.getTime() - Util.getDayLength()  * this.EXPAND_OFFSET);
@@ -1812,15 +1619,11 @@ export class Planner extends EventEmitter
 				this.loadedDataTo = this.scaleDateTo;
 				this.limitScaleSizeMode = true;
 			}
-
-			this.rebuildDebounce();
-
 			scrollLeft = this.getPosByDate(oldScaleDateFrom);
 		}
-		else if (direction === 'right')
+		else if (this.expandTimelineDirection === 'future')
 		{
 			let oldDateTo = this.scaleDateTo;
-
 			scrollLeft = this.DOM.timelineFixedWrap.scrollLeft;
 			this.scaleDateTo = new Date(scaleDateTo.getTime() + Util.getDayLength() * this.EXPAND_OFFSET);
 			loadedTimelineSize = (this.scaleDateTo.getTime() - this.scaleDateFrom.getTime()) / Util.getDayLength();
@@ -1838,48 +1641,40 @@ export class Planner extends EventEmitter
 
 				this.limitScaleSizeMode = true;
 			}
-
-			this.rebuildDebounce();
 		}
 		else
 		{
 			this.scaleDateFrom = new Date(scaleDateFrom.getTime() - Util.getDayLength()  * this.SCALE_OFFSET_BEFORE);
 			this.scaleDateTo = new Date(scaleDateTo.getTime() + Util.getDayLength() * this.SCALE_OFFSET_AFTER);
-
-			this.rebuildDebounce();
 		}
+
+		const reloadData = this.scaleDateFrom.getTime() < prevScaleDateFrom.getTime()
+		|| this.scaleDateTo.getTime() > prevScaleDateTo.getTime();
+
+		this.hideLoader();
+		this.emit('onExpandTimeline', new BaseEvent({
+			data: {
+				reload: reloadData,
+				dateFrom: this.scaleDateFrom,
+				dateTo: this.scaleDateTo
+			} }));
+
+		this.rebuild({
+			updateSelector: false
+		});
 
 		if (scrollLeft !== undefined)
 		{
 			this.DOM.timelineFixedWrap.scrollLeft = scrollLeft;
 		}
 
-		// let i, entry, entrieIds = [];
-		//
-		// if (!BX.type.isArray(this.entries))
-		// 	this.entries = [];
-		//
-		// for (i = 0; i < this.entries.length; i++)
-		// {
-		// 	entry = this.entries[i];
-		// 	entrieIds.push(entry.id);
-		// }
-
-		//this.loadDataLock = true;
-		// BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
-		// 	from: Util.formatDate(loadedDataFrom),
-		// 	to: Util.formatDate(loadedDataTo),
-		// 	entrieIds: entrieIds,
-		// 	entries: this.entries,
-		// 	focusSelector: focusSelector === true
-		// }]);
+		this.expandTimelineDirection = null;
 	}
 
 	update(entries = [], accessibility = {})
 	{
 		Dom.clean(this.DOM.entrieListWrap);
 		Dom.clean(this.DOM.accessibilityWrap);
-		//this.entriesRowMap = new WeakMap();
 		this.entriesDataRowMap = new Map();
 
 		if (!Type.isArray(entries))
@@ -1985,6 +1780,11 @@ export class Planner extends EventEmitter
 			{
 				this.entriesListTitleCounter.innerHTML = usersCount > this.MAX_ENTRY_ROWS ? '(' + usersCount + ')' : '';
 			}
+			this.emit('onDisplayAttendees', new BaseEvent({
+				data:  {
+					usersCount: usersCount
+				}
+			}));
 
 			if (cutAmount > 0)
 			{
@@ -2005,6 +1805,9 @@ export class Planner extends EventEmitter
 				}
 			}
 		}
+
+		Util.extendPlannerWatches({entries: entries, userId: this.userId});
+
 		this.adjustHeight();
 	}
 
@@ -2072,17 +1875,21 @@ export class Planner extends EventEmitter
 				||
 				from.getTime() < this.scaleDateFrom.getTime())
 			{
-				this.expandTimeline(false, from, to);
+				this.expandTimelineDirection = false;
+				this.expandTimeline(from, to);
 			}
 
 			this.selector.update({
 				from: from,
 				to: to,
-				fullDay: fullDay
+				fullDay: fullDay,
+				focus: options.focus !== false
 			});
 
-			//this.selector.focus();
-			this.selector.focus(false, 300);
+			if (options.focus !== false)
+			{
+				this.selector.focus(false, 300);
+			}
 		}
 	}
 
@@ -2099,8 +1906,9 @@ export class Planner extends EventEmitter
 	{
 		if (event instanceof BaseEvent)
 		{
-			let data = event.getData();
-			let selectorStatus = this.checkTimePeriod(data.dateFrom, data.dateTo) === true;
+			const data = event.getData();
+			this.clearCacheTime();
+			const selectorStatus = this.checkTimePeriod(data.dateFrom, data.dateTo) === true;
 			this.selector.setSelectorStatus(selectorStatus);
 			if (selectorStatus)
 			{
@@ -2114,208 +1922,6 @@ export class Planner extends EventEmitter
 			}
 		}
 	}
-
-	// DoUpdate(params)
-	// {
-	// 	if (this.id === params.plannerId)
-	// 	{
-	// 		let rebuild = false;
-	// 		if (params.selector && params.selector.fullDay)
-	// 		{
-	// 			this.setFullDayMode(params.selector.fullDay);
-	// 		}
-	//
-	// 		if (params.config)
-	// 		{
-	// 			if (this.fullDayMode && params.config.changeFromFullDay)
-	// 			{
-	// 				params.config.scaleType = params.config.changeFromFullDay.scaleType;
-	// 				params.config.timelineCellWidth = params.config.changeFromFullDay.timelineCellWidth;
-	// 				delete params.config.changeFromFullDay;
-	// 			}
-	//
-	// 			// Check if we should rebuild scale
-	// 			if (params.config.scaleDateFrom && params.config.scaleDateFrom !== this.scaleDateFrom)
-	// 				rebuild = true;
-	// 			if (!rebuild && params.config.scaleDateTo && params.config.scaleDateTo !== this.scaleDateTo)
-	// 				rebuild = true;
-	// 			if (!rebuild && params.config.scaleType && params.config.scaleType !== this.scaleType)
-	// 				rebuild = true;
-	// 			if (params.config.shownScaleTimeFrom && params.config.shownScaleTimeFrom !== this.shownScaleTimeFrom)
-	// 			{
-	// 				this.shownScaleTimeFrom = params.config.shownScaleTimeFrom;
-	// 				rebuild = true;
-	// 			}
-	// 			if (params.config.shownScaleTimeTo && params.config.shownScaleTimeTo !== this.shownScaleTimeTo)
-	// 			{
-	// 				this.shownScaleTimeTo = params.config.shownScaleTimeTo;
-	// 				rebuild = true;
-	// 			}
-	//
-	// 			this.setConfig(params.config);
-	// 		}
-	//
-	// 		if (!this.shown && params.show)
-	// 		{
-	// 			this.show({animation: true});
-	// 		}
-	// 		else if (rebuild)
-	// 		{
-	// 			this.rebuild({updateSelector: false});
-	// 		}
-	//
-	// 		if (params.hide && this.shown)
-	// 		{
-	// 			this.Hide(params.hideAnimation !== false);
-	// 		}
-	//
-	// 		if (this.shown)
-	// 		{
-	// 			if (params.data !== undefined && params.data !== false)
-	// 			{
-	// 				this.ClearAccessibilityData();
-	// 				this.UpdateData(params.data);
-	// 				this.SetLoadedDataLimits(params.loadedDataFrom, params.loadedDataTo);
-	// 			}
-	//
-	// 			if (params.selector !== undefined &&
-	// 				params.selector.from && params.selector.to)
-	// 			{
-	// 				params.selector.focus = params.focusSelector === true;
-	// 				params.selector.updateScaleType = false;
-	//
-	// 				// this.limitScaleSizeMode - is true if timeline scrolled by mouse or
-	// 				// mousewheel and we load some data from deep future or from past
-	// 				// (so we should't expand timeline in this case)
-	// 				if (params.selector.to.getTime() > this.loadedDataTo.getTime()
-	// 					&& !this.limitScaleSizeMode)
-	// 				{
-	// 					this.expandTimeline('right', false, params.selector.to, true);
-	// 				}
-	// 				else if (params.selector.from.getTime() < this.loadedDataFrom.getTime()
-	// 					&& !this.limitScaleSizeMode)
-	// 				{
-	// 					this.expandTimeline('left', params.selector.from, false, true);
-	// 				}
-	// 				else
-	// 				{
-	// 					if (!this.readonly)
-	// 					{
-	// 						this.scaleDateFrom = this.loadedDataFrom;
-	// 						this.scaleDateTo = this.loadedDataTo;
-	// 					}
-	//
-	// 					this.rebuild({
-	// 						updateSelector: true,
-	// 						selectorParams: params.selector
-	// 					});
-	// 				}
-	// 			}
-	//
-	// 			if (!this.compactMode && this.loadedDataTo !== this.scaleDateTo)
-	// 			{
-	// 				this.checkTimelineScroll();
-	// 			}
-	// 		}
-	//
-	// 		if (params.params && params.params.callback)
-	// 		{
-	// 			params.params.callback();
-	// 		}
-	//
-	// 		if (this.expandTimelineTimeout)
-	// 			this.expandTimelineTimeout = !!clearTimeout(this.expandTimelineTimeout);
-	//
-	// 		let _this = this;
-	// 		this.expandTimelineTimeout = setTimeout(
-	// 			function()
-	// 			{
-	// 				_this.loadDataLock = false;
-	// 				if (_this.lastExpandparams)
-	// 				{
-	// 					let p = _this.lastExpandparams;
-	// 					_this.expandTimeline(p.direction, p.loadedDataFrom, p.loadedDataTo, p.focusSelector);
-	// 				}
-	// 			},
-	// 			this.expandTimelineDelay
-	// 		);
-	//
-	// 		// We reset value to the false to allow user to extend timeline manually
-	// 		this.limitScaleSizeMode = false;
-	//
-	// 		BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
-	// 			plannerId: this.id,
-	// 			entries: this.entries
-	// 		}]);
-	// 	}
-	// }
-
-	// DoExpand(params)
-	// {
-	// 	if (this.id == params.plannerId)
-	// 	{
-	// 		if (this.compactMode)
-	// 		{
-	// 			if (params.config)
-	// 			{
-	// 				this.setConfig(params.config);
-	// 			}
-	//
-	// 			this.ExpandFromCompactMode();
-	// 		}
-	// 	}
-	// }
-	//
-	// DoSetConfig(params)
-	// {
-	// 	if (this.id == params.plannerId && params.config)
-	// 	{
-	// 		this.setConfig(params.config);
-	// 	}
-	// }
-	//
-	// DoResize(params)
-	// {
-	// 	if (this.id == params.plannerId)
-	// 	{
-	// 		let _this = this;
-	//
-	// 		if (params.width)
-	// 			params.width = parseInt(params.width) || this.width;
-	// 		params.width = Math.max(params.width, this.minWidth);
-	//
-	// 		this.width = params.width;
-	// 		this.adjustCellWidth();
-	//
-	// 		this.resizePlannerWidth(params.width, false);
-	//
-	// 		if (this.resizeRebuildTimeout)
-	// 			this.resizeRebuildTimeout = clearTimeout(this.resizeRebuildTimeout);
-	//
-	// 		this.resizeRebuildTimeout = setTimeout(function()
-	// 		{
-	// 			_this.rebuild();
-	// 		}, 200);
-	// 	}
-	// }
-	//
-	// DoUninstall(params)
-	// {
-	// 	if (params && this.id == params.plannerId)
-	// 	{
-	// 		Dom.clean(this.DOM.wrap, 1);
-	// 		BX.removeCustomEvent('OnCalendarPlannerDoUpdate', BX.proxy(this.DoUpdate, this));
-	// 		BX.removeCustomEvent('OnCalendarPlannerDoExpand', BX.proxy(this.DoExpand, this));
-	// 		BX.removeCustomEvent('OnCalendarPlannerDoResize', BX.proxy(this.DoResize, this));
-	// 		BX.removeCustomEvent('OnCalendarPlannerDoSetConfig', BX.proxy(this.DoSetConfig, this));
-	// 		BX.removeCustomEvent('OnCalendarPlannerDoUninstall', BX.proxy(this.DoUninstall, this));
-	//
-	// 		if (this.settingsPopup)
-	// 		{
-	// 			this.settingsPopup.close();
-	// 		}
-	// 	}
-	// }
 
 	proposeTime(params = {})
 	{
@@ -2416,17 +2022,6 @@ export class Planner extends EventEmitter
 							entry = this.entries[i];
 							entrieIds.push(entry.id);
 						}
-
-						// BX.onCustomEvent('OnCalendarPlannerScaleChanged', [{
-						// 	from: Util.formatDate(this.loadedDataFrom),
-						// 	to: Util.formatDate(loadedDataTo),
-						// 	entrieIds: entrieIds,
-						// 	entries: this.entries,
-						// 	focusSelector: true,
-						// 	params: {
-						// 		callback: function(){_this.ProposeTime({checkedFuture: true});}
-						// 	}
-						// }]);
 					}
 				}
 				else
@@ -2466,22 +2061,28 @@ export class Planner extends EventEmitter
 
 	checkTimePeriod(fromDate, toDate, data)
 	{
-		let
-			result = true,
-			entry,
-			fromTimestamp = fromDate.getTime(),
-			toTimestamp = toDate.getTime(),
-			cacheKey = fromTimestamp + '_' + toTimestamp,
-			accuracy = 60 * 1000, // 1min
-			item, i;
+		let result = true;
+		let entry;
+
+		if (!Type.isDate(fromDate) || !Type.isDate(toDate))
+		{
+			return result;
+		}
+
+		let fromTimestamp = fromDate.getTime();
+		let toTimestamp = toDate.getTime();
+		const cacheKey = fromTimestamp + '_' + toTimestamp;
+		const accuracy = 3 * 60 * 1000; // 3min
 
 		if (Type.isArray(data))
 		{
-			for (i = 0; i < data.length; i++)
+			for (let i = 0; i < data.length; i++)
 			{
-				item = data[i];
+				let item = data[i];
 				if (item.type && item.type === 'hr')
+				{
 					continue;
+				}
 
 				if ((item.fromTimestamp + accuracy) <= toTimestamp && ((item.toTimestampReal || item.toTimestamp) - accuracy) >= fromTimestamp)
 				{
@@ -2519,9 +2120,9 @@ export class Planner extends EventEmitter
 						entriesAccessibleIndex[entryId] = true;
 						if (Type.isArray(this.accessibility[entryId]))
 						{
-							for (i = 0; i < this.accessibility[entryId].length; i++)
+							for (let i = 0; i < this.accessibility[entryId].length; i++)
 							{
-								item = this.accessibility[entryId][i];
+								let item = this.accessibility[entryId][i];
 								if (item.type && item.type === 'hr')
 								{
 									continue;
@@ -2537,18 +2138,6 @@ export class Planner extends EventEmitter
 						}
 					}
 				}
-
-				// for (i = 0; i < this.entries.length; i++)
-				// {
-				// 	if (entriesAccessibleIndex[this.entries[i].id] !== undefined)
-				// 	{
-				// 		this.entries[i].currentStatus = !!entriesAccessibleIndex[this.entries[i].id];
-				// 	}
-				// 	else
-				// 	{
-				// 		this.entries[i].currentStatus = true;
-				// 	}
-				// }
 
 				this.checkTimeCache[cacheKey] = result;
 			}
@@ -2760,8 +2349,9 @@ export class Planner extends EventEmitter
 	showLoader()
 	{
 		this.hideLoader();
-		this.DOM.loader = this.DOM.mainWrap.appendChild(Util.getLoader(50));
+		this.DOM.loader = this.DOM.mainWrap.appendChild(Util.getLoader(40));
 		Dom.addClass(this.DOM.loader, 'calendar-planner-main-loader');
+		this.loaderShown = true;
 	}
 
 	hideLoader()
@@ -2770,6 +2360,12 @@ export class Planner extends EventEmitter
 		{
 			Dom.remove(this.DOM.loader);
 		}
+		this.loaderShown = false;
+	}
+
+	isLoaderShown()
+	{
+		return this.loaderShown;
 	}
 
 	isShown()
@@ -2780,5 +2376,33 @@ export class Planner extends EventEmitter
 	isBuilt()
 	{
 		return this.built;
+	}
+
+	isLocked()
+	{
+		return this.locked;
+	}
+
+	lock()
+	{
+		if (!this.DOM.lockScreen)
+		{
+			this.DOM.lockScreen = Tag.render`
+				<div class="calendar-planner-timeline-locker">
+					<div class="calendar-planner-timeline-locker-container">
+						<div class="calendar-planner-timeline-locker-top">
+							<div class="calendar-planner-timeline-locker-icon"></div>
+							<div class="calendar-planner-timeline-text">${Loc.getMessage('EC_PL_LOCKED_TITLE')}</div>
+						</div>
+						<div class="calendar-planner-timeline-locker-button">
+							<a href="javascript:void(0)" onclick="top.BX.UI.InfoHelper.show('limit_crm_calender_planner');" class="ui-btn ui-btn-sm ui-btn-light-border ui-btn-round">${Loc.getMessage('EC_PL_UNLOCK_FEATURE')}</a>
+						</div>
+					</div>
+				</div>
+			`;
+		}
+
+		Dom.addClass(this.DOM.timelineFixedWrap, '--lock');
+		this.DOM.timelineFixedWrap.appendChild(this.DOM.lockScreen);
 	}
 }

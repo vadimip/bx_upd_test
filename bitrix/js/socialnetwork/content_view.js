@@ -8,11 +8,14 @@ if (BX.UserContentView)
 
 BX.UserContentView = {
 	mobile: false,
+	context: '',
 	pathToUserProfile: '',
 	inited: false,
 	viewAreaSentList: [],
 	viewAreaTimePeriodAvg: 1500,
+	viewAreaTimePeriodAvgMobile: 50,
 	sendViewAreaTimeout: 5000,
+	failedSetTimeout: 10*60*1000,
 	commentsContainerId: null,
 	commentsClassName: 'feed-com-text-inner',
 	commentsFullContentClassName: 'feed-com-text-inner-inner',
@@ -26,7 +29,9 @@ BX.UserContentView = {
 	checkerMap: null,
 	viewAreaMap: null,
 
-	ajaxSent: false
+	ajaxSent: false,
+	failedAjaxCounter: 0,
+	failedAjaxLimit: 10
 };
 
 BX.UserContentView.clear = function()
@@ -41,24 +46,21 @@ BX.UserContentView.init = function(params)
 		return;
 	}
 
-	var observerOptions = {
-		rootMargin: '-10% 0% -10% 0%',
-		threshold: 0.10
-	};
-
-	this.observer = new IntersectionObserver(this.onIntersection.bind(this), observerOptions);
-	this.checkerMap = new WeakMap();
-	this.viewAreaMap = new WeakMap();
-	this.viewAreaReadList = {};
-
-	this.inited = true;
+	if ((BX.message('USER_ID') ? parseInt(BX.message('USER_ID')) : 0) <= 0)
+	{
+		return;
+	}
 
 	if (BX.type.isPlainObject(params))
 	{
-
 		if (BX.type.isBoolean(params.mobile))
 		{
 			this.mobile = params.mobile;
+		}
+
+		if (BX.type.isNotEmptyString(params.context))
+		{
+			this.context = params.context;
 		}
 
 		if (BX.type.isNotEmptyString(params.commentsContainerId))
@@ -76,6 +78,18 @@ BX.UserContentView.init = function(params)
 			this.commentsFullContentClassName = params.commentsFullContentClassName;
 		}
 	}
+
+	var observerOptions = {
+		rootMargin: (this.mobile ? '0%' : '-10% 0% -10% 0%'),
+		threshold: 0.10
+	};
+
+	this.observer = new IntersectionObserver(this.onIntersection.bind(this), observerOptions);
+	this.checkerMap = new WeakMap();
+	this.viewAreaMap = new WeakMap();
+	this.viewAreaReadList = {};
+
+	this.inited = true;
 
 	if (BX.browser.SupportLocalStorage())
 	{
@@ -163,7 +177,13 @@ BX.UserContentView.sendViewAreaData = function()
 		}
 	}
 
-	if (
+	if (this.failedAjaxCounter >= this.failedAjaxLimit)
+	{
+		setTimeout(function() {
+			this.failedAjaxCounter = 0;
+		}.bind(this), this.failedSetTimeout);
+	}
+	else if (
 		this.toSendList.length > 0
 		&& !this.ajaxSent
 	)
@@ -174,18 +194,22 @@ BX.UserContentView.sendViewAreaData = function()
 		ajaxApi.runAction('socialnetwork.api.contentview.set', {
 			data: {
 				params: {
-					viewXMLIdList: this.toSendList
+					viewXMLIdList: this.toSendList,
+					context: this.context
 				}
 			}
 		}).then(function(response) {
 			this.ajaxSent = false;
+			this.failedAjaxCounter = 0;
+
 			this.success(response.data);
 		}.bind(this), function(response) {
 			this.ajaxSent = false;
+			this.failedAjaxCounter++;
 		}.bind(this));
 	}
 
-	setTimeout(BX.delegate(this.sendViewAreaData, this), this.sendViewAreaTimeout);
+	setTimeout(this.sendViewAreaData.bind(this), this.sendViewAreaTimeout);
 };
 
 BX.UserContentView.success = function(data)
@@ -420,7 +444,7 @@ BX.UserContentView.onIntersection = function(entries)
 				{
 					BX.UserContentView.setRead(this);
 				}
-			}.bind(entry.target), this.viewAreaTimePeriodAvg)
+			}.bind(entry.target), (this.mobile ? this.viewAreaTimePeriodAvgMobile : this.viewAreaTimePeriodAvg))
 		}
 		else
 		{

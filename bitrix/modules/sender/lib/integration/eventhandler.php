@@ -266,6 +266,8 @@ class EventHandler
 				'Bitrix\Sender\Integration\Seo\Ads\MessageGa',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageVk',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageFb',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingFb',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingInstagram',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeVk',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeFb',
 			);
@@ -313,7 +315,19 @@ class EventHandler
 
 		return $list;
 	}
-
+	public static function onSenderConsentMessageBuildersList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentBuilderMail';
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\TestConsentBuilderMail';
+		return $list;
+	}
+	public static function onSenderConsentResponseList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentResponseMail';
+		return $list;
+	}
 	/**
 	 * Handler of event sender/onSenderTransportList.
 	 *
@@ -355,6 +369,8 @@ class EventHandler
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportGa';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportVk';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportFb';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingFb';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingInstagram';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeVk';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeFb';
 		}
@@ -385,7 +401,7 @@ class EventHandler
 		if (Bitrix24\Service::isCloud() && isset($data['fields']['STATUS']))
 		{
 			$oldRow = LetterTable::getRowById($data['primary']['ID']);
-			$updatedBy = isset($data['fields']['UPDATED_BY']) ? $data['fields']['UPDATED_BY'] : $oldRow['UPDATED_BY'];
+			$updatedBy = $data['fields']['UPDATED_BY'] ?? $oldRow['UPDATED_BY'];
 
 			if (in_array($data['fields']['STATUS'], Dispatch\Semantics::getWorkStates()))
 			{
@@ -399,8 +415,24 @@ class EventHandler
 				}
 
 				$letter = Entity\Letter::createInstanceById($data['primary']['ID']);
+
+				if (is_null($letter))
+				{
+					$result->addError(
+						new MainEntity\EntityError(
+							Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_LETTER_NOT_AVAILABLE"), 'FEATURE_NOT_AVAILABLE'
+						)
+					);
+					return;
+				}
+
 				if (!$letter->getMessage()->isAvailable())
 				{
+					if ($letter->getState()->isWaiting() || $letter->getState()->isSending())
+					{
+						$letter->stop();
+					}
+
 					$result->addError(
 						new MainEntity\EntityError(
 							Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_FEATURE_NOT_AVAILABLE"), 'FEATURE_NOT_AVAILABLE'

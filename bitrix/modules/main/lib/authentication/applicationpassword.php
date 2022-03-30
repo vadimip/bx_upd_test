@@ -12,8 +12,27 @@ use Bitrix\Main\ORM;
 use Bitrix\Main\ORM\Data;
 use Bitrix\Main\ORM\Fields;
 
+/**
+ * Class ApplicationPasswordTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_ApplicationPassword_Query query()
+ * @method static EO_ApplicationPassword_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_ApplicationPassword_Result getById($id)
+ * @method static EO_ApplicationPassword_Result getList(array $parameters = array())
+ * @method static EO_ApplicationPassword_Entity getEntity()
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword_Collection createCollection()
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword wakeUpObject($row)
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword_Collection wakeUpCollection($rows)
+ */
 class ApplicationPasswordTable extends Data\DataManager
 {
+	protected const PASSWORD_ALPHABET = "qwertyuiopasdfghjklzxcvbnm";
+	protected const PASSWORD_LENGTH = 16;
+
 	public static function getTableName()
 	{
 		return "b_app_password";
@@ -100,7 +119,26 @@ class ApplicationPasswordTable extends Data\DataManager
 	 */
 	public static function generatePassword()
 	{
-		return Main\Security\Random::getStringByCharsets(16, "qwertyuiopasdfghjklzxcvbnm");
+		return Main\Security\Random::getStringByCharsets(static::PASSWORD_LENGTH, static::PASSWORD_ALPHABET);
+	}
+
+	/**
+	 * Checks if the string is similar to a password by its structure.
+	 * @param string $password
+	 * @return bool
+	 */
+	public static function isPassword($password)
+	{
+		if (is_string($password))
+		{
+			$password = str_replace(' ', '', $password);
+
+			if(strlen($password) === static::PASSWORD_LENGTH)
+			{
+				return (!preg_match("/[^".static::PASSWORD_ALPHABET."]/", $password));
+			}
+		}
+		return false;
 	}
 
 	/**

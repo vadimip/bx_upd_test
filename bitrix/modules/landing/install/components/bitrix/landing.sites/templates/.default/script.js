@@ -36,14 +36,14 @@
 
 			this.tileRatio = params.tileRatio || 1.48;
 			this.maxTileHeight = this.maxTileWidth / this.tileRatio;
+
+			this.setTileWidth();
+			BX.bind(window, 'resize', this.setTileWidth.bind(this));
+
+			requestAnimationFrame(function() {
+			    this.wrapper.classList.add('landing-ui-show');
+			}.bind(this));
 		}
-
-		this.setTileWidth();
-		BX.bind(window, 'resize', this.setTileWidth.bind(this));
-
-		requestAnimationFrame(function() {
-		    this.wrapper.classList.add('landing-ui-show');
-		}.bind(this));
 	};
 
 	BX.Landing.TileGrid.prototype =
@@ -139,7 +139,6 @@
 				{
 					loader.hide();
 					loaderContainer.classList.add('landing-filter-loading-hide');
-
 					if (
 						typeof data.type !== 'undefined' &&
 						typeof data.result !== 'undefined'
@@ -172,6 +171,14 @@
 										top.BX.UI.InfoHelper.show('limit_sites_number');
 									}
 								}
+							}
+							else if (data.result[0].error === 'FREE_DOMAIN_IS_NOT_ALLOWED')
+							{
+								top.BX.UI.InfoHelper.show('limit_free_domen');
+							}
+							else if (data.result[0].error === 'EMAIL_NOT_CONFIRMED')
+							{
+								top.BX.UI.InfoHelper.show('limit_sites_confirm_email');
 							}
 							else if (
 								typeof BX.Landing.PaymentAlertShow !== 'undefined' &&

@@ -551,6 +551,10 @@
 	position: relative;
 }
 
+.popup-window-resource-select{
+	max-height: 350px;
+	overflow: auto;
+}
 .popup-window-resource-select .calendar-resourcebook-content-block-control-delete {
 	width: 25px;
 }
@@ -596,6 +600,10 @@
 	display: none;
 }
 
+.menu-popup{
+	overflow: hidden;
+}
+
 .popup-window-resource-select .menu-popup .menu-popup-item {
 	display: -webkit-box;
 	display: -ms-flexbox;
@@ -617,7 +625,7 @@
 	border-radius: 2px;
 	display: inline-block;
 	vertical-align: middle;
-	margin-right: 8px;
+	margin-right: 5px;
 }
 
 #menu-popup-popup-submenu-time-state-scale .menu-popup-item-text:before,
@@ -667,6 +675,7 @@ input[type="checkbox"]:checked + .menu-popup-item-text:before {
 .popup-window-resource-select input[type="radio"] + .menu-popup-item-text:before {
 	border-color: #afafaf;
 	border-radius: 50%;
+	margin-right: 5px;
 }
 
 input[type="radio"]:checked + .menu-popup-item-text:before {
@@ -2232,6 +2241,11 @@ input.calendar-resbook-webform-settings-popup-field-subtitle-text {
 
 .calendar-resbook-webform-wrapper-form .calendar-resbook-webform-block-date-item-select .calendar-resbook-webform-block-date-item-inner {
 	border-color: transparent;
+}
+
+.calendar-resbook-form-popup {
+	max-height: 350px;
+	overflow: auto;
 }
 
 .calendar-resbook-form-popup .menu-popup-item-text {

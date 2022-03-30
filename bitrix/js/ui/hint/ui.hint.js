@@ -24,6 +24,7 @@
 	function Manager (parameters)
 	{
 		parameters = parameters || {};
+		this.id = 'ui-hint-popup-' + (+new Date());
 		if (parameters.attributeName)
 		{
 			this.attributeName = parameters.attributeName;
@@ -71,6 +72,7 @@
 		className: 'ui-hint',
 		classNameIcon: 'ui-hint-icon',
 		classNameContent: 'ui-hint-content',
+		classNamePopup: 'ui-hint-popup',
 		popup: null,
 		content: null,
 		popupParameters: null,
@@ -203,12 +205,23 @@
 					};
 					*/
 				}
-				if (typeof parameters.content  === "undefined")
+
+				if (typeof parameters.animation  === "undefined")
+				{
+					parameters.animation = "fading-slide";
+				}
+
+				if (typeof parameters.content === "undefined")
 				{
 					parameters.content = this.content;
 				}
 
-				this.popup = new BX.PopupWindow('ui-hint-popup', anchorNode, parameters);
+				if (typeof parameters.className === "undefined")
+				{
+					parameters.className = this.classNamePopup;
+				}
+				
+				this.popup = new BX.PopupWindow(this.id, anchorNode, parameters);
 			}
 
 			this.content.innerHTML = html;

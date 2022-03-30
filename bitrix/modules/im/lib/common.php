@@ -23,7 +23,7 @@ class Common
 		return $schema."://".$domain;
 	}
 
-	public static function objectEncode($params)
+	public static function objectEncode($params, $pureJson = false)
 	{
 		if (is_array($params))
 		{
@@ -40,7 +40,18 @@ class Common
 			});
 		}
 
-		return \CUtil::PhpToJSObject($params);
+		return $pureJson? self::jsonEncode($params): \CUtil::PhpToJSObject($params);
+	}
+
+	public static function jsonEncode($array = [])
+	{
+		$option = null;
+		if (\Bitrix\Main\Application::isUtfMode())
+		{
+			$option = JSON_UNESCAPED_UNICODE;
+		}
+
+		return \Bitrix\Main\Web\Json::encode($array, $option);
 	}
 
 	public static function getCacheUserPostfix($id)
@@ -50,12 +61,12 @@ class Common
 
 	public static function isChatId($id)
 	{
-		return $id && preg_match('/^chat[0-9]{1,}$/i', $id);
+		return $id && preg_match('/^(chat|sg|crm)[0-9]{1,}$/i', $id);
 	}
 
 	public static function isDialogId($id)
 	{
-		return $id && preg_match('/^([0-9]{1,}|chat[0-9]{1,})$/i', $id);
+		return $id && preg_match('/^([0-9]{1,}|(chat|sg|crm)[0-9]{1,})$/i', $id);
 	}
 
 	public static function getUserId($userId = null)
@@ -105,6 +116,11 @@ class Common
 		}
 
 		return $result;
+	}
+
+	public static function getExternalAuthId($skipTypes = [])
+	{
+		return \Bitrix\Im\Model\UserTable::filterExternalUserTypes($skipTypes);
 	}
 
 	public static function getPullExtra()

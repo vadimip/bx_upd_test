@@ -64,7 +64,39 @@ class HandlerService extends BaseService
 
 		if (empty($params['SETTINGS']['CALCULATE_URL']))
 		{
-			throw new RestException('Parameter SETTINGS[CALCULATE_URL] is not defined', self::ERROR_CHECK_FAILURE);
+			throw new RestException(
+				'Parameter SETTINGS[CALCULATE_URL] is not defined',
+				self::ERROR_CHECK_FAILURE
+			);
+		}
+		elseif (!is_string($params['SETTINGS']['CALCULATE_URL']))
+		{
+			throw new RestException(
+				'Parameter SETTINGS[CALCULATE_URL] must be of string type',
+				self::ERROR_CHECK_FAILURE
+			);
+		}
+
+		if (
+			!empty($params['SETTINGS']['CREATE_DELIVERY_REQUEST_URL'])
+			&& !is_string($params['SETTINGS']['CREATE_DELIVERY_REQUEST_URL'])
+		)
+		{
+			throw new RestException(
+				'Parameter SETTINGS[CREATE_DELIVERY_REQUEST_URL] must be of string type',
+				self::ERROR_CHECK_FAILURE
+			);
+		}
+
+		if (
+			!empty($params['SETTINGS']['CANCEL_DELIVERY_REQUEST_URL'])
+			&& !is_string($params['SETTINGS']['CANCEL_DELIVERY_REQUEST_URL'])
+		)
+		{
+			throw new RestException(
+				'Parameter SETTINGS[CANCEL_DELIVERY_REQUEST_URL] must be of string type',
+				self::ERROR_CHECK_FAILURE
+			);
 		}
 
 		if (empty($params['SETTINGS']['CONFIG']) || !is_array($params['SETTINGS']['CONFIG']))
@@ -90,10 +122,8 @@ class HandlerService extends BaseService
 
 	/**
 	 * @param array $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	private static function checkParamsOnUpdateHandler(array $params): void
 	{
@@ -119,16 +149,14 @@ class HandlerService extends BaseService
 
 		if ($params['APP_ID'] && !empty($deliveryRestHandler['APP_ID']) && $deliveryRestHandler['APP_ID'] !== $params['APP_ID'])
 		{
-			throw new RestException('Access denied', self::ERROR_HANDLER_UPDATE);
+			throw new AccessException();
 		}
 	}
 
 	/**
 	 * @param $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	private static function checkParamsOnDeleteHandler($params): void
 	{
@@ -149,7 +177,7 @@ class HandlerService extends BaseService
 
 		if ($params['APP_ID'] && !empty($deliveryRestHandler['APP_ID']) && $deliveryRestHandler['APP_ID'] !== $params['APP_ID'])
 		{
-			throw new RestException('Access denied', self::ERROR_HANDLER_DELETE);
+			throw new AccessException();
 		}
 
 		$deliveryListResult = Sale\Delivery\Services\Manager::getList([
@@ -181,11 +209,6 @@ class HandlerService extends BaseService
 	 * @param $n
 	 * @param \CRestServer $server
 	 * @return array|false|int
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
 	public static function addHandler($query, $n, \CRestServer $server)
@@ -219,11 +242,6 @@ class HandlerService extends BaseService
 	 * @param $n
 	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
 	public static function updateHandler($query, $n, \CRestServer $server): bool
@@ -248,11 +266,6 @@ class HandlerService extends BaseService
 	 * @param $n
 	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
 	public static function deleteHandler($query, $n, \CRestServer $server): bool
@@ -277,15 +290,10 @@ class HandlerService extends BaseService
 	 * @param $n
 	 * @param \CRestServer $server
 	 * @return array
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 */
 	public static function getHandlerList($query, $n, \CRestServer $server): array
 	{
 		self::checkDeliveryPermission();
-		return Sale\Delivery\Services\Manager::getRestHandlerList() ?? [];
+		return array_values(Sale\Delivery\Services\Manager::getRestHandlerList());
 	}
 }

@@ -259,6 +259,7 @@ class Site
 
 		if (isset($ratio['LANDING']))
 		{
+			\Bitrix\Landing\Rights::setGlobalOff();
 			$siteType = $ratio['LANDING']['TYPE'];
 			$siteId = $ratio['LANDING']['SITE_ID'];
 			$blocks = $ratio['LANDING']['BLOCKS'];
@@ -347,11 +348,11 @@ class Site
 				$landings = array_reverse($landings, true);
 				foreach ($blocks as $oldId => $newId)
 				{
-					$replace['#block' . $oldId] = '#block' . $newId;
+					$replace['/#block' . $oldId . '([^\d]{1})/'] = '#block' . $newId . '$1';
 				}
 				foreach ($landings as $oldId => $newId)
 				{
-					$replace['#landing' . $oldId] = '#landing' . $newId;
+					$replace['/#landing' . $oldId . '([^\d]{1})/'] = '#landing' . $newId . '$1';
 				}
 
 				$res = BlockTable::getList([
@@ -366,10 +367,11 @@ class Site
 				while ($row = $res->fetch())
 				{
 					$count = 0;
-					$row['CONTENT'] = str_replace(
+					$row['CONTENT'] = preg_replace(
 						array_keys($replace),
 						array_values($replace),
 						$row['CONTENT'],
+						-1,
 						$count
 					);
 					if ($count)
@@ -401,6 +403,8 @@ class Site
 				}
 			}
 
+			\Bitrix\Landing\Rights::setGlobalOn();
+
 			return [
 				'CREATE_DOM_LIST' => [
 					[
@@ -416,8 +420,15 @@ class Site
 						]
 					]
 				],
+				'ADDITIONAL' => [
+					'id' => $siteId,
+					'publicUrl' => \Bitrix\Landing\Site::getPublicUrl($siteId),
+					'imageUrl' => \Bitrix\Landing\Site::getPreview($siteId)
+				]
 			];
 		}
+
+		\Bitrix\Landing\Rights::setGlobalOn();
 
 		return [];
 	}

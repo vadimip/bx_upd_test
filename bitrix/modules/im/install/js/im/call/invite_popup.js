@@ -16,6 +16,7 @@
 		this.idleUsers = config.idleUsers || [];
 		this.recentUsers = [];
 		this.bindElement = config.bindElement;
+		this.viewElement = config.viewElement || document.body;
 
 		this.allowNewUsers = config.allowNewUsers;
 
@@ -83,9 +84,10 @@
 			var self = this;
 
 			this.popup = new BX.PopupWindow('bx-call-popup-invite', this.bindElement, {
+				targetContainer: this.viewElement,
 				zIndex: this.zIndex,
 				lightShadow : true,
-				darkMode: BXIM.settings.enableDarkTheme,
+				darkMode: BX.MessengerTheme.isDark(),
 				autoHide: true,
 				closeByEsc: true,
 				content: this.elements.root,
@@ -226,7 +228,7 @@
 
 					self.searchResult = self.searchResult.concat(result);
 					self.searchTotalCount = self.searchResult.length;
-					
+
 					resolve(result);
 				});
 			})
@@ -380,60 +382,19 @@
 
 		renderUser: function(userData)
 		{
-			var description = userData.work_position;
-			var avatarNode;
-			var result = BX.create("span", {
-				props: {className:"bx-messenger-cl-item"},
-				dataset: {
-					id: userData.id,
-					name: userData.name,
-					status: userData.status,
-					avatar: userData.avatar
-				},
-				events: {
-					click: function(e)
-					{
-						this.setSelectedUser(userData);
-					}.bind(this)
-				},
-				children: [
-					BX.create("span", {
-						props: {className:"bx-messenger-cl-avatar"},
-						children: [
-							avatarNode = BX.create("img", {
-								props: {className:"bx-messenger-cl-avatar-img bx-messenger-cl-avatar-img-default"},
-								style: {
-									backgroundColor: userData.color
-								}
-
-							}),
-							BX.create("span", {
-								props: {className:"bx-messenger-cl-status"}
-							})
-						]
-					}),
-					BX.create("span", {
-						props: {className:"bx-messenger-cl-user"},
-						children: [
-							BX.create("div", {
-								props: {className: "bx-messenger-cl-user-title"},
-								text: userData.name
-							}),
-							BX.create("div", {
-								props: {className: "bx-messenger-cl-user-desc"},
-								text: description
-							}),
-						]
-					})
-				]
+			var element = BX.MessengerCommon.drawContactListElement({
+				'id': userData.id,
+				'data': userData,
+				'showUserLastActivityDate': true,
+				'showLastMessage': false,
+				'showCounter': false,
 			});
 
-			if(userData.avatar)
-			{
-				avatarNode.src = userData.avatar;
-			}
+			BX.bind(element, 'click', function (){
+				this.setSelectedUser(userData);
+			}.bind(this));
 
-			return result;
+			return element;
 		},
 
 		renderDestinationUser: function(userData)

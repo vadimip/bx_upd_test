@@ -1,5 +1,11 @@
-<?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+use Bitrix\Main\Text\Emoji;
 
 if (!CModule::IncludeModule("socialnetwork"))
 {
@@ -64,7 +70,7 @@ $arResult["ALLOW_CREATE_GROUP"] = false;
 if ($GLOBALS["USER"]->IsAuthorized())
 {
 	$arResult["Urls"]["GroupCreate"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP_CREATE"], array("user_id" => $GLOBALS["USER"]->GetID()));
-	$arResult["ALLOW_CREATE_GROUP"] = (CSocNetUser::IsCurrentUserModuleAdmin() || $GLOBALS["APPLICATION"]->GetGroupRight("socialnetwork", false, "Y", "Y", array(SITE_ID, false)) >= "K");
+	$arResult["ALLOW_CREATE_GROUP"] = \Bitrix\Socialnetwork\Helper\Workgroup::canCreate();
 }
 
 $arResult["SEARCH_RESULT"] = Array();
@@ -150,7 +156,7 @@ else
 	if ($arParams["SUBJECT_ID"] > 0)
 	{
 		$arFilterTmp["SUBJECT_ID"] = $arParams["SUBJECT_ID"];
-		
+
 		$arCurrentSubject = CSocNetGroupSubject::GetByID($arParams["SUBJECT_ID"]);
 		if ($arCurrentSubject && $arParams["SET_TITLE"] == "Y")
 			$APPLICATION->SetTitle($arCurrentSubject["NAME"]);
@@ -178,6 +184,15 @@ else
 
 	while ($arGroup = $dbGroups->GetNext())
 	{
+		if (!empty($arGroup['NAME']))
+		{
+			$arGroup['NAME'] = Emoji::decode($arGroup['NAME']);
+		}
+		if (!empty($arGroup['DESCRIPTION']))
+		{
+			$arGroup['DESCRIPTION'] = Emoji::decode($arGroup['DESCRIPTION']);
+		}
+
 		$arGroup["TITLE_FORMATED"] = $arGroup["NAME"];
 		$arGroup["BODY_FORMATED"] = $arGroup["DESCRIPTION"];
 

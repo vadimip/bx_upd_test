@@ -10,6 +10,22 @@ use Bitrix\Main\Localization;
 
 Localization\Loc::loadMessages(__FILE__);
 
+/**
+ * Class MailMessageUidTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_MailMessageUid_Query query()
+ * @method static EO_MailMessageUid_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_MailMessageUid_Result getById($id)
+ * @method static EO_MailMessageUid_Result getList(array $parameters = array())
+ * @method static EO_MailMessageUid_Entity getEntity()
+ * @method static \Bitrix\Mail\EO_MailMessageUid createObject($setDefaultValues = true)
+ * @method static \Bitrix\Mail\EO_MailMessageUid_Collection createCollection()
+ * @method static \Bitrix\Mail\EO_MailMessageUid wakeUpObject($row)
+ * @method static \Bitrix\Mail\EO_MailMessageUid_Collection wakeUpCollection($rows)
+ */
 class MailMessageUidTable extends Entity\DataManager
 {
 	public static function getFilePath()
@@ -164,9 +180,11 @@ class MailMessageUidTable extends Entity\DataManager
 	{
 		$entity = static::getEntity();
 		$connection = $entity->getConnection();
-
-		// @TODO: delete after debag mail
-		$queryToLog = sprintf(
+		$filter = array_merge($filter , [
+			'=DELETE_TIME' => 'IS NULL',
+		]);
+		// @TODO: make a log optional
+		/*$queryToLog = sprintf(
 			'SELECT
 				b_mail_message_uid.ID,
 				b_mail_message_uid.MESSAGE_ID,
@@ -220,7 +238,7 @@ class MailMessageUidTable extends Entity\DataManager
 				'removedMessages'=>$messagesForRemove,
 			];
 			AddMessage2Log($toLog);
-		}
+		}*/
 
 		//mark selected messages for deletion if there are no messages in the download queue
 		$query = sprintf(
@@ -375,6 +393,10 @@ class MailMessageUidTable extends Entity\DataManager
 				'data_type' => 'enum',
 				'values'    => array('Y', 'N', 'S', 'U'),
 			),
+			'IS_OLD' => array(
+				'data_type' => 'enum',
+				'values'    => array('Y', 'N', 'D'),
+			),
 			'SESSION_ID' => array(
 				'data_type' => 'string',
 				'required'  => true,
@@ -400,6 +422,7 @@ class MailMessageUidTable extends Entity\DataManager
 			),
 			'DELETE_TIME' => array(
 				'data_type' => 'integer',
+				'default' => 0,
 			),
 		);
 	}

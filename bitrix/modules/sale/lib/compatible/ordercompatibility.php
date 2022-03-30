@@ -287,7 +287,7 @@ class OrderCompatibility extends Internals\EntityCompatibility
 		{
 			$filter = array(
 				'filter' => array(
-					'ACCOUNT_NUMBER' => $fields['ACCOUNT_NUMBER'],
+					'=ACCOUNT_NUMBER' => $fields['ACCOUNT_NUMBER'],
 					'!ID' => $order->getId()
 				),
 				'select' => array('ID')
@@ -363,10 +363,16 @@ class OrderCompatibility extends Internals\EntityCompatibility
 						{
 							/** @var Services\Base $deliveryService */
 							$deliveryService = Sale\Delivery\Services\Manager::getObjectById($deliveryId);
-							if ($deliveryService->isProfile())
-								$fields['DELIVERY_NAME'] = $deliveryService->getNameWithParent();
+							if ($deliveryService)
+							{
+								$fields['DELIVERY_NAME'] = $deliveryService->isProfile()
+									? $deliveryService->getNameWithParent()
+									: $deliveryService->getName();
+							}
 							else
-								$fields['DELIVERY_NAME'] = $deliveryService->getName();
+							{
+								$fields['DELIVERY_NAME'] = 'Not found [' . $deliveryId . ']';
+							}
 						}
 						else
 						{
@@ -2476,24 +2482,29 @@ class OrderCompatibility extends Internals\EntityCompatibility
 			return $result;
 		}
 
-		/** @var Sale\PaymentCollection $paymentCollection */
-		if ($paymentCollection = $order->getPaymentCollection())
+		/** @var Sale\Payment $payment */
+		foreach ($order->getPaymentCollection() as $payment)
 		{
-			/** @var Sale\Payment $payment */
-			foreach ($paymentCollection as $payment)
+			if ($payment->isPaid())
 			{
-				if ($payment->isPaid())
-				{
-					$payment->setPaid('N');
-				}
+				$payment->setPaid('N');
 			}
-			/** @var Sale\Result $r */
-			$r = $order->save();
-			if (!$r->isSuccess())
+		}
+
+		/** @var Sale\Shipment $shipment */
+		foreach ($order->getShipmentCollection() as $shipment)
+		{
+			if ($shipment->isShipped())
 			{
-				$result->addErrors($r->getErrors());
-				return $result;
+				$shipment->setField('DEDUCTED', 'N');
 			}
+		}
+
+		$r = $order->save();
+		if (!$r->isSuccess())
+		{
+			$result->addErrors($r->getErrors());
+			return $result;
 		}
 
 		try

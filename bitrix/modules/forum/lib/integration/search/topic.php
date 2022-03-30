@@ -1,7 +1,7 @@
 <?
 namespace Bitrix\Forum\Integration\Search;
-use Bitrix\Disk\Internals\DeletedLogManager;
-use Bitrix\Forum\MessageTable;
+
+use Bitrix\Forum;
 use Bitrix\Main\Config\Option;
 
 class Topic extends \Bitrix\Main\Update\Stepper
@@ -18,7 +18,7 @@ class Topic extends \Bitrix\Main\Update\Stepper
 	function execute(array &$option)
 	{
 		$res = Option::get("forum", "search.reindex.topic", "");
-		$res = empty($res) ? [] : unserialize($res);
+		$res = empty($res) ? [] : unserialize($res, ["allowed_classes" => false]);
 		if (empty($res) || !is_array($res) || !\Bitrix\Main\Loader::includeModule("search"))
 		{
 			return self::FINISH_EXECUTION;
@@ -103,7 +103,7 @@ class Topic extends \Bitrix\Main\Update\Stepper
 	{
 		$res = Option::get("forum", "search.reindex.topic", "");
 		if (!empty($res))
-			$res = unserialize($res);
+			$res = unserialize($res, ["allowed_classes" => false]);
 		$res = is_array($res) ? $res : [];
 		$res[$topicId] = [
 			"reindexFirst" => true
@@ -116,10 +116,18 @@ class Topic extends \Bitrix\Main\Update\Stepper
 	{
 		$res = Option::get("forum", "search.reindex.topic", "");
 		if (!empty($res))
-			$res = unserialize($res);
+			$res = unserialize($res, ["allowed_classes" => false]);
 		$res = is_array($res) ? $res : [];
 		$res[$topicId] = [];
 		Option::set("forum", "search.reindex.topic", serialize($res));
 		static::bind(0);
+	}
+
+	public static function deleteIndex(Forum\Topic $topic)
+	{
+		if (IsModuleInstalled('search') && \CModule::IncludeModule('search'))
+		{
+			\CSearch::DeleteIndex('forum', false, $topic["FORUM_ID"], $topic['ID']);
+		}
 	}
 }

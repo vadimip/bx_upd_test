@@ -1,4 +1,12 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+use Bitrix\Socialnetwork\ComponentHelper;
+
 /** @var CBitrixComponentTemplate $this */
 /** @var array $arParams */
 /** @var array $arResult */
@@ -10,8 +18,7 @@ $pageId = "group_requests";
 include("util_group_menu.php");
 include("util_group_profile.php");
 
-$componentParameters = array(
-	"MODE" => "IN",
+$componentParameters = [
 	"PATH_TO_USER" => $arParams["PATH_TO_USER"],
 	"PATH_TO_GROUP" => $arResult["PATH_TO_GROUP"],
 	"PATH_TO_GROUP_EDIT" => $arResult["PATH_TO_GROUP_EDIT"],
@@ -32,26 +39,31 @@ $componentParameters = array(
 	"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
 	"SHOW_LOGIN" => $arParams["SHOW_LOGIN"],
 	"CACHE_TYPE" => $arParams["CACHE_TYPE"],
-	"CACHE_TIME" => $arParams["CACHE_TIME"]
+	"CACHE_TIME" => $arParams["CACHE_TIME"],
+	'MODE' => 'IN', //
+	'FILTER_ID' => 'SOCIALNETWORK_WORKGROUP_REQUESTS_IN_LIST',
+];
+/*
+$APPLICATION->IncludeComponent(
+	'bitrix:socialnetwork.group.card.menu',
+	'',
+	[
+		'GROUP_ID' => $arResult['VARIABLES']['group_id'],
+		'TAB' => 'requests-in',
+		'URLS' => ComponentHelper::getWorkgroupSliderMenuUrlList($arResult),
+		'SIGNED_PARAMETERS' => ComponentHelper::listWorkgroupSliderMenuSignedParameters($componentParameters),
+	]
 );
+*/
+// todo: bitrix:socialnetwork.group.user.list
 
-if ($_REQUEST['IFRAME'] == 'Y')
-{
-	$APPLICATION->IncludeComponent(
-		"bitrix:socialnetwork.pageslider.wrapper",
-		"",
-		array(
-			'POPUP_COMPONENT_NAME' => "bitrix:socialnetwork.group_requests.ex",
-			"POPUP_COMPONENT_TEMPLATE_NAME" => "",
-			"POPUP_COMPONENT_PARAMS" => $componentParameters,
-		)
-	);
-}
-else
-{
-	$APPLICATION->IncludeComponent(
-		"bitrix:socialnetwork.group_requests.ex",
-		"",
-		$componentParameters
-	);
-}
+$APPLICATION->IncludeComponent(
+	'bitrix:ui.sidepanel.wrapper',
+	'',
+	[
+		'POPUP_COMPONENT_NAME' => 'bitrix:socialnetwork.group_requests.ex',
+		'POPUP_COMPONENT_TEMPLATE_NAME' => '',
+		'POPUP_COMPONENT_PARAMS' => $componentParameters,
+		'USE_UI_TOOLBAR' => 'Y',
+	]
+);

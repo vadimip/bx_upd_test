@@ -11,7 +11,6 @@ use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\Data;
 use Bitrix\Main\DI\ServiceLocator;
 use Bitrix\Main\Diag;
-use Bitrix\Main\IO;
 use Bitrix\Main\Routing\Route;
 use Bitrix\Main\Routing\Router;
 use Bitrix\Main\Session\CompositeSessionManager;
@@ -242,9 +241,11 @@ abstract class Application
 
 			//it's possible to have open buffers
 			$content = '';
-			while(($c = ob_get_clean()) !== false)
+			$n = ob_get_level();
+			while(($c = ob_get_clean()) !== false && $n > 0)
 			{
 				$content .= $c;
+				$n--;
 			}
 
 			if($content <> '')
@@ -280,24 +281,23 @@ abstract class Application
 	 */
 	public function terminate($status = 0)
 	{
-		global $DB;
-
 		//old kernel staff
 		\CMain::RunFinalActionsInternal();
 
 		//Release session
 		session_write_close();
 
-		$this->getConnectionPool()->useMasterOnly(true);
+		$pool = $this->getConnectionPool();
+
+		$pool->useMasterOnly(true);
 
 		$this->runBackgroundJobs();
 
-		$this->getConnectionPool()->useMasterOnly(false);
+		$pool->useMasterOnly(false);
 
 		Data\ManagedCache::finalize();
 
-		//todo: migrate to the d7 connection
-		$DB->Disconnect();
+		$pool->disconnect();
 
 		exit($status);
 	}
@@ -365,8 +365,11 @@ abstract class Application
 	public function createExceptionHandlerLog()
 	{
 		$exceptionHandling = Config\Configuration::getValue("exception_handling");
-		if ($exceptionHandling === null || !is_array($exceptionHandling) || !isset($exceptionHandling["log"]) || !is_array($exceptionHandling["log"]))
+
+		if (!is_array($exceptionHandling) || !isset($exceptionHandling["log"]) || !is_array($exceptionHandling["log"]))
+		{
 			return null;
+		}
 
 		$options = $exceptionHandling["log"];
 
@@ -375,14 +378,20 @@ abstract class Application
 		if (isset($options["class_name"]) && !empty($options["class_name"]))
 		{
 			if (isset($options["extension"]) && !empty($options["extension"]) && !extension_loaded($options["extension"]))
+			{
 				return null;
+			}
 
 			if (isset($options["required_file"]) && !empty($options["required_file"]) && ($requiredFile = Loader::getLocal($options["required_file"])) !== false)
+			{
 				require_once($requiredFile);
+			}
 
 			$className = $options["class_name"];
 			if (!class_exists($className))
+			{
 				return null;
+			}
 
 			$log = new $className();
 		}

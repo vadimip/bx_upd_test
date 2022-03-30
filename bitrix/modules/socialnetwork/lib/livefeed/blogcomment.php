@@ -1,28 +1,28 @@
 <?php
+
 namespace Bitrix\Socialnetwork\Livefeed;
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Config\Option;
 
 Loc::loadMessages(__FILE__);
 
 final class BlogComment extends Provider
 {
-	const PROVIDER_ID = 'BLOG_COMMENT';
-	const CONTENT_TYPE_ID = 'BLOG_COMMENT';
+	public const PROVIDER_ID = 'BLOG_COMMENT';
+	public const CONTENT_TYPE_ID = 'BLOG_COMMENT';
 
-	public static function getId()
+	public static function getId(): string
 	{
 		return static::PROVIDER_ID;
 	}
 
-	public function getEventId()
+	public function getEventId(): array
 	{
-		return array('blog_comment', 'blog_comment_micro');
+		return [ 'blog_comment', 'blog_comment_micro' ];
 	}
 
-	public function getType()
+	public function getType(): string
 	{
 		return Provider::TYPE_COMMENT;
 	}
@@ -46,7 +46,7 @@ final class BlogComment extends Provider
 				array("ID", "BLOG_ID", "POST_ID", "PARENT_ID", "AUTHOR_ID", "AUTHOR_NAME", "AUTHOR_EMAIL", "AUTHOR_IP", "AUTHOR_IP1", "TITLE", "POST_TEXT", "SHARE_DEST")
 			);
 
-			if ($comment = $res->fetch($commentId))
+			if ($comment = $res->fetch())
 			{
 				$res = \CBlogPost::getList(
 					array(),
@@ -71,11 +71,8 @@ final class BlogComment extends Provider
 					$this->setSourceDescription(htmlspecialcharsback($comment['POST_TEXT']));
 
 					$title = htmlspecialcharsback($comment['POST_TEXT']);
-					$title = preg_replace(
-						"/\[USER\s*=\s*([^\]]*)\](.+?)\[\/USER\]/is".BX_UTF_PCRE_MODIFIER,
-						"\\2",
-						$title
-					);
+					$title = \Bitrix\Socialnetwork\Helper\Mention::clear($title);
+
 					$p = new \blogTextParser();
 					$title = $p->convert($title, false);
 					$title = preg_replace([
@@ -86,7 +83,7 @@ final class BlogComment extends Provider
 
 					$this->setSourceTitle(truncateText($title, 100));
 					$this->setSourceAttachedDiskObjects($this->getAttachedDiskObjects());
-					$this->setSourceDiskObjects(self::getDiskObjects($commentId, $this->cloneDiskObjects));
+					$this->setSourceDiskObjects($this->getDiskObjects($commentId, $this->cloneDiskObjects));
 					$this->setSourceOriginalText($comment['POST_TEXT']);
 					$this->setSourceAuxData($comment);
 				}
@@ -96,45 +93,16 @@ final class BlogComment extends Provider
 
 	protected function getAttachedDiskObjects($clone = false)
 	{
-		global $USER_FIELD_MANAGER;
-		static $cache = array();
-
-		$commentId = $this->entityId;
-
-		$result = array();
-		$cacheKey = $commentId.$clone;
-
-		if (isset($cache[$cacheKey]))
-		{
-			$result = $cache[$cacheKey];
-		}
-		else
-		{
-			$commentUF = $USER_FIELD_MANAGER->getUserFields("BLOG_COMMENT", $commentId, LANGUAGE_ID);
-			if (
-				!empty($commentUF['UF_BLOG_COMMENT_FILE'])
-				&& !empty($commentUF['UF_BLOG_COMMENT_FILE']['VALUE'])
-				&& is_array($commentUF['UF_BLOG_COMMENT_FILE']['VALUE'])
-			)
-			{
-				if ($clone)
-				{
-					$this->attachedDiskObjectsCloned = self::cloneUfValues($commentUF['UF_BLOG_COMMENT_FILE']['VALUE']);
-					$result = $cache[$cacheKey] = array_values($this->attachedDiskObjectsCloned);
-				}
-				else
-				{
-					$result = $cache[$cacheKey] = $commentUF['UF_BLOG_COMMENT_FILE']['VALUE'];
-				}
-			}
-		}
-
-		return $result;
+		return $this->getEntityAttachedDiskObjects([
+			'userFieldEntity' => 'BLOG_COMMENT',
+			'userFieldCode' => 'UF_BLOG_COMMENT_FILE',
+			'clone' => $clone,
+		]);
 	}
 
-	public function getLiveFeedUrl()
+	public function getLiveFeedUrl(): string
 	{
-		$pathToPost = Option::get('socialnetwork', 'userblogpost_page', '', $this->getSiteId());
+		$pathToPost = \Bitrix\Socialnetwork\Helper\Path::get('userblogpost_page', $this->getSiteId());
 
 		if (
 			!empty($pathToPost)
@@ -149,7 +117,7 @@ final class BlogComment extends Provider
 		return $pathToPost;
 	}
 
-	public function getSuffix()
+	public function getSuffix(): string
 	{
 		return '2';
 	}

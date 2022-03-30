@@ -1,6 +1,7 @@
 <?php
 use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Security;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -129,6 +130,20 @@ class CRestUtil
 			return true;
 		}
 
+		if (
+			is_array($appInfo)
+			&& $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION
+			&& !empty($appInfo['MANIFEST']['CODE'])
+		)
+		{
+			$access = \Bitrix\Rest\Configuration\Manifest::checkAccess(
+				\Bitrix\Rest\Configuration\Manifest::ACCESS_TYPE_IMPORT,
+				$appInfo['MANIFEST']['CODE']
+			);
+
+			return $access['result'];
+		}
+
 		$hasAccess = $USER->CanAccess(static::getInstallAccessList());
 		if($hasAccess && is_array($appInfo))
 		{
@@ -203,7 +218,7 @@ class CRestUtil
 
 	public static function signLicenseRequest(array $request, $licenseKey)
 	{
-		if(Loader::includeModule('bitrix24'))
+		if(Loader::includeModule('bitrix24') && defined('BX24_HOST_NAME'))
 		{
 			$request['BX_TYPE'] = 'B24';
 			$request['BX_LICENCE'] = BX24_HOST_NAME;
@@ -575,7 +590,7 @@ class CRestUtil
 			{
 				if($fileName == '')
 				{
-					$fileName = md5(mt_rand());
+					$fileName = Security\Random::getString(32);
 				}
 				else
 				{
@@ -648,6 +663,7 @@ class CRestUtil
 			try
 			{
 				\Bitrix\Rest\OAuthService::register();
+				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
 			}
 			catch(\Bitrix\Main\SystemException $e)
 			{
@@ -786,33 +802,12 @@ class CRestUtil
 		CUserOptions::DeleteOption("app_options", "params_".$arApp['APP_ID']."_".$arApp['VERSION']);
 	}
 
+	/**
+	 * @deprecated
+	 */
 	public static function getScopeList(array $description = null)
 	{
-		if($description == null)
-		{
-			$provider = new \CRestProvider();
-			$description = $provider->getDescription();
-		}
-
-		unset($description[\CRestUtil::GLOBAL_SCOPE]);
-
-		$scopeList = array_keys($description);
-
-		$installedModuleList = ModuleManager::getInstalledModules();
-		foreach($installedModuleList as $moduleId => $moduleDescription)
-		{
-			if(!isset($description[$moduleId]))
-			{
-				$controllersConfig = \Bitrix\Main\Config\Configuration::getInstance($moduleId);
-
-				if(!empty($controllersConfig['controllers']['restIntegration']['enabled']))
-				{
-					$scopeList[] = \Bitrix\Rest\Engine\RestManager::getModuleScopeAlias($moduleId);
-				}
-			}
-		}
-
-		return array_unique($scopeList);
+		return \Bitrix\Rest\Engine\ScopeManager::getInstance()->listScope();
 	}
 
 	public static function getEventList(array $description = null)
